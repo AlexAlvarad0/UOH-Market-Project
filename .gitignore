@@ -1,0 +1,60 @@
+# Django
+.qodo
+.venv
+venv/
+env/
+ENV/
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+db.sqlite3
+db.sqlite3-journal
+media/
+static/
+staticfiles/
+local_settings.py
+
+# Django migrations (opcional)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Python
+*.log
+*.pot
+*.pyc
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# React / Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+build/
+dist/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Entornos y configuración
+.env
+.venv/
+env/
+venv/
+ENV/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini

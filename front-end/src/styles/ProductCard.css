@@ -1,0 +1,278 @@
+.product-image-container {
+    position: relative;
+    width: 100%;
+    height: 220px; /* Ajustar para coincidir con imageHeight */
+    overflow: hidden;
+    background-color: #ffffff;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+  }
+  
+  .product-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .product-card {
+    height: 100% !important; /* Asegurarse de que la tarjeta ocupe el 100% de la altura del contenedor */
+    width: 100% !important;  /* Corregir "weight" a "width" */
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease;
+    margin-bottom: 16px; /* Agregar margen inferior */
+  }
+  
+  .product-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .product-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    height: calc(100% - 200px); /* Resta la altura de la imagen */
+  }
+  
+  .product-title {
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .product-price {
+    font-weight: 700;
+    color: #ffffff;
+    margin-top: auto;
+  }
+  
+  .product-category {
+    color: #9e9e9e;
+    font-size: 0.875rem;
+  }
+  
+  .favorite-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 100%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  
+  /* Estilos para el botón de favoritos */
+  .ui-bookmark {
+    --icon-size: 24px;
+    --icon-secondary-color: rgb(77, 77, 77);
+    --icon-hover-color: rgb(97, 97, 97);
+    --icon-primary-color: rgb(252, 54, 54);
+    --icon-circle-border: 1px solid var(--icon-primary-color);
+    --icon-circle-size: 35px;
+    --icon-anmt-duration: 0.3s;
+  }
+  
+  .ui-bookmark input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    display: none;
+  }
+  
+  .ui-bookmark .bookmark {
+    width: var(--icon-size);
+    height: auto;
+    fill: var(--icon-secondary-color);
+    cursor: pointer;
+    -webkit-transition: 0.2s;
+    -o-transition: 0.2s;
+    transition: 0.2s;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    position: relative;
+    -webkit-transform-origin: top;
+    -ms-transform-origin: top;
+    transform-origin: top;
+  }
+  
+  .bookmark::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    -webkit-box-shadow: 0 30px 0 -4px var(--icon-primary-color),
+      30px 0 0 -4px var(--icon-primary-color),
+      0 -30px 0 -4px var(--icon-primary-color),
+      -30px 0 0 -4px var(--icon-primary-color),
+      -22px 22px 0 -4px var(--icon-primary-color),
+      -22px -22px 0 -4px var(--icon-primary-color),
+      22px -22px 0 -4px var(--icon-primary-color),
+      22px 22px 0 -4px var(--icon-primary-color);
+    box-shadow: 0 30px 0 -4px var(--icon-primary-color),
+      30px 0 0 -4px var(--icon-primary-color),
+      0 -30px 0 -4px var(--icon-primary-color),
+      -30px 0 0 -4px var(--icon-primary-color),
+      -22px 22px 0 -4px var(--icon-primary-color),
+      -22px -22px 0 -4px var(--icon-primary-color),
+      22px -22px 0 -4px var(--icon-primary-color),
+      22px 22px 0 -4px var(--icon-primary-color);
+    border-radius: 50%;
+    -webkit-transform: scale(0);
+    -ms-transform: scale(0);
+    transform: scale(0);
+    padding: 1px;
+  }
+  
+  .bookmark::before {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    border: var(--icon-circle-border);
+    opacity: 0;
+  }
+  
+  /* actions */
+  
+  .ui-bookmark:hover .bookmark {
+    fill: var(--icon-hover-color);
+  }
+  
+  .ui-bookmark input:checked + .bookmark::after {
+    -webkit-animation: circles var(--icon-anmt-duration)
+      cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: circles var(--icon-anmt-duration)
+      cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    -webkit-animation-delay: var(--icon-anmt-duration);
+    animation-delay: var(--icon-anmt-duration);
+  }
+  
+  .ui-bookmark input:checked + .bookmark {
+    fill: var(--icon-primary-color);
+    -webkit-animation: bookmark var(--icon-anmt-duration) forwards;
+    animation: bookmark var(--icon-anmt-duration) forwards;
+    -webkit-transition-delay: 0.3s;
+    -o-transition-delay: 0.3s;
+    transition-delay: 0.3s;
+  }
+  
+  .ui-bookmark input:checked + .bookmark::before {
+    -webkit-animation: circle var(--icon-anmt-duration)
+      cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: circle var(--icon-anmt-duration)
+      cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    -webkit-animation-delay: var(--icon-anmt-duration);
+    animation-delay: var(--icon-anmt-duration);
+  }
+  
+  @-webkit-keyframes bookmark {
+    50% {
+      -webkit-transform: scaleY(0.6);
+      transform: scaleY(0.6);
+    }
+  
+    100% {
+      -webkit-transform: scaleY(1);
+      transform: scaleY(1);
+    }
+  }
+  
+  @keyframes bookmark {
+    50% {
+      -webkit-transform: scaleY(0.6);
+      transform: scaleY(0.6);
+    }
+  
+    100% {
+      -webkit-transform: scaleY(1);
+      transform: scaleY(1);
+    }
+  }
+  
+  @-webkit-keyframes circle {
+    from {
+      width: 0;
+      height: 0;
+      opacity: 0;
+    }
+  
+    90% {
+      width: var(--icon-circle-size);
+      height: var(--icon-circle-size);
+      opacity: 1;
+    }
+  
+    to {
+      opacity: 0;
+    }
+  }
+  
+  @keyframes circle {
+    from {
+      width: 0;
+      height: 0;
+      opacity: 0;
+    }
+  
+    90% {
+      width: var(--icon-circle-size);
+      height: var(--icon-circle-size);
+      opacity: 1;
+    }
+  
+    to {
+      opacity: 0;
+    }
+  }
+  
+  @-webkit-keyframes circles {
+    from {
+      -webkit-transform: scale(0);
+      transform: scale(0);
+    }
+  
+    40% {
+      opacity: 1;
+    }
+  
+    to {
+      -webkit-transform: scale(0.8);
+      transform: scale(0.8);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes circles {
+    from {
+      -webkit-transform: scale(0);
+      transform: scale(0);
+    }
+  
+    40% {
+      opacity: 1;
+    }
+  
+    to {
+      -webkit-transform: scale(0.8);
+      transform: scale(0.8);
+      opacity: 0;
+    }
+  }

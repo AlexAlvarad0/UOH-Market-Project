@@ -1,0 +1,640 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #f6f5f7;
+  font-family: 'Montserrat', sans-serif;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100%;
+}
+
+h1 {
+  font-weight: bold;
+  margin: 0;
+}
+
+h2 {
+  text-align: center;
+}
+
+p {
+  font-size: 14px;
+  font-weight: 100;
+  line-height: 20px;
+  letter-spacing: 0.5px;
+  margin: 20px 0 30px;
+}
+
+span {
+  font-size: 12px;
+}
+
+a {
+  color: #333;
+  font-size: 14px;
+  text-decoration: none;
+  margin: 15px 0;
+}
+
+button {
+  border-radius: 10px;
+  border: 1px solid #004f9e;
+  background-color: #111;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 12px 100px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: transform 80ms ease-in;
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+button:focus {
+  outline: none;
+}
+
+button.ghost {
+  background-color: transparent;
+  border-color: #FFFFFF;
+}
+
+form {
+  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 0 50px;
+  height: 100%;
+  text-align: center;
+}
+
+.form-container input {
+  background-color: #eee;
+  border: none;
+  padding: 12px 15px;
+  margin: 8px 0;
+  width: 100%;
+  border-radius: 8px; /* Añadido para consistencia con los contenedores de input */
+}
+
+.container {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 14px 28px rgba(0,0,0,0.25), 
+        0 10px 10px rgba(0,0,0,0.22);
+  position: relative;
+  overflow: hidden;
+  width: 70%; /* Reducido del 100% original */
+  max-width: 1150px; 
+  min-height: 620px; 
+  margin: 0 auto; /* Centrado horizontal */
+  transform: translateY(15vh); /* Ajustar posición vertical si es necesario */
+}
+
+.form-container {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transition: all 0.6s ease-in-out;
+}
+
+.sign-in-container {
+  left: 0;
+  width: 50%;
+  z-index: 2;
+}
+
+.container.right-panel-active .sign-in-container {
+  transform: translateX(100%);
+}
+
+.sign-up-container {
+  left: 0;
+  width: 50%;
+  opacity: 0;
+  z-index: 1;
+}
+
+.container.right-panel-active .sign-up-container {
+  transform: translateX(100%);
+  opacity: 1;
+  z-index: 5;
+  animation: show 0.6s;
+}
+
+@keyframes show {
+  0%, 49.99% {
+    opacity: 0;
+    z-index: 1;
+  }
+  
+  50%, 100% {
+    opacity: 1;
+    z-index: 5;
+  }
+}
+
+.overlay-container {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  transition: transform 0.6s ease-in-out;
+  z-index: 100;
+}
+
+.container.right-panel-active .overlay-container{
+  transform: translateX(-100%);
+}
+
+.overlay {
+  background: #0077CC;
+  background: -webkit-linear-gradient(to right, #004f9e, #0077CC);
+  background: linear-gradient(to right, #004f9e, #0077CC);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: 0 0;
+  color: #FFFFFF;
+  position: relative;
+  left: -100%;
+  height: 100%;
+  width: 200%;
+  transform: translateX(0);
+  transition: transform 0.6s ease-in-out;
+}
+
+.container.right-panel-active .overlay {
+  transform: translateX(50%);
+}
+
+.overlay-panel {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 0 40px;
+  text-align: center;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  transform: translateX(0);
+  transition: transform 0.6s ease-in-out;
+}
+
+.overlay-left {
+  transform: translateX(-20%);
+}
+
+.container.right-panel-active .overlay-left {
+  transform: translateX(0);
+}
+
+.overlay-right {
+  right: 0;
+  transform: translateX(0);
+}
+
+.container.right-panel-active .overlay-right {
+  transform: translateX(20%);
+}
+
+.social-container {
+  margin: 20px 0;
+}
+
+.social-container a {
+  border: 1px solid #DDDDDD;
+  border-radius: 50%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 5px;
+  height: 40px;
+  width: 40px;
+}
+
+footer {
+  background-color: #222;
+  color: #fff;
+  font-size: 14px;
+  bottom: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 999;
+}
+
+footer p {
+  margin: 10px 0;
+}
+
+footer i {
+  color: red;
+}
+
+footer a {
+  color: #3c97bf;
+  text-decoration: none;
+}
+
+.error {
+  color: #ff0033;
+  margin: 5px 0;
+  font-size: 12px;
+}
+
+.error-text {
+  color: #ff0033;
+  font-size: 10px;
+  /* Posicionamiento absoluto */
+  position: absolute;
+  bottom: -16px; /* Ajusta este valor según sea necesario (altura del texto + gap) */
+  left: 0;
+  width: 100%;
+  text-align: left; /* Alinear texto a la izquierda */
+  line-height: 1.2;
+}
+
+/* Actualización de los estilos para mejorar la apariencia de los campos de formulario */
+
+.input-container {
+  position: relative; /* Necesario para el posicionamiento absoluto del error */
+  width: 100%;
+  /* Reducir margen inferior para acercar los campos */
+  margin-bottom: 18px; /* Reducido de 25px, debe ser suficiente para el error */
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #666;
+}
+
+.input-container input {
+  width: 100%;
+  padding: 12px;
+  padding-left: 42px !important; /* Mayor espacio para el ícono */
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.password-toggle:hover {
+  color: #333;
+}
+
+/* Si necesitas ajustar el tamaño de los íconos */
+.input-icon svg, .password-toggle svg {
+  font-size: 20px;
+}
+
+/* Para asegurar que los campos tengan altura suficiente */
+.input-container input {
+  min-height: 45px;
+}
+
+/* Ajustes para el formulario de registro en pantallas grandes */
+.sign-up-container form {
+  justify-content: center; /* Centrar verticalmente por defecto */
+}
+
+.sign-up-container h1 {
+  margin-bottom: 15px; /* Ajustar si es necesario */
+}
+
+.sign-up-container .input-container {
+  /* Reducir margen inferior también aquí */
+  margin-bottom: 18px; /* Reducido de 20px, mantener consistencia */
+}
+
+.sign-up-container .register-button {
+  margin-top: 15px; /* Ajustar si es necesario */
+}
+
+/* Estilos para el formulario de registro en columnas */
+.register-columns {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.register-column {
+  width: 100%;
+}
+
+.register-button {
+  margin-top: 0px;
+}
+
+/* Estilos para mensajes de error flotantes */
+.floating-error {
+  position: absolute;
+  background-color: #fff;
+  color: #e74c3c;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #e74c3c;
+  top: -40px;
+  left: 0;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+
+.floating-error::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 15px;
+  width: 10px;
+  height: 10px;
+  background-color: #fff;
+  border-right: 1px solid #e74c3c;
+  border-bottom: 1px solid #e74c3c;
+  transform: rotate(45deg);
+}
+
+/* Estilos para los requisitos de contraseña - Ahora flotante */
+.password-requirements {
+  position: absolute;
+  width: 250px;
+  top: 45px; /* Posicionado justo debajo del campo de contraseña */
+  right: -260px;
+  z-index: 100;
+  margin-top: 5px;
+  font-size: 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.password-requirements::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: -10px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid #ced4da;
+}
+
+.password-requirements::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: -9px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid #f8f9fa;
+}
+
+/* Panel flotante para requisitos de contraseña */
+.password-reqs-floating {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  width: 260px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 12px 16px;
+  z-index: 20;
+  font-size: 13px;
+  color: #222;
+  transition: all 0.2s;
+}
+
+.req-unmet {
+  color: #e74c3c;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.req-met {
+  color: #27ae60;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+@media (max-width: 600px) {
+  .password-reqs-floating {
+    width: 98vw;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    padding: 10px 6px;
+  }
+}
+
+/* Media query para pantallas pequeñas */
+@media (max-width: 768px) {
+  .container {
+    width: 75%;
+    min-height: 750px;
+    height: auto;
+    max-height: 95vh;
+    transform: translateY(5vh);
+    margin-bottom: 2vh;
+  }
+
+  .register-columns {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .register-column {
+    width: 48%; /* Permite que dos columnas encajen con un pequeño espacio entre ellas */
+  }
+
+  .form-container {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    position: absolute;
+  }
+
+  .sign-in-container {
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 2;
+    height: 50%;
+  }
+
+  .sign-up-container {
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  .container.right-panel-active .sign-in-container {
+    transform: translateY(-100%);
+    z-index: 1;
+  }
+
+  .container.right-panel-active .sign-up-container {
+    transform: translateY(0%);
+    opacity: 1;
+    z-index: 5;
+    height: 50%;
+    overflow-y: auto;
+  }
+
+  .container.right-panel-active .sign-up-container form {
+    padding-top: 0px;
+    padding-bottom: 15px;
+  }
+
+  .register-column .input-container {
+    margin-bottom: 8px;
+  }
+
+  .register-column .error-text {
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+  
+  /* Ajustar padding para mejor visualización en móvil */
+  form {
+    padding: 0 20px;
+  }
+
+  /* Hacer botones menos anchos en móvil */
+  button {
+    padding: 10px 50px;
+  }
+  
+  .overlay-container {
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 50%;
+  }
+
+  .container.right-panel-active .overlay-container {
+    transform: translateY(-100%);
+  }
+
+  .overlay {
+    left: 0;
+    top: -100%;
+    height: 200%;
+    width: 100%;
+  }
+
+  .container.right-panel-active .overlay {
+    transform: translateY(50%);
+  }
+
+  .overlay-panel {
+    width: 100%;
+    height: 50%;
+  }
+
+  .overlay-left {
+    top: 0;
+    transform: translateY(-20%);
+  }
+
+  .overlay-right {
+    bottom: 0;
+    top: auto;
+    transform: translateY(0);
+  }
+
+  .container.right-panel-active .overlay-left {
+    transform: translateY(0);
+  }
+
+  .container.right-panel-active .overlay-right {
+    transform: translateY(20%);
+  }
+  
+  /* Ajustes para mensajes flotantes en mobile */
+  .floating-error {
+    font-size: 11px;
+    padding: 5px 10px;
+    white-space: normal;
+    max-width: 200px;
+  }
+  
+  /* Ajuste para el panel de requisitos de contraseña en pantallas pequeñas */
+  .password-requirements {
+    position: absolute;
+    width: 100%;
+    top: 45px;
+    right: 0;
+    left: 0;
+    z-index: 100;
+  }
+
+  .password-requirements::before,
+  .password-requirements::after {
+    display: none;
+  }
+  
+  /* Ajustes para requisitos de contraseña en mobile */
+  .password-requirements {
+    font-size: 11px;
+    padding: 8px;
+  }
+
+  /* Ocultar mensajes de error en rojo en registro para pantallas pequeñas */
+  .sign-up-container .error-text {
+    display: none;
+  }
+  /* Ajustar posición del icono de mostrar/ocultar contraseña */
+  .password-toggle {
+    right: 10px; /* más cerca del borde */
+  }
+  /* Asegurar espacio suficiente para el icono en inputs de contraseña */
+  .sign-up-container input[type="password"],
+  .sign-up-container input[type="text"] {
+    padding-right: 36px; /* espacio para el icono */
+  }
+  /* Reducir tamaño de fuente de las etiquetas sobre inputs */
+  .sign-up-container label {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+}
