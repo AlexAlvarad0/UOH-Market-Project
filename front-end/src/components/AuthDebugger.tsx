@@ -1,9 +1,9 @@
-import React from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import { Button, Typography, Box, Paper } from '@mui/material';
 
 const AuthDebugger = () => {
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
+  const token = localStorage.getItem('authToken');
   
   const clearAllStorage = () => {
     localStorage.clear();

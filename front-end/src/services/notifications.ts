@@ -22,10 +22,15 @@ class NotificationsService {
       });
       return { success: true, data: response.data };
     } catch (error) {
+      let errorMsg = 'Error al obtener notificaciones';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
       console.error('Error al obtener notificaciones:', error);
       return {
         success: false,
-        error: error.response?.data || 'Error al obtener notificaciones'
+        error: errorMsg
       };
     }
   }
@@ -38,16 +43,21 @@ class NotificationsService {
       });
       return { success: true, data: response.data };
     } catch (error) {
+      let errorMsg = 'Error al obtener notificaciones no leídas';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
       console.error('Error al obtener notificaciones no leídas:', error);
       return {
         success: false,
-        error: error.response?.data || 'Error al obtener notificaciones no leídas'
+        error: errorMsg
       };
     }
   }
 
   // Marcar una notificación específica como leída
-  async markAsRead(notificationId) {
+  async markAsRead(notificationId: string | number) {
     try {
       const response = await axios.post(
         `${API_URL}/api/notifications/${notificationId}/mark_read/`,
@@ -56,10 +66,15 @@ class NotificationsService {
       );
       return { success: true, data: response.data };
     } catch (error) {
+      let errorMsg = 'Error al marcar notificación como leída';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
       console.error(`Error al marcar notificación ${notificationId} como leída:`, error);
       return {
         success: false,
-        error: error.response?.data || 'Error al marcar notificación como leída'
+        error: errorMsg
       };
     }
   }
@@ -74,16 +89,21 @@ class NotificationsService {
       );
       return { success: true, data: response.data };
     } catch (error) {
+      let errorMsg = 'Error al marcar notificaciones como leídas';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
       console.error('Error al marcar todas las notificaciones como leídas:', error);
       return {
         success: false,
-        error: error.response?.data || 'Error al marcar notificaciones como leídas'
+        error: errorMsg
       };
     }
   }
   
   // Marcar como leídas todas las notificaciones relacionadas con una conversación
-  async markConversationAsRead(conversationId) {
+  async markConversationAsRead(conversationId: string | number) {
     try {
       const response = await axios.post(
         `${API_URL}/api/notifications/mark_conversation_read/`,
@@ -92,16 +112,21 @@ class NotificationsService {
       );
       return { success: true, data: response.data };
     } catch (error) {
+      let errorMsg = 'Error al marcar notificaciones de conversación como leídas';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
       console.error(`Error al marcar notificaciones de conversación ${conversationId} como leídas:`, error);
       return {
         success: false,
-        error: error.response?.data || 'Error al marcar notificaciones de conversación como leídas'
+        error: errorMsg
       };
     }
   }
   
   // Marcar como leídas todas las notificaciones relacionadas con un producto
-  async markProductAsRead(productId) {
+  async markProductAsRead(productId: string | number) {
     try {
       const response = await axios.post(
         `${API_URL}/api/notifications/mark_product_read/`,
@@ -110,10 +135,15 @@ class NotificationsService {
       );
       return { success: true, data: response.data };
     } catch (error) {
+      let errorMsg = 'Error al marcar notificaciones de producto como leídas';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
       console.error(`Error al marcar notificaciones de producto ${productId} como leídas:`, error);
       return {
         success: false,
-        error: error.response?.data || 'Error al marcar notificaciones de producto como leídas'
+        error: errorMsg
       };
     }
   }

@@ -2,11 +2,55 @@ import React, { useEffect, useState, ErrorInfo } from 'react';
 import { Box, Typography, Avatar, Tab, Tabs, Container, Alert, CircularProgress, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { List } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import api from '../services/api';
 import ProfileEditForm from './ProfileEditForm';
 
-class MyErrorBoundary extends React.Component {
+// Define interfaces para los tipos de datos
+type UserWithProfile = {
+  id: number;
+  username?: string;
+  email: string;
+  name?: string;
+  profile?: {
+    location?: string;
+  };
+}
+
+interface ProductImage {
+  id: number;
+  image: string;
+  is_primary: boolean;
+}
+
+interface Product {
+  id: number;
+  title: string;
+  description?: string;
+  price: number | string;
+  images?: ProductImage[];
+  category?: {
+    id: number | string;
+    name: string;
+  };
+  status?: string;
+  created_at?: string;
+}
+
+interface Favorite {
+  id: number;
+  product: number;
+  product_detail: Product;
+  user: number;
+  created_at: string;
+}
+
+// Corrección de MyErrorBoundary para incluir children en props
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+class MyErrorBoundary extends React.Component<ErrorBoundaryProps> {
   state = { hasError: false };
 
   static getDerivedStateFromError() {
@@ -29,8 +73,8 @@ const ProfilePage = () => {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
-  const [userProducts, setUserProducts] = useState<any[]>([]); 
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const [userProducts, setUserProducts] = useState<Product[]>([]);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
@@ -57,7 +101,7 @@ const ProfilePage = () => {
         // Añadir mejor manejo de la respuesta
         if (productsResponse.success) {
           // Manejar diferentes formatos de respuesta
-          let productsList = [];
+          let productsList: Product[] = [];
           if (Array.isArray(productsResponse.data)) {
             productsList = productsResponse.data;
           } else if (productsResponse.data && Array.isArray(productsResponse.data.results)) {
@@ -83,7 +127,7 @@ const ProfilePage = () => {
           
           if (favoritesResponse.success) {
             // Procesar datos paginados - extrayendo el array 'results' si existe
-            let favoritesData;
+            let favoritesData: Favorite[] = [];
             
             if (Array.isArray(favoritesResponse.data)) {
               // Si la respuesta ya es un array de favoritos
@@ -148,9 +192,8 @@ const ProfilePage = () => {
       <Container>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
           <Avatar sx={{ width: 100, height: 100, mr: 3 }} />
-          <Box>
-            <Typography variant="h4">
-              {user.name || user.username || user.email}
+          <Box>          <Typography variant="h4">
+              {(user as UserWithProfile).name || (user as UserWithProfile).username || user.email}
             </Typography>
             <Typography variant="body1" color="textSecondary">
               {user.email}
@@ -175,7 +218,7 @@ const ProfilePage = () => {
 
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-        <Tabs value={tab} onChange={(e, newValue) => setTab(newValue)}>
+        <Tabs value={tab} onChange={(_e, newValue) => setTab(newValue)}>
           <Tab label="Mis Productos" />
           <Tab label="Favoritos" />
         </Tabs>
@@ -186,17 +229,17 @@ const ProfilePage = () => {
               <List
                 itemLayout="horizontal"
                 dataSource={userProducts}
-                renderItem={(item: any) => (
+                renderItem={(item: Product) => (
                   <List.Item 
                     onClick={() => navigate(`/products/${item.id}`)}
                     style={{ cursor: 'pointer' }}
                   >
                     <List.Item.Meta
                       avatar={item.images && item.images.length > 0 ? 
-                        <img src={item.images[0].image} alt={item.title} style={{ width: 50, height: 50, objectFit: 'cover' }} /> : 
+                        <img src={item.images[0].image} alt={item.title || 'Producto'} style={{ width: 50, height: 50, objectFit: 'cover' }} /> : 
                         <div style={{ width: 50, height: 50, backgroundColor: '#eee' }} />
                       }
-                      title={item.title}
+                      title={item.title || 'Sin título'}
                       description={`$${item.price}`}
                     />
                   </List.Item>
@@ -211,11 +254,10 @@ const ProfilePage = () => {
             favorites.length > 0 ? (
               <List
                 dataSource={favorites}
-                renderItem={(item) => {
+                renderItem={(item: Favorite) => {
                   console.log('Renderizando favorito:', item);
                   
                   // Verificar si tenemos datos de producto válidos
-                  // La API devuelve product (solo ID) y product_detail (objeto completo)
                   if (!item) {
                     console.warn('Item de favorito no válido:', item);
                     return null;
@@ -223,12 +265,6 @@ const ProfilePage = () => {
                   
                   // Usar product_detail en lugar de product para los detalles
                   const productDetail = item.product_detail || {};
-                  
-                  console.log('Detalles del producto:', productDetail);
-                  
-                  if (!productDetail || Object.keys(productDetail).length === 0) {
-                    console.warn('Sin detalles del producto para favorito:', item);
-                  }
                   
                   return (
                     <List.Item
@@ -240,7 +276,7 @@ const ProfilePage = () => {
                           productDetail.images && productDetail.images.length > 0 ? 
                             <img 
                               src={productDetail.images[0].image} 
-                              alt={productDetail.title} 
+                              alt={productDetail.title || 'Producto sin título'} 
                               style={{ width: 50, height: 50, objectFit: 'cover' }} 
                             /> : 
                             <div style={{ width: 50, height: 50, backgroundColor: '#eee' }} />

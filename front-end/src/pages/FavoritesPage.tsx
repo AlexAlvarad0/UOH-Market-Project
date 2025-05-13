@@ -1,15 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert, Container } from '@mui/material';
+import { Typography, Grid, CircularProgress, Alert, Container } from '@mui/material';
 import { Card } from 'antd';
 import { HeartFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 import api from '../services/api';
 import { formatPrice } from '../utils/formatPrice';
 
 const FavoritesPage = () => {
-  const [favorites, setFavorites] = useState([]);
+  interface FavoriteItem {
+    id: string;
+    product: string;
+    product_detail?: {
+      title?: string;
+      price?: number;
+      images?: { image: string }[];
+    };
+  }
+  
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -69,9 +79,9 @@ const FavoritesPage = () => {
     }
   }, [isAuthenticated, user, navigate, authLoading]);
 
-  const handleRemoveFavorite = async (productId) => {
+  const handleRemoveFavorite = async (productId: string) => {
     try {
-      const response = await api.removeFromFavorites(productId);
+      const response = await api.removeFromFavorites(Number(productId));
       if (response.success) {
         // Actualizar la lista de favoritos eliminando el producto
         setFavorites(prevFavorites => 
@@ -107,12 +117,12 @@ const FavoritesPage = () => {
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       <Grid container spacing={3}>
-        {favorites.map((item: any) => {
+        {favorites.map((item: FavoriteItem) => {
           // Extraer los detalles del producto del objeto favorito
           const productDetail = item.product_detail || {};
           
           return (
-            <Grid item xs={12} sm={6} md={4} key={item.id}>
+            <Grid container spacing={2}>
               <Card
                 hoverable
                 cover={

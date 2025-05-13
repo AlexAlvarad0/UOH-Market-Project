@@ -12,15 +12,19 @@ const ConfirmEmailPage: React.FC = () => {
   useEffect(() => {
     const confirmEmail = async () => {
       try {
-        const response = await axios.get(
+        await axios.get(
           `http://localhost:8000/api/auth/confirm-email/${uid}/${token}/`
         );
         setSuccess(true);
-      } catch (err: any) {
-        setError(
-          err.response?.data?.error || 
-          'An error occurred during email confirmation. The link may be invalid or expired.'
-        );
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          setError(
+            err.response?.data?.error ||
+            'An error occurred during email confirmation. The link may be invalid or expired.'
+          );
+        } else {
+          setError('An unexpected error occurred.');
+        }
       } finally {
         setLoading(false);
       }

@@ -16,8 +16,7 @@ type RegisterData = {
  */
 export const register = async (userData: RegisterData) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/register/`, userData);
-    return response.data;
+    return (await axios.post(`${API_URL}/auth/register/`, userData)).data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw error;
@@ -31,7 +30,7 @@ export const register = async (userData: RegisterData) => {
  */
 export const registerSimple = async (username: string, email: string, password: string) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/register/`, {
+    await axios.post(`${API_URL}/auth/register/`, {
       username,
       email,
       password,

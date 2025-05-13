@@ -45,7 +45,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({ email, onSu
             {values.map((v, i) => (
               <input
                 key={i}
-                ref={el => inputsRef.current[i] = el}
+                ref={el => { inputsRef.current[i] = el; return undefined; }}
                 type="text"
                 maxLength={1}
                 value={v}

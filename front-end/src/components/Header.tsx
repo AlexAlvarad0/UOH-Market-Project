@@ -1,6 +1,6 @@
 import { useState, MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
@@ -24,7 +24,7 @@ import '../styles/search.css';
 import '../styles/profileMenu.css';
 
 const Header = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -275,10 +275,7 @@ const Header = () => {
               style={{ 
                 width: 'auto', 
                 height: 'auto', 
-                maxHeight: '32px',
-                '@media (minWidth: 960px)': {
-                  maxHeight: '40px' // Logo más grande en pantallas medianas/grandes
-                }
+                maxHeight: '32px'
               }} 
             />
             

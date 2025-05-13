@@ -1,7 +1,6 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-// Importamos correctamente desde hooks/useAuth
-import { AuthProvider, useAuth } from './hooks/useAuth';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { AuthProvider } from './providers/AuthProvider';
+import { useAuth } from './hooks/useAuth.hooks';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ConfigProvider } from 'antd';
@@ -104,7 +103,7 @@ const StyledWrapper = styled.div`
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const handleAddProduct = () => {
     if (!isAuthenticated) {

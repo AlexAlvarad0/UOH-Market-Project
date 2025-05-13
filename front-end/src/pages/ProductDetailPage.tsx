@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Container, Typography, Box, Grid, Paper, 
+  Container, Typography, Box, 
   Chip, Button, Divider, Alert, CircularProgress, 
   Dialog, DialogTitle, DialogContent, DialogContentText, 
   DialogActions, Snackbar, Card, CardContent,
   IconButton, Avatar
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ShareIcon from '@mui/icons-material/Share';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import api from '../services/api';
 import EditButton from '../components/buttons/EditButton';
 import DeleteButton from '../components/buttons/DeleteButton';
@@ -27,27 +27,7 @@ import {
 } from "@/components/ui/carousel"
 import { formatPrice } from '../utils/formatPrice';
 
-// Estilos para los botones de carrusel
-const arrowButtonStyle = {
-  minWidth: 0,
-  width: { xs: '32px', sm: '36px', md: '40px' },
-  height: { xs: '32px', sm: '36px', md: '40px' }, // Igualado al width para crear círculos perfectos
-  borderRadius: '50%',
-  border: '1px solid rgba(255, 255, 255, 0.5)',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-  color: '#fff',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 10,
-  background: 'rgba(0, 0, 0, 0.5)',
-  padding: 0, // Eliminando padding para evitar estiramiento
-  margin: 0,
-  '&:hover': {
-    background: 'rgba(0, 0, 0, 0.7)',
-    color: '#fff'
-  }
-};
+// Estilos para los botones de carrusel (eliminado porque no se usa)
 
 // Tipo para el producto
 interface ProductType {
@@ -78,14 +58,14 @@ interface ProductType {
 }
 
 const getStatusChip = (status: string) => {
-  const statusMap: Record<string, { label: string; color: string }> = {
+  const statusMap: Record<string, { label: string; color: 'warning' | 'success' | 'error' | 'default' }> = {
     pending: { label: 'En revisión', color: 'warning' },
     available: { label: 'Disponible', color: 'success' },
     unavailable: { label: 'No disponible', color: 'error' },
   };
 
   const statusInfo = statusMap[status] || { label: 'Desconocido', color: 'default' };
-  return <Chip label={statusInfo.label} color={statusInfo.color} />;
+  return <Chip label={statusInfo.label} color={statusInfo.color as 'warning' | 'success' | 'error' | 'default'} />;
 };
 
 const ProductDetailPage = () => {
@@ -163,16 +143,18 @@ const ProductDetailPage = () => {
       try {
         setLoading(true);
         setError(null);
-        
         const response = await api.getProductById(numericId);
-        
         if (response.success && response.data) {
           setProduct(response.data);
         } else {
           setError(response.error || 'No se pudo cargar el producto');
         }
-      } catch (err: any) {
-        setError(err.message || 'Error desconocido al cargar el producto');
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message || 'Error desconocido al cargar el producto');
+        } else {
+          setError('Error desconocido al cargar el producto');
+        }
       } finally {
         setLoading(false);
       }
@@ -219,11 +201,18 @@ const ProductDetailPage = () => {
           type: 'error'
         });
       }
-    } catch (err: any) {
-      setNotification({
-        message: 'Error al añadir a favoritos',
-        type: 'error'
-      });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setNotification({
+          message: err.message || 'Error al añadir a favoritos',
+          type: 'error'
+        });
+      } else {
+        setNotification({
+          message: 'Error desconocido al añadir a favoritos',
+          type: 'error'
+        });
+      }
     }
   };
 
@@ -236,8 +225,12 @@ const ProductDetailPage = () => {
       } else {
         setNotification({ message: response.error || 'No se pudo iniciar la conversación', type: 'error' });
       }
-    } catch (err: any) {
-      setNotification({ message: err.message || 'Error al iniciar conversación', type: 'error' });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setNotification({ message: err.message || 'Error al iniciar conversación', type: 'error' });
+      } else {
+        setNotification({ message: 'Error desconocido al iniciar conversación', type: 'error' });
+      }
     }
   };
 
@@ -262,8 +255,12 @@ const ProductDetailPage = () => {
         setError(response.error || 'Error al eliminar el producto');
         setDeleteDialogOpen(false);
       }
-    } catch (err: any) {
-      setError(err.message || 'Error desconocido al eliminar el producto');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'Error desconocido al eliminar el producto');
+      } else {
+        setError('Error desconocido al eliminar el producto');
+      }
       setDeleteDialogOpen(false);
     } finally {
       setLoading(false);
@@ -357,13 +354,16 @@ const ProductDetailPage = () => {
       {/* Contenido principal */}
       <Grid container spacing={3}>
         {/* Columna izquierda: imágenes y detalles */}
-        <Grid item xs={12} md={8}>
+        <Grid >
           <Card elevation={1} sx={{ mb: 3, overflow: 'hidden' }}>
             {/* Carrusel de imágenes */}
             {product.images && product.images.length > 0 ? (
               <Box sx={{ position: 'relative', bgcolor: '#f5f5f5' }}>
                 <Carousel 
-                  onSelect={(index) => setActiveImageIndex(index)}
+                  onSelect={(event) => {
+                    const index = parseInt(event.currentTarget.dataset.index || '0', 10);
+                    setActiveImageIndex(index);
+                  }}
                   opts={{ loop: true }}
                 >
                   <CarouselContent>
@@ -396,55 +396,40 @@ const ProductDetailPage = () => {
                   {/* Mostrar botones de navegación solo si hay más de una imagen */}
                   {product.images.length > 1 && (
                     <>
-                      <CarouselPrevious
-                        style={{
-                          ...arrowButtonStyle,
+                      <Box
+                        sx={{
                           position: 'absolute',
                           top: '50%',
                           left: '10px',
                           transform: 'translateY(-50%)',
+                          zIndex: 10,
                         }}
-                      />
-                      <CarouselNext
-                        style={{
-                          ...arrowButtonStyle,
+                      >
+                        <CarouselPrevious style={{ minWidth: 0, width: '36px', height: '36px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', color: '#fff', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, margin: 0 }} />
+                      </Box>
+                      <Box
+                        sx={{
                           position: 'absolute',
                           top: '50%',
                           right: '10px',
                           transform: 'translateY(-50%)',
+                          zIndex: 10,
                         }}
-                      />
+                      >
+                        <CarouselNext style={{ minWidth: 0, width: '36px', height: '36px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', color: '#fff', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, margin: 0 }} />
+                      </Box>
                     </>
                   )}
                 </Carousel>
-                
-                {/* Contador de imágenes - solo mostrar si hay más de una imagen */}
-                {product.images.length > 1 && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 16,
-                      right: 16,
-                      bgcolor: 'rgba(0,0,0,0.6)',
-                      color: 'white',
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: 8,
-                      fontSize: 14
-                    }}
-                  >
-                    {activeImageIndex + 1} / {product.images.length}
-                  </Box>
-                )}
               </Box>
             ) : (
-              <Box 
-                sx={{ 
-                  height: {xs: '300px', sm: '400px', md: '500px'}, 
-                  bgcolor: '#f5f5f5', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center' 
+              <Box
+                sx={{
+                  height: { xs: '300px', sm: '400px', md: '500px' },
+                  bgcolor: '#f5f5f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
                 <Typography variant="subtitle1" color="text.secondary">
@@ -452,7 +437,7 @@ const ProductDetailPage = () => {
                 </Typography>
               </Box>
             )}
-            
+
             {/* Miniaturas de imágenes - solo mostrar si hay más de una imagen */}
             {product.images && product.images.length > 1 && (
               <Box sx={{ p: 2, display: 'flex', overflowX: 'auto', gap: 1 }}>
@@ -484,18 +469,18 @@ const ProductDetailPage = () => {
               </Box>
             )}
           </Card>
-          
+
           {/* Detalles del producto */}
           <Card elevation={1} sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h5" gutterBottom>
                 {product.title}
               </Typography>
-              
+
               <Typography variant="h4" color="primary" gutterBottom>
                 {formatPrice(product.price)}
               </Typography>
-              
+
               {/* Fecha relativa */}
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
@@ -510,7 +495,7 @@ const ProductDetailPage = () => {
                 </Typography>
                 {product && getStatusChip(product.status)}
               </Box>
-              
+
               {/* Estadísticas */}
               <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -520,7 +505,7 @@ const ProductDetailPage = () => {
                   </Typography>
                 </Box>
               </Box>
-              
+
               {/* Etiquetas */}
               <Box sx={{ mb: 3 }}>
                 <Chip 
@@ -537,18 +522,18 @@ const ProductDetailPage = () => {
                   size="small"
                 />
               </Box>
-              
+
               <Divider sx={{ my: 2 }} />
-              
+
               {/* Descripción */}
               <Typography variant="h6" gutterBottom>
                 Descripción
               </Typography>
-              
+
               <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-line' }}>
                 {product.description}
               </Typography>
-              
+
               {/* Botones de acción móviles (solo en pantallas pequeñas) */}
               <Box sx={{ mt: 3, display: { xs: 'flex', md: 'none' }, gap: 2, flexDirection: 'row' }}>
                 {isAuthenticated ? (
@@ -602,16 +587,16 @@ const ProductDetailPage = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         {/* Columna derecha: información del vendedor y botones de acción */}
-        <Grid item xs={12} md={4}>
+        <Grid>
           {/* Información del vendedor */}
           <Card elevation={1} sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Información del vendedor
               </Typography>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Avatar 
                   sx={{ width: 50, height: 50, mr: 2 }}
@@ -627,7 +612,7 @@ const ProductDetailPage = () => {
                   </Typography>
                 </Box>
               </Box>
-              
+
               {/* Estadísticas del vendedor */}
               <Box sx={{ mt: 2 }}>
                 <Typography variant="body2" sx={{ mb: 1 }}>
@@ -639,7 +624,7 @@ const ProductDetailPage = () => {
               </Box>
             </CardContent>
           </Card>
-          
+
           {/* Botones de acción (solo en pantallas medianas y grandes) */}
           <Card elevation={1} sx={{ display: { xs: 'none', md: 'block' } }}>
             <CardContent>
@@ -692,7 +677,7 @@ const ProductDetailPage = () => {
               )}
             </CardContent>
           </Card>
-          
+
           {/* Consejos de seguridad */}
           <Card elevation={1} sx={{ mt: 3, bgcolor: '#f5f7fa' }}>
             <CardContent>
@@ -712,7 +697,7 @@ const ProductDetailPage = () => {
           </Card>
         </Grid>
       </Grid>
-      
+
       {/* Diálogo de confirmación para eliminar */}
       <Dialog
         open={deleteDialogOpen}
@@ -731,7 +716,7 @@ const ProductDetailPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Modal de edición rápida */}
       {product && (
         <EditProductModal

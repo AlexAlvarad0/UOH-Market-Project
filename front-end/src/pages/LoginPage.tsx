@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AuthStyles.css';
 import { auth } from '../services/api';
@@ -42,8 +42,6 @@ const LoginPage = () => {
   const { login: authLogin } = useAuth();
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const [registerError, setRegisterError] = useState('');
   
   // Estados para controlar la visibilidad de las contraseñas
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +57,14 @@ const LoginPage = () => {
   // Estado para mostrar requisitos de contraseña
   const [showPasswordReqs, setShowPasswordReqs] = useState(false);
   const [passwordReqsStatus, setPasswordReqsStatus] = useState<boolean[]>([false, false, false, false, false]);
+
+  // Mueve la función triggerToast aquí:
+  const triggerToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    setShowToast(false);
+    setToastMessage(message);
+    setToastType(type);
+    setTimeout(() => setShowToast(true), 0);
+  };
 
   const registerFormik = useFormik({
     initialValues: {
@@ -92,8 +98,7 @@ const LoginPage = () => {
           values.email,
           values.password,
           values.firstName,
-          values.lastName,
-          values.password
+          values.lastName
         );
         if (response.success) {
           triggerToast('¡Registro exitoso!', 'success');
@@ -102,8 +107,14 @@ const LoginPage = () => {
         } else {
           triggerToast('Error en el registro: ' + response.error, 'error');
         }
-      } catch (error: any) {
-        triggerToast('Error en el registro: ' + (error.message || 'Error inesperado'), 'error');
+      } catch (error: unknown) {
+        let errorMsg = 'Error en el registro: ';
+        if (error instanceof Error) {
+          errorMsg += error.message;
+        } else {
+          errorMsg += 'Error inesperado';
+        }
+        triggerToast(errorMsg, 'error');
       } finally {
         setSubmitting(false);
       }
@@ -136,7 +147,7 @@ const LoginPage = () => {
       email: Yup.string().email('Correo inválido').required('Requerido'),
       password: Yup.string().required('La contraseña es requerida')
     }),
-    onSubmit: async (values, { setErrors, setSubmitting }) => {
+    onSubmit: async (values, { setErrors }) => {
       // Verificar si hay campos vacíos
       if (!values.email || !values.password) {
         setToastMessage('Por favor complete todos los campos requeridos');
@@ -146,14 +157,12 @@ const LoginPage = () => {
       }
 
       try {
-        setLoginError('');
         const response = await auth.login(values.email, values.password);
         if (response.success && response.data) {
           console.log('Datos recibidos para autenticación:', response.data);
           
           if (!response.data.token) {
             console.error('La respuesta no contiene un token:', response.data);
-            setLoginError('Formato de respuesta inválido: falta el token');
             return;
           }
           
@@ -200,27 +209,22 @@ const LoginPage = () => {
             setShowToast(true);
           }
         }
-      } catch (error: any) {
-        console.error('Error en login:', error);
-        setToastMessage('Error al iniciar sesión: ' + (error.message || 'Error inesperado'));
+      } catch (error: unknown) {
+        let errorMsg = 'Error al iniciar sesión: ';
+        if (error instanceof Error) {
+          errorMsg += error.message;
+        } else {
+          errorMsg += 'Error inesperado';
+        }
+        setToastMessage(errorMsg);
         setToastType('error');
         setShowToast(true);
-      } finally {
-        setSubmitting(false);
       }
     }
   });
 
   const handleCloseToast = () => {
     setShowToast(false);
-  };
-
-  // Función utilitaria para mostrar toast siempre al activar
-  const triggerToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
-    setShowToast(false);
-    setToastMessage(message);
-    setToastType(type);
-    setTimeout(() => setShowToast(true), 0);
   };
 
   useEffect(() => {
@@ -251,7 +255,6 @@ const LoginPage = () => {
         <div className="form-container sign-up-container">
           <form onSubmit={registerFormik.handleSubmit}>
             <h1>Crear Cuenta</h1>
-            {registerError && <p className="error">{registerError}</p>}
             
             <div className="register-columns">
               {/* Nombre de usuario */}

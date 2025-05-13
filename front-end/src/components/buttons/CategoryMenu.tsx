@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import '../../styles/burguer.css';
 import api from '../../services/api';
 import { Box, Typography, Popover } from '@mui/material';
-import Checkbox from './Checkbox';
 import { motion, useInView } from "framer-motion";
 import '../../styles/scroll.css';
 

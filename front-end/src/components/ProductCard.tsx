@@ -22,8 +22,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
   
   // Determinar si el producto ya está marcado como favorito
   const isFavorite = !!product.is_favorite;
-
-  const handleFavoriteChange = (e) => {
+  const handleFavoriteChange = (e: React.MouseEvent<HTMLDivElement>) => {
     // Prevenir la navegación cuando se hace clic en el botón de favoritos
     e.preventDefault();
     e.stopPropagation();
@@ -44,14 +43,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
     }
   };
   
-  const imageContainerStyle = {
+  const imageContainerStyle: React.CSSProperties = {
     aspectRatio: '1/1', // Mantener relación cuadrada
     position: 'relative',
     width: '100%',
     overflow: 'hidden'
   };
 
-  const imageStyle = {
+  const imageStyle: React.CSSProperties = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -60,10 +59,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
     objectFit: 'cover'
   };
 
-  const contentStyle = {
+  const contentStyle: React.CSSProperties = {
     flexGrow: 1,
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as React.CSSProperties['flexDirection'],
     padding: '16px',
     height: 'calc(100% - 220px)'
   };

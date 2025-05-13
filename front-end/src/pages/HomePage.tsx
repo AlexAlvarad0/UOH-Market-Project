@@ -3,22 +3,21 @@ import { useLocation } from 'react-router-dom';
 import { 
   Container, Typography, Box, CircularProgress, Alert, 
   Pagination, FormControl, InputLabel, Select, MenuItem,
-  Grid, Dialog, DialogTitle, DialogContent,
+  Dialog, DialogTitle, DialogContent,
   DialogActions, Button as MuiButton, 
 } from '@mui/material';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import ProductList from '../components/ProductList';
 import OffersCarousel from '../components/OffersCarousel';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 import api from '../services/api';
-// Para implementar Slider de shadcn/ui
 import * as SliderPrimitive from '@radix-ui/react-slider';
 import { styled } from '@mui/material/styles';
 import { formatPrice } from '../utils/formatPrice';
+import { Product } from '../types/products';
 
-// Slider de shadcn/ui adaptado para Material UI
-const SliderRoot = styled(SliderPrimitive.Root)(({ theme }) => ({
+const SliderRoot = styled(SliderPrimitive.Root)(() => ({
   position: 'relative',
   display: 'flex',
   alignItems: 'center',
@@ -36,19 +35,19 @@ const SliderTrack = styled(SliderPrimitive.Track)(({ theme }) => ({
   height: 4,
 }));
 
-const SliderRange = styled(SliderPrimitive.Range)(({ theme }) => ({
+const SliderRange = styled(SliderPrimitive.Range)(() => ({
   position: 'absolute',
   backgroundColor: '#004f9e',
   borderRadius: '9999px',
   height: '100%',
 }));
 
-const SliderThumb = styled(SliderPrimitive.Thumb)(({ theme }) => ({
+const SliderThumb = styled(SliderPrimitive.Thumb)(() => ({
   display: 'block',
   width: 16,
   height: 16,
   backgroundColor: 'white',
-  boxShadow: `0 2px 4px ${theme.palette.mode === 'light' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.3)'}`,
+  boxShadow: `0 2px 4px rgba(0,0,0,0.2)`,
   borderRadius: '9999px',
   border: `2px solid #004f9e`,
   transition: 'background-color 120ms, box-shadow 120ms',
@@ -58,7 +57,16 @@ const SliderThumb = styled(SliderPrimitive.Thumb)(({ theme }) => ({
   },
 }));
 
-const ShadcnSlider = ({ value, onChange, min, max, step, onValueCommit }) => (
+interface ShadcnSliderProps {
+  value: number[];
+  onChange: (value: number[]) => void;
+  min: number;
+  max: number;
+  step: number;
+  onValueCommit: (value: number[]) => void;
+}
+
+const ShadcnSlider = ({ value, onChange, min, max, step, onValueCommit }: ShadcnSliderProps) => (
   <SliderRoot
     value={value}
     onValueChange={onChange}
@@ -96,19 +104,18 @@ const HomePage = () => {
     max_price: 1000000
   });
   const [tempPriceRange, setTempPriceRange] = useState([0, 1000000]);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [categories, setCategories] = useState<Array<{id: number, name: string}>>([]);
-  const [priceRange, setPriceRange] = useState([0, 1000000]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const searchParam = searchParams.get('search');
     const categoryParam = searchParams.get('category');
     
-    let updatedFilters = { ...filters };
+    const updatedFilters = { ...filters };
     let filtersChanged = false;
     
     if (searchParam !== null) {
@@ -131,18 +138,17 @@ const HomePage = () => {
       setFilters(updatedFilters);
       setPage(1);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   useEffect(() => {
-    const getCategories = async () => {
-      try {
+    const fetchCategories = async () => {      try {
         const response = await api.getCategories();
         if (Array.isArray(response.data)) {
           setCategories(response.data);
         } else if (response.data && Array.isArray(response.data.results)) {
           setCategories(response.data.results);
         } else {
-          console.error("Categories data is not an array:", response.data);
           setCategories([]);
         }
       } catch (err) {
@@ -151,7 +157,7 @@ const HomePage = () => {
       }
     };
 
-    getCategories();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -197,30 +203,12 @@ const HomePage = () => {
     getProducts();
   }, [page, filters]);
 
-  const handlePageChange = (event, value) => {
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
     window.scrollTo(0, 0);
   };
 
-  const handleFilterChange = (name, value) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
-    setPage(1);
-  };
-
-  const handlePriceRangeChange = (newValue) => {
-    setPriceRange(newValue);
-  };
-
-  const applyPriceFilter = () => {
-    setFilters(prev => ({ 
-      ...prev, 
-      min_price: priceRange[0], 
-      max_price: priceRange[1] 
-    }));
-    setPage(1);
-  };
-
-  const handleFavoriteClick = async (productId) => {
+  const handleFavoriteClick = async (productId: number) => {
     if (!isAuthenticated) {
       return;
     }
@@ -263,11 +251,11 @@ const HomePage = () => {
     setFilterDialogOpen(false);
   };
 
-  const handleTempFilterChange = (name, value) => {
+  const handleTempFilterChange = (name: string, value: string) => {
     setTempFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleTempPriceRangeChange = (newValue) => {
+  const handleTempPriceRangeChange = (newValue: number[]) => {
     setTempPriceRange(newValue);
   };
 
@@ -288,10 +276,9 @@ const HomePage = () => {
       sx={{ 
         py: { xs: 2, sm: 3 },
         px: { xs: 1, sm: 2, md: 3 },
-        mt: { xs: 2, sm: 3 }, // margen superior igual que en las otras páginas
+        mt: { xs: 2, sm: 3 },
       }}
     >
-      {/* Breadcrumb - Solo mostramos "Inicio" en la página principal */}
       <BreadcrumbNav items={[]} />
 
       <Box sx={{ 
@@ -369,190 +356,185 @@ const HomePage = () => {
           dividers={false} 
           sx={{ 
             p: 2,
-            borderTop: 'none', // Eliminar borde superior
+            borderTop: 'none',
             '& .MuiDialogContent-dividers': {
-              borderTop: 'none', // También eliminarlo en el pseudo-elemento
+              borderTop: 'none',
               borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
             }
           }}
         >
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <FormControl 
-                fullWidth 
-                size="small"
-                sx={{ 
-                  mb: 1.5,
-                  '& .MuiOutlinedInput-root': {
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#004f9e',
-                    },
+          <Box sx={{ gridColumn: 'span 12' }}>
+            <FormControl 
+              fullWidth 
+              size="small"
+              sx={{ 
+                mb: 1.5,
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#004f9e',
                   },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#004f9e',
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#004f9e',
+                }
+              }}
+            >
+              <InputLabel>Categoría</InputLabel>
+              <Select
+                value={tempFilters.category}
+                label="Categoría"
+                onChange={(e) => handleTempFilterChange('category', e.target.value)}
+                MenuProps={{ 
+                  PaperProps: { 
+                    sx: { 
+                      maxHeight: 300,
+                      width: 'auto',
+                    } 
+                  },
+                  anchorOrigin: {
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                  },
+                  transformOrigin: {
+                    vertical: 'top',
+                    horizontal: 'left',
+                  },
+                }}
+                sx={{
+                  '& .MuiSelect-select': {
+                    width: '100%',
                   }
                 }}
               >
-                <InputLabel>Categoría</InputLabel>
-                <Select
-                  value={tempFilters.category}
-                  label="Categoría"
-                  onChange={(e) => handleTempFilterChange('category', e.target.value)}
-                  MenuProps={{ 
-                    PaperProps: { 
-                      sx: { 
-                        maxHeight: 300,
-                        width: 'auto',
-                      } 
-                    },
-                    anchorOrigin: {
-                      vertical: 'bottom',
-                      horizontal: 'left',
-                    },
-                    transformOrigin: {
-                      vertical: 'top',
-                      horizontal: 'left',
-                    },
-                    getContentAnchorEl: null,
-                  }}
-                  sx={{
-                    '& .MuiSelect-select': {
-                      width: '100%',
-                    }
-                  }}
-                >
-                  <MenuItem value="">Todas</MenuItem>
-                  {Array.isArray(categories) ? (
-                    categories.map((cat) => (
-                      <MenuItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <MenuItem value="">Error cargando categorías</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-            
-              <FormControl 
-                fullWidth 
-                size="small"
-                sx={{ 
-                  mb: 1.5,
-                  '& .MuiOutlinedInput-root': {
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#004f9e',
-                    },
+                <MenuItem value="">Todas</MenuItem>
+                {Array.isArray(categories) ? (
+                  categories.map((cat) => (
+                    <MenuItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem value="">Error cargando categorías</MenuItem>
+                )}
+              </Select>
+            </FormControl>
+          
+            <FormControl 
+              fullWidth 
+              size="small"
+              sx={{ 
+                mb: 1.5,
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#004f9e',
                   },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#004f9e',
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#004f9e',
+                }
+              }}
+            >
+              <InputLabel>Condición</InputLabel>
+              <Select
+                value={tempFilters.condition}
+                label="Condición"
+                onChange={(e) => handleTempFilterChange('condition', e.target.value)}
+                MenuProps={{ 
+                  PaperProps: { 
+                    sx: { 
+                      maxHeight: 300,
+                      width: 'auto'
+                    } 
+                  },
+                  anchorOrigin: {
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                  },
+                  transformOrigin: {
+                    vertical: 'top',
+                    horizontal: 'left',
+                  },
+                }}
+                sx={{
+                  '& .MuiSelect-select': {
+                    width: '100%',
                   }
                 }}
               >
-                <InputLabel>Condición</InputLabel>
-                <Select
-                  value={tempFilters.condition}
-                  label="Condición"
-                  onChange={(e) => handleTempFilterChange('condition', e.target.value)}
-                  MenuProps={{ 
-                    PaperProps: { 
-                      sx: { 
-                        maxHeight: 300,
-                        width: 'auto'
-                      } 
-                    },
-                    anchorOrigin: {
-                      vertical: 'bottom',
-                      horizontal: 'left',
-                    },
-                    transformOrigin: {
-                      vertical: 'top',
-                      horizontal: 'left',
-                    },
-                    getContentAnchorEl: null,
-                  }}
-                  sx={{
-                    '& .MuiSelect-select': {
-                      width: '100%',
-                    }
-                  }}
-                >
-                  <MenuItem value="">Todas</MenuItem>
-                  <MenuItem value="new">Nuevo</MenuItem>
-                  <MenuItem value="like_new">Como nuevo</MenuItem>
-                  <MenuItem value="good">Buen estado</MenuItem>
-                  <MenuItem value="fair">Estado aceptable</MenuItem>
-                  <MenuItem value="poor">Deteriorado</MenuItem>
-                </Select>
-              </FormControl>
-            
-              <FormControl 
-                fullWidth 
-                size="small"
-                sx={{ 
-                  mb: 2,
-                  '& .MuiOutlinedInput-root': {
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#004f9e',
-                    },
+                <MenuItem value="">Todas</MenuItem>
+                <MenuItem value="new">Nuevo</MenuItem>
+                <MenuItem value="like_new">Como nuevo</MenuItem>
+                <MenuItem value="good">Buen estado</MenuItem>
+                <MenuItem value="fair">Estado aceptable</MenuItem>
+                <MenuItem value="poor">Deteriorado</MenuItem>
+              </Select>
+            </FormControl>
+          
+            <FormControl 
+              fullWidth 
+              size="small"
+              sx={{ 
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#004f9e',
                   },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#004f9e',
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#004f9e',
+                }
+              }}
+            >
+              <InputLabel>Ordenar por</InputLabel>
+              <Select
+                value={tempFilters.ordering}
+                label="Ordenar por"
+                onChange={(e) => handleTempFilterChange('ordering', e.target.value)}
+                MenuProps={{ 
+                  PaperProps: { 
+                    sx: { 
+                      maxHeight: 300,
+                      width: 'auto'
+                    } 
+                  },
+                  anchorOrigin: {
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                  },
+                  transformOrigin: {
+                    vertical: 'top',
+                    horizontal: 'left',
+                  },
+                }}
+                sx={{
+                  '& .MuiSelect-select': {
+                    width: '100%',
                   }
                 }}
               >
-                <InputLabel>Ordenar por</InputLabel>
-                <Select
-                  value={tempFilters.ordering}
-                  label="Ordenar por"
-                  onChange={(e) => handleTempFilterChange('ordering', e.target.value)}
-                  MenuProps={{ 
-                    PaperProps: { 
-                      sx: { 
-                        maxHeight: 300,
-                        width: 'auto'
-                      } 
-                    },
-                    anchorOrigin: {
-                      vertical: 'bottom',
-                      horizontal: 'left',
-                    },
-                    transformOrigin: {
-                      vertical: 'top',
-                      horizontal: 'left',
-                    },
-                    getContentAnchorEl: null,
-                  }}
-                  sx={{
-                    '& .MuiSelect-select': {
-                      width: '100%',
-                    }
-                  }}
-                >
-                  <MenuItem value="-created_at">Más recientes</MenuItem>
-                  <MenuItem value="price">Precio: menor a mayor</MenuItem>
-                  <MenuItem value="-price">Precio: mayor a menor</MenuItem>
-                  <MenuItem value="-views_count">Más vistos</MenuItem>
-                </Select>
-              </FormControl>
-            
-              <Typography sx={{ fontWeight: 500, mb: 1 }}>Rango de precios</Typography>
-              <Box sx={{ px: 0.5 }}>
-                <ShadcnSlider
-                  value={tempPriceRange}
-                  onChange={handleTempPriceRangeChange}
-                  onValueCommit={handleTempPriceRangeChange}
-                  min={0}
-                  max={1000000}
-                  step={1000}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                  <Typography variant="body2">{formatPrice(tempPriceRange[0])}</Typography>
-                  <Typography variant="body2">{formatPrice(tempPriceRange[1])}</Typography>
-                </Box>
+                <MenuItem value="-created_at">Más recientes</MenuItem>
+                <MenuItem value="price">Precio: menor a mayor</MenuItem>
+                <MenuItem value="-price">Precio: mayor a menor</MenuItem>
+                <MenuItem value="-views_count">Más vistos</MenuItem>
+              </Select>
+            </FormControl>
+          
+            <Typography sx={{ fontWeight: 500, mb: 1 }}>Rango de precios</Typography>
+            <Box sx={{ px: 0.5 }}>
+              <ShadcnSlider
+                value={tempPriceRange}
+                onChange={handleTempPriceRangeChange}
+                onValueCommit={handleTempPriceRangeChange}
+                min={0}
+                max={1000000}
+                step={1000}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                <Typography variant="body2">{formatPrice(tempPriceRange[0])}</Typography>
+                <Typography variant="body2">{formatPrice(tempPriceRange[1])}</Typography>
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 2, py: 1.5 }}>
           <MuiButton 

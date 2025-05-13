@@ -3,7 +3,9 @@ export interface User {
     username: string;
     email: string;
     is_email_verified: boolean;
-    user_type: 'customer' | 'seller';
+    user_type?: 'customer' | 'seller';
+    profile_picture?: string;
+    is_seller?: boolean;
     profile?: {
         first_name: string;
         last_name: string;

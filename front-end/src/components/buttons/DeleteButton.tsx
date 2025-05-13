@@ -3,11 +3,12 @@ import styled from 'styled-components';
 
 interface DeleteButtonProps {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  buttonText?: string;
 }
 
-const DeleteButton: React.FC<DeleteButtonProps> = ({ onClick }) => (
+const DeleteButton: React.FC<DeleteButtonProps> = ({ onClick, buttonText }) => (
   <StyledWrapper>
-    <button className="bin-button" onClick={onClick} type="button">
+    <button className="bin-button" onClick={onClick} type="button" title={buttonText}>
       <svg className="bin-top" viewBox="0 0 39 7" fill="none" xmlns="http://www.w3.org/2000/svg">
         <line y1={5} x2={39} y2={5} stroke="white" strokeWidth={4} />
         <line x1={12} y1="1.5" x2="26.0357" y2="1.5" stroke="white" strokeWidth={3} />

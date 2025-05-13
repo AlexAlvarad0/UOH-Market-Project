@@ -47,10 +47,12 @@ class ApiService {
         localStorage.setItem('authToken', response.data.token);
       }
 
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error de login:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al iniciar sesión' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error de login:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al iniciar sesión' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al iniciar sesión' };
     }
   }
 
@@ -61,10 +63,12 @@ class ApiService {
         params,
         headers: this.getHeaders()
       });
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error al obtener productos:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al cargar productos' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error al obtener productos:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cargar productos' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cargar productos' };
     }
   }
 
@@ -85,12 +89,11 @@ class ApiService {
         throw new Error('La respuesta no contiene datos del producto');
       }
 
-      return { success: true, data: response.data };
-    } catch (error: any) {
+      return { success: true, data: response.data };    } catch (error: unknown) {
       console.error(`Error al obtener producto ${productId}:`, error);
 
       // Logging detallado para diagnóstico
-      if (error.response) {
+      if (axios.isAxiosError(error) && error.response) {
         console.error('Datos de error:', error.response.data);
         console.error('Estado HTTP:', error.response.status);
         console.error('Encabezados:', error.response.headers);
@@ -102,15 +105,24 @@ class ApiService {
             error: `El producto con ID ${productId} no fue encontrado`
           };
         }
-      } else if (error.request) {
+        
+        return {
+          success: false,
+          error: error.response.data?.detail ||
+            error.response.data ||
+            'No se pudo cargar los detalles del producto. Inténtelo de nuevo más tarde.'
+        };
+      } else if (axios.isAxiosError(error) && error.request) {
         console.error('No hubo respuesta del servidor:', error.request);
+        return {
+          success: false,
+          error: 'No se recibió respuesta del servidor. Verifique su conexión.'
+        };
       }
 
       return {
         success: false,
-        error: error.response?.data?.detail ||
-          error.response?.data ||
-          error.message ||
+        error: error instanceof Error ? error.message : 
           'No se pudo cargar los detalles del producto. Inténtelo de nuevo más tarde.'
       };
     }
@@ -122,10 +134,12 @@ class ApiService {
       const response = await axios.get(`${API_URL}/categories/`, {
         headers: this.getHeaders()
       });
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error al obtener categorías:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al cargar categorías' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error al obtener categorías:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cargar categorías' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cargar categorías' };
     }
   }
 
@@ -150,12 +164,11 @@ class ApiService {
       );
 
       console.log('Respuesta de añadir a favoritos:', response.data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
+      return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al añadir a favoritos:', error);
 
       // Logging detallado para diagnóstico
-      if (error.response) {
+      if (axios.isAxiosError(error) && error.response) {
         console.error('Datos de error:', error.response.data);
         console.error('Estado HTTP:', error.response.status);
 
@@ -166,11 +179,16 @@ class ApiService {
             error: `Error de validación: ${JSON.stringify(error.response.data)}`
           };
         }
+        
+        return {
+          success: false,
+          error: error.response.data || 'Error al añadir a favoritos. Inténtalo de nuevo más tarde.'
+        };
       }
 
       return {
         success: false,
-        error: error.response?.data || error.message || 'Error al añadir a favoritos. Inténtalo de nuevo más tarde.'
+        error: error instanceof Error ? error.message : 'Error al añadir a favoritos. Inténtalo de nuevo más tarde.'
       };
     }
   }
@@ -184,7 +202,7 @@ class ApiService {
         throw new Error('No se pudieron obtener los favoritos');
       }
 
-      const favorite = favorites.data.find(f => f.product.id === productId);
+      const favorite = favorites.data.find((f: { product: { id: number } }) => f.product.id === productId);
       if (!favorite) {
         throw new Error('Favorito no encontrado');
       }
@@ -194,10 +212,12 @@ class ApiService {
         `${API_URL}/favorites/${favorite.id}/`,
         { headers: this.getHeaders() }
       );
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error al eliminar de favoritos:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al eliminar de favoritos' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error al eliminar de favoritos:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al eliminar de favoritos' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al eliminar de favoritos' };
     }
   }
 
@@ -212,19 +232,23 @@ class ApiService {
       });
 
       console.log('Respuesta de productos del usuario:', response.data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
+      return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al obtener productos del usuario:', error);
 
       // Logging detallado para diagnóstico
-      if (error.response) {
+      if (axios.isAxiosError(error) && error.response) {
         console.error('Datos de error:', error.response.data);
         console.error('Estado HTTP:', error.response.status);
+        
+        return {
+          success: false,
+          error: error.response.data || 'No se pudieron cargar tus productos'
+        };
       }
 
       return {
         success: false,
-        error: error.response?.data || error.message || 'No se pudieron cargar tus productos'
+        error: error instanceof Error ? error.message : 'No se pudieron cargar tus productos'
       };
     }
   }
@@ -248,18 +272,22 @@ class ApiService {
 
         // No procesar los datos aquí, solo devolver la respuesta tal como viene
         // El componente se encargará de procesar la estructura específica
-        return { success: true, data: response.data };
-      } catch (error: any) {
+        return { success: true, data: response.data };      } catch (error: unknown) {
         console.error('Error al obtener favoritos:', error);
 
-        if (error.response) {
+        if (axios.isAxiosError(error) && error.response) {
           console.error('Datos de error:', error.response.data);
           console.error('Estado HTTP:', error.response.status);
+          
+          return {
+            success: false,
+            error: error.response.data || 'No se pudieron cargar los favoritos'
+          };
         }
 
         return {
           success: false,
-          error: error.response?.data || error.message || 'No se pudieron cargar los favoritos'
+          error: error instanceof Error ? error.message : 'No se pudieron cargar los favoritos'
         };
       }
     },
@@ -309,11 +337,9 @@ class ApiService {
       const headers = {
         ...(this.token ? { 'Authorization': `Token ${this.token}` } : {})
         // No incluir Content-Type para FormData
-      };
-
-      // Log detallado del contenido del FormData
+      };      // Log detallado del contenido del FormData
       console.log('Contenido del FormData a enviar:');
-      for (let [key, value] of formData.entries()) {
+      for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
           console.log(`${key}: archivo - ${value.name} (${value.type}, ${value.size} bytes)`);
         } else {
@@ -331,18 +357,27 @@ class ApiService {
       );
 
       console.log('Producto creado exitosamente:', response.data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
+      return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al crear producto:', error);
-      if (error.response) {
-        console.error('Datos de error:', error.response.data);
-        console.error('Estado HTTP:', error.response.status);
-      } else if (error.request) {
-        console.error('No hubo respuesta del servidor:', error.request);
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          console.error('Datos de error:', error.response.data);
+          console.error('Estado HTTP:', error.response.status);
+          return {
+            success: false,
+            error: error.response.data || 'Error al crear el producto'
+          };
+        } else if (error.request) {
+          console.error('No hubo respuesta del servidor:', error.request);
+          return {
+            success: false,
+            error: 'No se recibió respuesta del servidor'
+          };
+        }
       }
       return {
         success: false,
-        error: error.response?.data || error.message || 'Error al crear el producto'
+        error: error instanceof Error ? error.message : 'Error al crear el producto'
       };
     }
   }
@@ -358,8 +393,7 @@ class ApiService {
       }
 
       console.log(`Actualizando producto ${productId}...`);
-      
-      // Mostrar el contenido del FormData para depuración
+        // Mostrar el contenido del FormData para depuración
       console.log('Contenido del FormData:');
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
@@ -385,12 +419,11 @@ class ApiService {
       return { 
         success: true, 
         data: response.data 
-      };
-    } catch (error: any) {
+      };    } catch (error: unknown) {
       console.error(`Error al actualizar producto ${productId}:`, error);
       
       // Manejo específico según el código de respuesta
-      if (error.response) {
+      if (axios.isAxiosError(error) && error.response) {
         console.error('Estado HTTP:', error.response.status);
         console.error('Datos de error:', error.response.data);
         
@@ -419,7 +452,7 @@ class ApiService {
       
       return {
         success: false,
-        error: 'Error al actualizar el producto. Inténtalo de nuevo más tarde.'
+        error: error instanceof Error ? error.message : 'Error al actualizar el producto. Inténtalo de nuevo más tarde.'
       };
     }
   }
@@ -432,12 +465,10 @@ class ApiService {
           success: false,
           error: 'No hay sesión activa. Por favor, inicia sesión nuevamente.'
         };
-      }
-
-      console.log(`Intentando eliminar producto ${productId}...`);
+      }      console.log(`Intentando eliminar producto ${productId}...`);
       
       // Simplificar la petición inicial - sin parámetros que podrían causar problemas
-      const response = await axios.delete(
+      await axios.delete(
         `${API_URL}/products/${productId}/`, 
         {
           headers: {
@@ -447,18 +478,16 @@ class ApiService {
       );
       
       console.log('Producto eliminado exitosamente');
-      
       return { 
         success: true, 
         data: { 
           message: 'Producto eliminado correctamente',
         } 
-      };
-    } catch (error: any) {
+      };    } catch (error: unknown) {
       console.error(`Error al eliminar producto ${productId}:`, error);
       
       // Si el error es 404, podemos asumir que el producto ya fue eliminado o no existe
-      if (error.response?.status === 404) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         return {
           success: true,
           data: { 
@@ -469,13 +498,15 @@ class ApiService {
       
       // Para otros errores, intentar extraer el mensaje más informativo
       let errorMsg = 'Error al eliminar el producto';
-      if (error.response?.data?.detail) {
-        errorMsg = error.response.data.detail;
-      } else if (error.response?.data) {
-        errorMsg = typeof error.response.data === 'string' 
-          ? error.response.data 
-          : JSON.stringify(error.response.data);
-      } else if (error.message) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.data?.detail) {
+          errorMsg = error.response.data.detail;
+        } else if (error.response?.data) {
+          errorMsg = typeof error.response.data === 'string' 
+            ? error.response.data 
+            : JSON.stringify(error.response.data);
+        }
+      } else if (error instanceof Error) {
         errorMsg = error.message;
       }
       
@@ -492,10 +523,12 @@ class ApiService {
       const response = await axios.get(`${API_URL}/users/profile/`, {
         headers: this.getHeaders()
       });
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error al obtener el perfil:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al cargar el perfil' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error al obtener el perfil:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cargar el perfil' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cargar el perfil' };
     }
   }
 
@@ -518,10 +551,12 @@ class ApiService {
         localStorage.setItem('userData', JSON.stringify(response.data));
       }
       
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error al actualizar el perfil:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al actualizar el perfil' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error al actualizar el perfil:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al actualizar el perfil' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al actualizar el perfil' };
     }
   }
 
@@ -531,9 +566,11 @@ class ApiService {
       const response = await axios.get(`${API_URL}/conversations/`, {
         headers: this.getHeaders()
       });
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data || 'Error al cargar conversaciones' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cargar conversaciones' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cargar conversaciones' };
     }
   }
 
@@ -544,9 +581,11 @@ class ApiService {
         { product_id: productId, seller_id: sellerId },
         { headers: this.getHeaders() }
       );
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data || 'Error al crear conversación' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al crear conversación' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al crear conversación' };
     }
   }
 
@@ -562,12 +601,17 @@ class ApiService {
       // gracias a la acción definida en ConversationViewSet
       console.log(`Recibidos ${response.data?.length || 0} mensajes`);
       
-      return { success: true, data: response.data };
-    } catch (error: any) {
+      return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al cargar mensajes:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { 
+          success: false, 
+          error: error.response.data || 'Error al cargar mensajes' 
+        };
+      }
       return { 
         success: false, 
-        error: error.response?.data || 'Error al cargar mensajes' 
+        error: error instanceof Error ? error.message : 'Error al cargar mensajes' 
       };
     }
   }
@@ -579,9 +623,11 @@ class ApiService {
         { conversation: conversationId, content }, // <-- CAMBIO AQUÍ
         { headers: this.getHeaders() }
       );
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data || 'Error al enviar mensaje' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al enviar mensaje' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al enviar mensaje' };
     }
   }
 }
@@ -651,10 +697,12 @@ export const auth = {
   async verifyEmail(email: string, code: string) {
     try {
       const response = await axios.post(`${API_URL}/auth/verify-email/`, { email, code });
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error('Error verificando email:', error.response?.data || error.message);
-      return { success: false, error: error.response?.data || 'Error al verificar correo' };
+      return { success: true, data: response.data };    } catch (error: unknown) {
+      console.error('Error verificando email:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al verificar correo' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al verificar correo' };
     }
   }
 };

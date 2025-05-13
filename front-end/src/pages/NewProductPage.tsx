@@ -11,7 +11,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import api from '../services/api';
 import { processImages } from '../utils/imageUtils';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 
 const NewProductPage: React.FC = () => {
@@ -33,7 +33,6 @@ const NewProductPage: React.FC = () => {
   const [condition, setCondition] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [status, setStatus] = useState('pending'); // Añadir un estado inicial para el producto
   
   // Estado para almacenar categorías y condiciones desde el backend
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -58,7 +57,7 @@ const NewProductPage: React.FC = () => {
         } else {
           console.error('Error al obtener categorías:', response.error);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error al obtener categorías:', error);
       } finally {
         setFetchingCategories(false);
@@ -158,20 +157,18 @@ const NewProductPage: React.FC = () => {
           setError(errorMessage);
         }
       }
-    } catch (error: any) {
-      console.error('Error creating product:', error);
-      setError(error.message || 'Error al crear el producto');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error creating product:', error);
+        setError(error.message || 'Error al crear el producto');
+      } else {
+        console.error('Error creating product:', error);
+        setError('Error al crear el producto');
+      }
     } finally {
       setLoading(false);
     }
   };
-
-  // Obtener la fecha actual
-  const currentDate = new Date().toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
 
   // Encontrar etiqueta de categoría para la vista previa
   const getCategoryLabel = () => {
@@ -202,9 +199,9 @@ const NewProductPage: React.FC = () => {
         </Typography>
       </Box>
       
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 3 }}>
         {/* Formulario de producto */}
-        <Grid item xs={12} md={7}>
+        <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 7' } }}>
           <Paper elevation={1} sx={{ p: 3, mb: 2 }}>
             <form onSubmit={handleCreateProduct}>
               {error && (
@@ -228,7 +225,7 @@ const NewProductPage: React.FC = () => {
                 
                 <Grid container spacing={1}>
                   {/* Botón para agregar fotos */}
-                  <Grid item xs={6} sm={4} md={3}>
+                  <Grid >
                     <Box 
                       component="label"
                       sx={{
@@ -266,7 +263,7 @@ const NewProductPage: React.FC = () => {
                   
                   {/* Vistas previas de imágenes */}
                   {imagePreviews.map((preview, index) => (
-                    <Grid item xs={6} sm={4} md={3} key={`${preview}-${index}`}>
+                    <Grid >
                       <Box
                         sx={{
                           position: 'relative',
@@ -420,10 +417,10 @@ const NewProductPage: React.FC = () => {
               </Box>
             </form>
           </Paper>
-        </Grid>
+        </Box>
         
         {/* Vista previa del producto */}
-        <Grid item xs={12} md={5}>
+        <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 5' } }}>
           <Paper elevation={1} sx={{ p: 3, position: 'sticky', top: 20 }}>
             <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
               Vista previa
@@ -481,7 +478,7 @@ const NewProductPage: React.FC = () => {
                   </Box>{' '}
                   en{' '}
                   <Box component="span" sx={{ fontWeight: 'medium' }}>
-                    {user?.city || 'Tu ubicación'}
+                    {user?.profile?.location || 'Tu ubicación'}
                   </Box>
                 </Typography>
                 
@@ -497,7 +494,7 @@ const NewProductPage: React.FC = () => {
                 
                 <Grid container spacing={2}>
                   {category && (
-                    <Grid item xs={6}>
+                    <Grid container spacing={2}>
                       <Typography variant="body2" color="text.secondary">
                         Categoría:
                       </Typography>
@@ -508,7 +505,7 @@ const NewProductPage: React.FC = () => {
                   )}
                   
                   {condition && (
-                    <Grid item xs={6}>
+                    <Grid container spacing={2}>
                       <Typography variant="body2" color="text.secondary">
                         Estado:
                       </Typography>
@@ -550,8 +547,8 @@ const NewProductPage: React.FC = () => {
               </CardContent>
             </Card>
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Diálogo de error */}
       <Dialog

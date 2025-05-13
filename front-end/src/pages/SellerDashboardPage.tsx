@@ -1,26 +1,37 @@
 import { useState, useEffect } from 'react';
 import { 
   Container, Typography, Box, Paper, Card, CardContent, 
-  Grid, Button, Chip, IconButton, Dialog, DialogActions, 
+  Button, Chip, IconButton, Dialog, DialogActions, 
   DialogContent, DialogContentText, DialogTitle, CircularProgress, 
-  Alert, Divider
+  Alert
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import { useNavigate } from 'react-router-dom';
+import { 
+  DataGrid, 
+  GridColDef, 
+  GridRenderCellParams
+} from '@mui/x-data-grid';
+
+// Define our own interface for the value getter params
+interface GridValueGetterParams {
+  row: Record<string, unknown>;
+  value?: unknown;
+}
 import { Add, Visibility } from '@mui/icons-material';
 import api from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import EditButton from '../components/buttons/EditButton';
 import DeleteButton from '../components/buttons/DeleteButton';
 import { formatPrice } from '../utils/formatPrice';
+import { Product } from '../types/product';
 
 const SellerDashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [productToDelete, setProductToDelete] = useState<number | null>(null);
 
   useEffect(() => {
@@ -46,22 +57,21 @@ const SellerDashboardPage = () => {
             // Si no es un array ni tiene .results, intentar extraer datos
             console.log('Formato de respuesta no estándar:', response.data);
             productsList = Object.values(response.data);
-          }
-          
-          // Procesar cada producto para asegurar que los datos estén en el formato correcto
-          const processedProducts = productsList.map((product: any) => {
+          }          // Procesar cada producto para asegurar que los datos estén en el formato correcto
+          const processedProducts = productsList.map((product: Record<string, unknown>) => {
             // Determinar la URL de imagen si existe
             let imageUrl = null;
-            if (product.images && product.images.length > 0) {
+            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
               // Buscar la imagen primaria primero
-              const primaryImage = product.images.find((img: any) => img.is_primary);
-              imageUrl = primaryImage ? primaryImage.image : product.images[0].image;
+              interface ProductImage { is_primary: boolean; image: string; }
+              const primaryImage = product.images.find((img: ProductImage) => img.is_primary);
+              imageUrl = primaryImage ? primaryImage.image : (product.images[0] as ProductImage).image;
             }
-            
-            // Procesar la categoría
+              // Procesar la categoría
             let categoryName = '';
             if (typeof product.category === 'object' && product.category !== null) {
-              categoryName = product.category.name;
+              const categoryObj = product.category as { name?: string };
+              categoryName = categoryObj.name || '';
             } else if (typeof product.category_name === 'string') {
               categoryName = product.category_name;
             }
@@ -70,7 +80,7 @@ const SellerDashboardPage = () => {
               ...product,
               image: imageUrl,
               category_name: categoryName
-            };
+            } as Product;
           });
           
           console.log('Productos procesados:', processedProducts);
@@ -78,10 +88,10 @@ const SellerDashboardPage = () => {
         } else {
           console.error('Error al obtener productos:', response.error);
           setError('No se pudieron cargar los productos. ' + response.error);
-        }
-      } catch (err: any) {
+        }      } catch (err) {
         console.error('Error fetching seller products:', err);
-        setError('Error cargando tus productos: ' + (err.message || 'Intenta de nuevo'));
+        const errorMessage = err instanceof Error ? err.message : 'Intenta de nuevo';
+        setError('Error cargando tus productos: ' + errorMessage);
       } finally {
         setLoading(false);
       }
@@ -106,10 +116,10 @@ const SellerDashboardPage = () => {
         setProductToDelete(null);
       } else {
         setError(response.error || 'Error al eliminar el producto');
-      }
-    } catch (err: any) {
+      }    } catch (err) {
       console.error('Error deleting product:', err);
-      setError('Error al eliminar el producto: ' + (err.message || 'Intenta de nuevo'));
+      const errorMessage = err instanceof Error ? err.message : 'Intenta de nuevo';
+      setError('Error al eliminar el producto: ' + errorMessage);
     }
   };
 
@@ -159,12 +169,11 @@ const SellerDashboardPage = () => {
       renderCell: (params: GridRenderCellParams) => (
         <Typography>{formatPrice(params.value)}</Typography>
       )
-    },
-    {
+    },    {
       field: 'category_name',
       headerName: 'Categoría',
       width: 150,
-      valueGetter: (params) => params.row.category_name || params.row.category
+      valueGetter: (params: GridValueGetterParams) => params.row.category_name || params.row.category
     },
     {
       field: 'condition',
@@ -235,9 +244,9 @@ const SellerDashboardPage = () => {
         </div>
       )
     }
-  ];
-
-  if (!user?.is_seller) {
+  ];  // Verificar si el usuario es vendedor
+  const userWithType = user as { user_type?: 'customer' | 'seller' };
+  if (!user || userWithType.user_type !== 'seller') {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
@@ -270,10 +279,8 @@ const SellerDashboardPage = () => {
         >
           Nuevo producto
         </Button>
-      </Box>
-
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
+      </Box>      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
+        <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>
@@ -284,8 +291,8 @@ const SellerDashboardPage = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
+        </Box>
+        <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>
@@ -296,8 +303,8 @@ const SellerDashboardPage = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
+        </Box>
+        <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>
@@ -308,8 +315,8 @@ const SellerDashboardPage = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       <Paper sx={{ height: 500, width: '100%', overflow: 'hidden' }}>
         <Typography variant="h6" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>

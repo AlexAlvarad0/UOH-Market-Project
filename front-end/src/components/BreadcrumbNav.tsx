@@ -51,7 +51,7 @@ const BreadcrumbNav: React.FC<BreadcrumbNavProps> = ({ items, className }) => {
         </Link>
         
         {/* Elementos de navegación dinámicos */}
-        {items.map((item, index) => (
+        {items.map((item) => (
           item.current ? (
             <Typography 
               key={item.href}

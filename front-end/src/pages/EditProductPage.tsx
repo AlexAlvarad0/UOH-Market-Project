@@ -5,7 +5,7 @@ import {
   InputLabel, Select, FormHelperText, Chip
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import api from '../services/api';
 
 interface Category {
@@ -86,9 +86,17 @@ const EditProductPage: React.FC = () => {
         } else {
           throw new Error(productResponse.error || 'Error al cargar el producto');
         }
-      } catch (err: any) {
-        console.error("Error cargando datos:", err);
-        setError(err.message || 'Error al cargar datos del producto');
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+        setError(err.message);
+        } else {
+          setError('Error al cargar datos del producto');
+        }
+        if (err instanceof Error) {
+          setError(err.message || 'Error al cargar datos del producto');
+        } else {
+          setError('Error al cargar datos del producto');
+        }
       } finally {
         setLoading(false);
       }
@@ -148,9 +156,14 @@ const EditProductPage: React.FC = () => {
       } else {
         throw new Error(response.error || 'Error al actualizar el producto');
       }
-    } catch (err: any) {
-      console.error("Error al actualizar:", err);
-      setError(err.message || 'Error al actualizar el producto');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Error al actualizar:", err.message);
+        setError(err.message || 'Error al actualizar el producto');
+      } else {
+        console.error("Error desconocido al actualizar:", err);
+        setError('Error desconocido al actualizar el producto');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -203,7 +216,7 @@ const EditProductPage: React.FC = () => {
 
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid container spacing={2}>
               <TextField
                 fullWidth
                 label="Título"
@@ -216,7 +229,7 @@ const EditProductPage: React.FC = () => {
               />
             </Grid>
             
-            <Grid item xs={12}>
+            <Grid container spacing={2}>
               <TextField
                 fullWidth
                 multiline
@@ -231,7 +244,7 @@ const EditProductPage: React.FC = () => {
               />
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid container spacing={2}>
               <TextField
                 fullWidth
                 label="Precio"
@@ -246,7 +259,7 @@ const EditProductPage: React.FC = () => {
               />
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid container spacing={2}>
               <FormControl fullWidth error={!!formErrors.category} disabled={submitting} required>
                 <InputLabel>Categoría</InputLabel>
                 <Select
@@ -266,7 +279,7 @@ const EditProductPage: React.FC = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12}>
+            <Grid container spacing={2}>
               <FormControl fullWidth error={!!formErrors.condition} disabled={submitting} required>
                 <InputLabel>Condición</InputLabel>
                 <Select
@@ -286,7 +299,7 @@ const EditProductPage: React.FC = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+            <Grid container spacing={2}>
               <Button
                 variant="outlined" 
                 onClick={() => navigate(-1)}

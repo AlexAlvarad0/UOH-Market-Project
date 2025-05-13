@@ -1,16 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, Button, TextField, MenuItem, FormControl, 
-  InputLabel, Select, Grid, Typography, CircularProgress,
+  InputLabel, Select, Typography, CircularProgress,
   IconButton
 } from '@mui/material';
-import { Category } from '../types/categories';
-import { Product } from '../types.products';
+import Grid from '@mui/material/Grid';
+import { Product } from '../types/products';
 import api from '../services/api';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { createSquareImage } from '../utils/imageUtils';
+
+interface Category {
+  id: number | string;
+  name: string;
+}
 
 interface ProductFormProps {
   product?: Product;
@@ -20,11 +25,11 @@ interface ProductFormProps {
 
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading = false }) => {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageProcessingLoading, setImageProcessingLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   
   const [formValues, setFormValues] = useState({
     title: product?.title || '',
@@ -49,7 +54,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
     
     // If we have a product and it has images, set the previews
     if (product?.images && product.images.length > 0) {
-      const imageUrls = product.images.map(img => img.image);
+      const imageUrls = product.images.map((img: { image: string }) => img.image);
       setImagePreviews(imageUrls);
     }
   }, [product]);
@@ -62,6 +67,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
         [name]: value
       });
     }
+  };
+  
+  const validateForm = () => {
+    const errors: { [key: string]: string } = {};
+    if (!formValues.title.trim()) errors.title = 'El título es requerido';
+    if (!formValues.description.trim()) errors.description = 'La descripción es requerida';
+    if (!formValues.price || isNaN(Number(formValues.price)) || Number(formValues.price) <= 0) errors.price = 'Precio inválido';
+    if (!formValues.category) errors.category = 'La categoría es requerida';
+    if (!formValues.condition) errors.condition = 'La condición es requerida';
+    if (imageFiles.length === 0) errors.images = 'Debes añadir al menos una imagen';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
   
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,8 +135,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
-    
+    if (!validateForm()) {
+      return;
+    }
     try {
       // Create FormData object to handle file upload
       const formData = new FormData();
@@ -139,15 +157,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
       });
       
       // Log form data for debugging
-      for (let [key, value] of formData.entries()) {
+      for (const [key, value] of formData.entries()) {
         console.log(`${key}: ${value instanceof File ? `${value.name} (${value.type})` : value}`);
       }
       
       await onSubmit(formData);
     } catch (error) {
       console.error('Error al enviar formulario:', error);
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -162,7 +178,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
   return (
     <Box component="form" onSubmit={handleSubmit} noValidate>
       <Grid container spacing={3}>
-        <Grid item xs={12}>
+        <Grid container spacing={2} >
           <TextField
             required
             fullWidth
@@ -171,10 +187,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             value={formValues.title}
             onChange={handleInputChange}
             variant="outlined"
+            error={!!formErrors.title}
+            helperText={formErrors.title}
           />
         </Grid>
         
-        <Grid item xs={12}>
+        <Grid container spacing={2}>
           <TextField
             required
             fullWidth
@@ -185,10 +203,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             value={formValues.description}
             onChange={handleInputChange}
             variant="outlined"
+            error={!!formErrors.description}
+            helperText={formErrors.description}
           />
         </Grid>
         
-        <Grid item xs={12} sm={6}>
+        <Grid container spacing={2}>
           <TextField
             required
             fullWidth
@@ -199,17 +219,19 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             onChange={handleInputChange}
             variant="outlined"
             InputProps={{ inputProps: { min: 0, step: "0.01" } }}
+            error={!!formErrors.price}
+            helperText={formErrors.price}
           />
         </Grid>
         
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth required>
+        <Grid container spacing={2}>
+          <FormControl fullWidth required error={!!formErrors.category}>
             <InputLabel>Categoría</InputLabel>
             <Select
               name="category"
               value={formValues.category}
               label="Categoría"
-              onChange={handleInputChange}
+              onChange={(e) => handleInputChange(e as React.ChangeEvent<{ name?: string; value: unknown }>)}
             >
               {categories.map((category) => (
                 <MenuItem key={category.id} value={category.id}>
@@ -217,17 +239,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                 </MenuItem>
               ))}
             </Select>
+            <Typography variant="caption" color="error">{formErrors.category}</Typography>
           </FormControl>
         </Grid>
         
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
+        <Grid container spacing={2}>
+          <FormControl fullWidth required error={!!formErrors.condition}>
             <InputLabel>Condición</InputLabel>
             <Select
               name="condition"
               value={formValues.condition}
               label="Condición"
-              onChange={handleInputChange}
+              onChange={(e) => handleInputChange(e as React.ChangeEvent<{ name?: string; value: unknown }>)}
             >
               {conditions.map((condition) => (
                 <MenuItem key={condition.value} value={condition.value}>
@@ -235,10 +258,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                 </MenuItem>
               ))}
             </Select>
+            <Typography variant="caption" color="error">{formErrors.condition}</Typography>
           </FormControl>
         </Grid>
         
-        <Grid item xs={12}>
+        <Grid container spacing={2}>
           <Typography variant="subtitle1" gutterBottom>
             Imágenes del producto
           </Typography>
@@ -351,24 +375,24 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
               Las imágenes se recortarán automáticamente en formato cuadrado
             </Typography>
             
-            {imageFiles.length === 0 && (
+            {formErrors.images && (
               <Typography variant="caption" color="error" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
-                Por favor, añade al menos una imagen para tu producto
+                {formErrors.images}
               </Typography>
             )}
           </Box>
         </Grid>
         
-        <Grid item xs={12} sx={{ mt: 2, textAlign: 'center' }}>
+        <Grid container spacing={2}>
           <Button
             type="submit"
             variant="contained"
             color="primary"
             size="large"
-            disabled={loading || imageFiles.length === 0 || imageProcessingLoading || isLoading}
+            disabled={isLoading || imageFiles.length === 0 || imageProcessingLoading}
             sx={{ minWidth: 200 }}
           >
-            {loading || isLoading ? <CircularProgress size={24} /> : (product ? 'Actualizar Producto' : 'Crear Producto')}
+            {isLoading ? <CircularProgress size={24} /> : (product ? 'Actualizar Producto' : 'Crear Producto')}
           </Button>
         </Grid>
       </Grid>

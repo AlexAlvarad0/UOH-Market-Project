@@ -18,7 +18,6 @@ const ProductList: React.FC<ProductListProps> = ({
   onFavoriteClick,
   isLoading = false,
   itemsPerRow = 4,
-  uniformSize = true,
   cardHeight = 380,
   imageHeight = 220,
 }) => {

@@ -4,7 +4,7 @@ import UserAvatar from '../components/UserAvatar';
 import apiService from '../services/api';
 
 const ProfileEditForm: React.FC = () => {
-  const [profile, setProfile] = useState<any>(null);
+  // Removed unused profile state
   const [username, setUsername] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
@@ -21,7 +21,7 @@ const ProfileEditForm: React.FC = () => {
       setLoading(true);
       const response = await apiService.getUserProfile();
       if (response.success) {
-        setProfile(response.data);
+        // Removed unused profile state update
         setUsername(response.data.username);
         setPreviewUrl(response.data.profile_picture);
       } else {

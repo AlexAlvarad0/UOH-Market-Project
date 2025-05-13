@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, MouseEvent, UIEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 import notificationsService from '../services/notifications';
 import { 
   IconButton, Badge, Popover, Box, Typography, 
@@ -38,7 +38,6 @@ const NotificationsMenu: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const { isAuthenticated } = useAuth();
@@ -66,11 +65,9 @@ const NotificationsMenu: React.FC = () => {
         setUnreadCount(unread);
       } else {
         console.error('Error al cargar notificaciones:', response.error);
-        setError('No se pudieron cargar las notificaciones');
       }
     } catch (err) {
       console.error('Error inesperado al cargar notificaciones:', err);
-      setError('Error al conectar con el servidor');
     } finally {
       setLoading(false);
     }

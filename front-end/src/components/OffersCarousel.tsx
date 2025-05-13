@@ -38,7 +38,7 @@ const arrowButtonStyle = {
 };
 
 const arrowIconStyle: React.CSSProperties = {
-  fontSize: { xs: 24, sm: 30, md: 36 },
+  fontSize: 36,
   pointerEvents: 'none',
   display: 'flex',
   alignItems: 'center',

@@ -3,14 +3,22 @@ import { Box, Typography, Badge, CircularProgress } from '@mui/material';
 import { List } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.hooks';
 
 const ChatPage = () => {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
+  interface Message {
+    id: number;
+    sender: number;
+    sender_username: string;
+    content: string;
+    created_at: string;
+  }
+
+  const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
@@ -32,7 +40,7 @@ const ChatPage = () => {
         }
 
         // Ordenar conversaciones por fecha de actualización (más recientes primero)
-        convs.sort((a, b) => 
+        convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
         );
         
@@ -87,7 +95,7 @@ const ChatPage = () => {
       }
       
       // Ordenar conversaciones por fecha de actualización
-      convs.sort((a, b) => 
+      convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
       
@@ -129,9 +137,9 @@ const ChatPage = () => {
           <List
             itemLayout="horizontal"
             dataSource={conversations}
-            renderItem={(item: any) => {
+            renderItem={(item: { id: number; participants: { id: number; username: string }[]; product?: { title: string }; unread_count?: number }) => {
               // Mostrar nombre del producto y cantidad de mensajes no leídos
-              const otherUser = item.participants.find((u: any) => u.id !== user?.id);
+              const otherUser = item.participants.find((u: { id: number; username: string }) => u.id !== user?.id);
               const unreadCount = item.unread_count || 0;
               return (
                 <List.Item
@@ -194,7 +202,7 @@ const ChatPage = () => {
             </Typography>
           ) : (
             <>
-              {messages.map((msg: any) => {
+              {messages.map((msg: Message) => {
                 const isCurrentUser = msg.sender === user?.id;
                 return (
                   <Box
