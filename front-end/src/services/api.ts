@@ -566,11 +566,27 @@ class ApiService {
       const response = await axios.get(`${API_URL}/conversations/`, {
         headers: this.getHeaders()
       });
-      return { success: true, data: response.data };    } catch (error: unknown) {
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response) {
         return { success: false, error: error.response.data || 'Error al cargar conversaciones' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al cargar conversaciones' };
+    }
+  }
+
+  async deleteConversation(conversationId: number) {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/conversations/${conversationId}/`,
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al eliminar conversación' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al eliminar conversación' };
     }
   }
 
@@ -615,19 +631,65 @@ class ApiService {
       };
     }
   }
-
   async sendMessage(conversationId: number, content: string) {
     try {
       const response = await axios.post(
-        `${API_URL}/messages/`,
-        { conversation: conversationId, content }, // <-- CAMBIO AQUÍ
+        `${API_URL}/chat/messages/`,
+        { conversation: conversationId, content },
         { headers: this.getHeaders() }
       );
-      return { success: true, data: response.data };    } catch (error: unknown) {
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response) {
         return { success: false, error: error.response.data || 'Error al enviar mensaje' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al enviar mensaje' };
+    }
+  }
+
+  async updateMessage(messageId: number, content: string) {
+    try {
+      const response = await axios.patch(
+        `${API_URL}/chat/messages/${messageId}/`,
+        { content },
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al actualizar mensaje' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al actualizar mensaje' };
+    }
+  }
+  async deleteMessage(messageId: number) {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/chat/messages/${messageId}/`,
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al eliminar mensaje' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al eliminar mensaje' };
+    }
+  }
+
+  async likeMessage(messageId: number) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/chat/messages/${messageId}/like/`,
+        {},
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al dar like al mensaje' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al dar like al mensaje' };
     }
   }
 }

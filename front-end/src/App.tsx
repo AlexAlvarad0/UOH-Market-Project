@@ -5,7 +5,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ConfigProvider } from 'antd';
 import Box from '@mui/material/Box';
-import styled from 'styled-components';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
 
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
@@ -44,66 +44,13 @@ const antTheme = {
   },
 };
 
-const StyledWrapper = styled.div`
-  .plusButton {
-    /* Config start */
-    --plus_sideLength: 2.5rem;
-    --plus_topRightTriangleSideLength: 0.9rem;
-    /* Config end */
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border: 1px solid white;
-    width: var(--plus_sideLength);
-    height: var(--plus_sideLength);
-    background-color: #000000;
-    overflow: hidden;
-  }
-
-  .plusButton::before {
-    position: absolute;
-    content: "";
-    top: 0;
-    right: 0;
-    width: 0;
-    height: 0;
-    border-width: 0 var(--plus_topRightTriangleSideLength) var(--plus_topRightTriangleSideLength) 0;
-    border-style: solid;
-    border-color: #cdcdcd;
-    transition-timing-function: ease-in-out;
-    transition-duration: 0.2s;
-  }
-
-  .plusButton:hover {
-    cursor: pointer;
-  }
-
-  .plusButton:hover::before,
-  .plusButton:focus-visible::before {
-    --plus_topRightTriangleSideLength: calc(var(--plus_sideLength) * 2);
-  }
-
-  .plusButton>.plusIcon {
-    fill: white;
-    width: calc(var(--plus_sideLength) * 0.7);
-    height: calc(var(--plus_sideLength) * 0.7);
-    z-index: 1;
-    transition-timing-function: ease-in-out;
-    transition-duration: 0.2s;
-  }
-
-  .plusButton:hover>.plusIcon,
-  .plusButton:focus-visible>.plusIcon {
-    fill: black;
-    transform: rotate(180deg);
-  }
-`;
-
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+
+  // Verificar si estamos en la página de publicación de producto
+  const isProductPage = location.pathname === '/product/new';
 
   const handleAddProduct = () => {
     if (!isAuthenticated) {
@@ -154,28 +101,27 @@ function AppContent() {
               {/* Página 404 */}
               <Route path="*" element={<NotFoundPage />} />
             </Route>
-          </Routes>
-
-          <StyledWrapper
-            style={{
-              position: 'fixed',
-              bottom: 16,
-              right: 16,
-            }}
-          >
-            <div 
-              tabIndex={0} 
-              className="plusButton" 
-              onClick={handleAddProduct}
-              title="Publicar nuevo producto"
-            >
-              <svg className="plusIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
-                <g>
-                  <path d="M13.75 23.75V16.25H6.25V13.75H13.75V6.25H16.25V13.75H23.75V16.25H16.25V23.75H13.75Z" />
-                </g>
-              </svg>
+          </Routes>          
+          {/* Botón flotante para agregar producto - oculto en la página de publicación */}
+          {!isProductPage && (
+            <div
+              style={{
+                position: 'fixed',
+                top: 75, // Debajo del header
+                right: 16,
+                zIndex: 100
+              }}
+            >            
+              <button 
+                onClick={handleAddProduct}
+                className="flex justify-center items-center gap-2 w-28 h-12 cursor-pointer rounded-md shadow-2xl text-white font-semibold bg-gradient-to-r from-[#004f9e] via-[#1d4ed8] to-[#3b82f6] hover:shadow-xl hover:shadow-blue-500 hover:scale-105 duration-300 hover:from-[#3b82f6] hover:to-[#1e40af]"
+                title="Vender nuevo producto"
+              >
+                <AddCircleIcon sx={{ fontSize: 24, color: 'white', mr: 1 }} />
+                Vender
+              </button>
             </div>
-          </StyledWrapper>
+          )}
         </ConfigProvider>
       </ThemeProvider>
     </Box>

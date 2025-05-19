@@ -18,8 +18,25 @@ const ChatPage = () => {
     created_at: string;
   }
 
+  interface Participant {
+    id: number;
+    username: string;
+  }
+
+  interface Product {
+    title: string;
+  }
+
+  interface Conversation {
+    id: number;
+    participants: Participant[];
+    product?: Product;
+    unread_count?: number;
+    updated_at: string;
+  }
+
   const [messages, setMessages] = useState<Message[]>([]);
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

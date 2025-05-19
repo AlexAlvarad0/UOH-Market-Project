@@ -5,16 +5,12 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import Badge from '@mui/material/Badge';
-import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import MoreIcon from '@mui/icons-material/MoreVert';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-import ChatIcon from '@mui/icons-material/Chat';
 import CategoryMenu from './buttons/CategoryMenu';
 import SearchInput from './common/SearchInput';
 import NotificationsMenu from './NotificationsMenu';
@@ -29,26 +25,15 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [mobileMoreAnchorEl, setMobileMoreAnchorEl] = useState<null | HTMLElement>(null);
 
   const isMenuOpen = Boolean(anchorEl);
-  const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
 
   const handleProfileMenuOpen = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleMobileMenuClose = () => {
-    setMobileMoreAnchorEl(null);
-  };
-
   const handleMenuClose = () => {
     setAnchorEl(null);
-    handleMobileMenuClose();
-  };
-
-  const handleMobileMenuOpen = (event: MouseEvent<HTMLElement>) => {
-    setMobileMoreAnchorEl(event.currentTarget);
   };
 
   const handleLogout = () => {
@@ -168,71 +153,6 @@ const Header = () => {
           </>
         )}
       </div>
-    </Menu>
-  );
-
-  const mobileMenuId = 'primary-search-account-menu-mobile';
-  const renderMobileMenu = (
-    <Menu
-      anchorEl={mobileMoreAnchorEl}
-      anchorOrigin={{
-        vertical: 'top',
-        horizontal: 'right',
-      }}
-      id={mobileMenuId}
-      keepMounted
-      transformOrigin={{
-        vertical: 'top',
-        horizontal: 'right',
-      }}
-      open={isMobileMenuOpen}
-      onClose={handleMobileMenuClose}
-    >
-      {isAuthenticated ? [
-        <MenuItem key="favorites" onClick={() => navigate('/favorites')}>
-          <IconButton size="large" color="inherit">
-            <Badge color="error">
-              <FavoriteIcon />
-            </Badge>
-          </IconButton>
-          <p>Favoritos</p>
-        </MenuItem>,
-        <MenuItem key="notifications" onClick={() => {
-          handleMobileMenuClose();
-          // Simular un clic en el icono de notificaciones
-          const notificationButton = document.querySelector('[aria-label="notificaciones"]');
-          if (notificationButton) {
-            (notificationButton as HTMLElement).click();
-          }
-        }}>
-          <IconButton size="large" color="inherit">
-            <Badge color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-          <p>Notificaciones</p>
-        </MenuItem>,
-        <MenuItem key="chat" onClick={() => navigate('/chat')}>
-          <IconButton size="large" color="inherit">
-            <Badge color="error">
-              <ChatIcon />
-            </Badge>
-          </IconButton>
-          <p>Mensajes</p>
-        </MenuItem>
-      ] : null}
-      <MenuItem key="profile" onClick={handleProfileMenuOpen}>
-        <IconButton
-          size="large"
-          aria-label="account of current user"
-          aria-controls="primary-search-account-menu"
-          aria-haspopup="true"
-          color="inherit"
-        >
-          <AccountCircle />
-        </IconButton>
-        <p>Perfil</p>
-      </MenuItem>
     </Menu>
   );
 
@@ -427,10 +347,10 @@ const Header = () => {
         }}>
           <IconButton
             size="small"
-            aria-label="show more"
-            aria-controls={mobileMenuId}
+            aria-label="mostrar perfil"
+            aria-controls={menuId}
             aria-haspopup="true"
-            onClick={handleMobileMenuOpen}
+            onClick={handleProfileMenuOpen}
             color="inherit"
             sx={{ padding: '6px' }}
           >
@@ -438,7 +358,6 @@ const Header = () => {
           </IconButton>
         </Box>
       </Toolbar>
-      {renderMobileMenu}
       {renderMenu}
     </AppBar>
   );
