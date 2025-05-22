@@ -634,7 +634,7 @@ class ApiService {
   async sendMessage(conversationId: number, content: string) {
     try {
       const response = await axios.post(
-        `${API_URL}/chat/messages/`,
+        `${API_URL}/messages/`,
         { conversation: conversationId, content },
         { headers: this.getHeaders() }
       );
@@ -650,7 +650,7 @@ class ApiService {
   async updateMessage(messageId: number, content: string) {
     try {
       const response = await axios.patch(
-        `${API_URL}/chat/messages/${messageId}/`,
+        `${API_URL}/messages/${messageId}/`,
         { content },
         { headers: this.getHeaders() }
       );
@@ -665,7 +665,7 @@ class ApiService {
   async deleteMessage(messageId: number) {
     try {
       const response = await axios.delete(
-        `${API_URL}/chat/messages/${messageId}/`,
+        `${API_URL}/messages/${messageId}/`,
         { headers: this.getHeaders() }
       );
       return { success: true, data: response.data };    
@@ -680,7 +680,7 @@ class ApiService {
   async likeMessage(messageId: number) {
     try {
       const response = await axios.post(
-        `${API_URL}/chat/messages/${messageId}/like/`,
+        `${API_URL}/messages/${messageId}/like/`,
         {},
         { headers: this.getHeaders() }
       );

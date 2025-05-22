@@ -5,11 +5,19 @@ from products.serializers import ProductSerializer
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.ReadOnlyField(source='sender.username')
+    is_edited = serializers.ReadOnlyField()
+    edited_at = serializers.ReadOnlyField()
+    liked_by_users = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
-        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'created_at', 'is_read']
-        read_only_fields = ['sender', 'created_at', 'is_read']
+        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'created_at', 'edited_at', 'is_edited', 'is_read', 'liked', 'liked_by', 'liked_by_users']
+        read_only_fields = ['sender', 'created_at', 'edited_at', 'is_edited', 'is_read', 'liked', 'liked_by', 'liked_by_users']
+    
+    def get_liked_by_users(self, obj):
+        """Devuelve información detallada sobre los usuarios que han dado like al mensaje"""
+        users = obj.liked_by.all()
+        return [{'id': user.id, 'username': user.username} for user in users]
     
     def create(self, validated_data):
         user = self.context['request'].user

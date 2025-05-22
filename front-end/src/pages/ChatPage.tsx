@@ -4,18 +4,24 @@ import { List } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth.hooks';
+import { Edit as EditIcon, Delete as DeleteIcon, MoreVert as MoreVertIcon, ThumbUp as ThumbUpIcon, ThumbUpOutlined as ThumbUpOutlinedIcon } from '@mui/icons-material';
+import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 
 const ChatPage = () => {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [message, setMessage] = useState('');
-  interface Message {
+  const [message, setMessage] = useState('');  interface Message {
     id: number;
     sender: number;
     sender_username: string;
     content: string;
     created_at: string;
+    edited_at: string | null;
+    is_edited: boolean;
+    liked: boolean;
+    liked_by?: number[];
+    liked_by_users?: Array<{id: number, username: string}>;
   }
 
   interface Participant {
@@ -40,6 +46,12 @@ const ChatPage = () => {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Estado para edición de mensajes
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
 
   // Cargar conversaciones
   useEffect(() => {
@@ -120,25 +132,111 @@ const ChatPage = () => {
     }
   };
 
+  // Funciones para el menú contextual
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, messageId: number) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedMessageId(messageId);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedMessageId(null);
+  };
+
+  // Iniciar edición de un mensaje
+  const handleEditStart = () => {
+    if (!selectedMessageId) return;
+    
+    const messageToEdit = messages.find(msg => msg.id === selectedMessageId);
+    if (messageToEdit) {
+      setEditingMessageId(selectedMessageId);
+      setEditContent(messageToEdit.content);
+      setMessage(messageToEdit.content); // Colocar el contenido en el input
+    }
+    
+    handleMenuClose();
+  };
+
+  // Cancelar edición
+  const handleEditCancel = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+    setMessage('');
+  };
+
+  // Eliminar mensaje
+  const handleDeleteMessage = async () => {
+    if (!selectedMessageId) return;
+    
+    const res = await api.deleteMessage(selectedMessageId);
+    if (res.success) {
+      // Eliminar mensaje de la lista
+      setMessages(prev => prev.filter(msg => msg.id !== selectedMessageId));
+      // Actualizar conversaciones
+      refreshConversations();
+    }
+    
+    handleMenuClose();
+  };
+
+  // Modificar handleSend para manejar también la edición
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !conversationId) return;
     
-    const res = await api.sendMessage(Number(conversationId), message);
+    // Si estamos editando un mensaje
+    if (editingMessageId) {
+      if (!message.trim()) return;
+      
+      const res = await api.updateMessage(editingMessageId, message);
+      if (res.success) {
+        // Actualizar el mensaje en la lista
+        setMessages(prev => prev.map(msg => 
+          msg.id === editingMessageId ? res.data : msg
+        ));
+        
+        // Limpiar estado de edición
+        setEditingMessageId(null);
+        setEditContent('');
+        setMessage('');
+        
+        // Actualizar conversaciones
+        refreshConversations();
+      }
+    } 
+    // Si estamos enviando un mensaje nuevo
+    else {
+      if (!message.trim() || !conversationId) return;
+      
+      const res = await api.sendMessage(Number(conversationId), message);
+      if (res.success) {
+        // Añadir mensaje a la lista y limpiar campo
+        setMessages((prev) => [...prev, res.data]);
+        setMessage('');
+      }
+    }
+    
+    // Scroll al final de los mensajes
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+    
+    // Actualizar la lista de conversaciones
+    refreshConversations();
+  };
+  // Función para dar like a un mensaje
+  const handleLikeMessage = async (messageId: number) => {
+    const res = await api.likeMessage(messageId);
     if (res.success) {
-      // Añadir mensaje a la lista y limpiar campo
-      setMessages((prev) => [...prev, res.data]);
-      setMessage('');
-      
-      // Scroll al final de los mensajes
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 100);
-      
-      // Actualizar la lista de conversaciones
-      refreshConversations();
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { 
+          ...msg, 
+          liked_by: res.data.liked_by, 
+          liked: res.data.liked,
+          liked_by_users: res.data.liked_by_users
+        } : msg
+      ));
     }
   };
 
@@ -232,10 +330,13 @@ const ChatPage = () => {
                       borderRadius: isCurrentUser ? '20px 20px 0 20px' : '20px 20px 20px 0',
                       maxWidth: '70%',
                       alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      position: 'relative'
                     }}
                   >
+                    {/* Contenido del mensaje */}
                     <Typography variant="body1">{msg.content}</Typography>
+                      {/* Metadatos y opciones del mensaje */}
                     <Typography 
                       variant="caption" 
                       color="text.secondary" 
@@ -246,11 +347,143 @@ const ChatPage = () => {
                       }}
                     >
                       {msg.sender_username} - {new Date(msg.created_at).toLocaleTimeString()}
+                      {msg.is_edited && ' (editado)'}
                     </Typography>
+                      {/* Indicador de likes para mensajes propios */}
+                    {isCurrentUser && msg.liked && msg.liked_by && msg.liked_by.length > 0 && (
+                      <Box 
+                        sx={{ 
+                          position: 'absolute', 
+                          bottom: 8, 
+                          left: 8, 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 0.5
+                        }}
+                      >
+                        <Tooltip 
+                          title={
+                            msg.liked_by_users && msg.liked_by_users.length > 0 
+                              ? <>
+                                  <Typography variant="caption" component="div">
+                                    A {msg.liked_by_users.length > 1 ? 'estas personas' : 'esta persona'} le gusta tu mensaje:
+                                  </Typography>
+                                  <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                                    {msg.liked_by_users.map(user => (
+                                      <li key={user.id}>
+                                        <Typography variant="caption">{user.username}</Typography>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </>
+                              : `${msg.liked_by.length} persona${msg.liked_by.length > 1 ? 's' : ''} ${msg.liked_by.length > 1 ? 'han' : 'ha'} dado like a este mensaje`
+                          }
+                          arrow
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <ThumbUpIcon fontSize="small" sx={{ color: '#1976d2', fontSize: '0.9rem' }} />
+                            <Typography variant="caption" sx={{ color: '#1976d2' }}>
+                              {msg.liked_by.length}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      </Box>
+                    )}
+                      {/* Acción para mensajes de otros usuarios */}
+                    {!isCurrentUser && (
+                      <>
+                        <Tooltip title="Me gusta">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleLikeMessage(msg.id)}
+                            sx={{ position: 'absolute', top: 8, right: 8 }}
+                          >
+                            {msg.liked ? 
+                              <ThumbUpIcon fontSize="small" color="primary" /> : 
+                              <ThumbUpOutlinedIcon fontSize="small" />
+                            }
+                          </IconButton>
+                        </Tooltip>
+                        
+                        {/* Mostrar quién más ha dado like a este mensaje (excepto el usuario actual) */}
+                        {msg.liked && msg.liked_by_users && msg.liked_by_users.length > 0 && (
+                          <Box 
+                            sx={{ 
+                              position: 'absolute', 
+                              bottom: 8, 
+                              right: 8, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5
+                            }}
+                          >
+                            <Tooltip 
+                              title={
+                                <>
+                                  <Typography variant="caption" component="div">
+                                    {msg.liked_by_users.length > 1 
+                                      ? 'Otras personas que han dado like:' 
+                                      : 'Otra persona que ha dado like:'}
+                                  </Typography>
+                                  <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                                    {msg.liked_by_users
+                                      .filter(u => u.id !== user?.id)
+                                      .map(user => (
+                                        <li key={user.id}>
+                                          <Typography variant="caption">{user.username}</Typography>
+                                        </li>
+                                      ))}
+                                  </ul>
+                                </>
+                              }
+                              arrow
+                              placement="left"
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="caption" sx={{ color: '#1976d2' }}>
+                                  {msg.liked_by_users.filter(u => u.id !== user?.id).length > 0 && 
+                                    `+${msg.liked_by_users.filter(u => u.id !== user?.id).length}`}
+                                </Typography>
+                                {msg.liked_by_users.filter(u => u.id !== user?.id).length > 0 && (
+                                  <ThumbUpIcon fontSize="small" sx={{ color: '#1976d2', fontSize: '0.9rem' }} />
+                                )}
+                              </Box>
+                            </Tooltip>
+                          </Box>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Botones de acción solo para mensajes propios */}
+                    {isCurrentUser && (
+                      <IconButton
+                        size="small"
+                        sx={{ position: 'absolute', top: 8, right: 8 }}
+                        onClick={(e) => handleMenuOpen(e, msg.id)}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </Box>
                 );
               })}
               <div ref={messagesEndRef} />
+              
+              {/* Menú contextual para acciones en mensajes */}
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleMenuClose}
+              >
+                <MenuItem onClick={handleEditStart}>
+                  <EditIcon fontSize="small" sx={{ mr: 1 }} />
+                  Editar mensaje
+                </MenuItem>
+                <MenuItem onClick={handleDeleteMessage}>
+                  <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                  Eliminar mensaje
+                </MenuItem>
+              </Menu>
             </>
           )}
         </Box>
@@ -300,6 +533,25 @@ const ChatPage = () => {
                     borderRadius: '20px',
                   }}
                 />
+                {editingMessageId && (
+                  <button
+                    type="button"
+                    onClick={handleEditCancel}
+                    style={{
+                      position: 'absolute',
+                      right: '40px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: '#666'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={!message.trim()}
@@ -321,19 +573,23 @@ const ChatPage = () => {
                     padding: 0,
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 664 663" width="18" height="18">
-                    <path
-                      fill={message.trim() ? "#e0e0e0" : "none"}
-                      d="M646.293 331.888L17.7538 17.6187L155.245 331.888M646.293 331.888L17.753 646.157L155.245 331.888M646.293 331.888L318.735 330.228L155.245 331.888"
-                    />
-                    <path
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      strokeWidth="33.67"
-                      stroke={message.trim() ? "#000000" : "#9e9e9e"}
-                      d="M646.293 331.888L17.7538 17.6187L155.245 331.888M646.293 331.888L17.753 646.157L155.245 331.888M646.293 331.888L318.735 330.228L155.245 331.888"
-                    />
-                  </svg>
+                  {editingMessageId ? (
+                    <EditIcon fontSize="small" color={message.trim() ? "primary" : "disabled"} />
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 664 663" width="18" height="18">
+                      <path
+                        fill={message.trim() ? "#e0e0e0" : "none"}
+                        d="M646.293 331.888L17.7538 17.6187L155.245 331.888M646.293 331.888L17.753 646.157L155.245 331.888M646.293 331.888L318.735 330.228L155.245 331.888"
+                      />
+                      <path
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        strokeWidth="33.67"
+                        stroke={message.trim() ? "#000000" : "#9e9e9e"}
+                        d="M646.293 331.888L17.7538 17.6187L155.245 331.888M646.293 331.888L17.753 646.157L155.245 331.888M646.293 331.888L318.735 330.228L155.245 331.888"
+                      />
+                    </svg>
+                  )}
                 </button>
               </Box>
             </form>

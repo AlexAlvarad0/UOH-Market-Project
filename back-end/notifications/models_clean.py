@@ -1,4 +1,4 @@
-from django.db import models
+﻿from django.db import models
 from django.conf import settings
 from products.models import Product
 
@@ -80,4 +80,4 @@ class Notification(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return f"{self.get_type_display()} para {self.user.username}"
+        return f"{self.get_type_display()} para {self.user.username}"e_display()} para {self.user.username}"

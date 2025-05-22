@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.utils import timezone
 from .models import Conversation, Message
 from products.models import Product
 from .serializers import ConversationSerializer, MessageSerializer
@@ -76,7 +77,34 @@ class MessageViewSet(viewsets.ModelViewSet):
         conversation_id = self.request.query_params.get('conversation_id')
         if conversation_id:
             return Message.objects.filter(conversation_id=conversation_id).order_by('created_at')
-        return Message.objects.none()
+        # Permitir acceso a todos los mensajes para operaciones como editar, eliminar y dar like
+        return Message.objects.all()
+    
+    def update(self, request, *args, **kwargs):
+        """Solo permitir actualizar mensajes enviados por el usuario."""
+        instance = self.get_object()
+        
+        # Verificar que sea el remitente del mensaje
+        if instance.sender != request.user:
+            return Response(
+                {"detail": "No tienes permiso para editar este mensaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        # Actualizar contenido y marcar como editado
+        content = request.data.get('content')
+        if content:
+            instance.content = content
+            instance.is_edited = True
+            instance.edited_at = timezone.now()
+            instance.save()
+            
+            # Actualizar timestamp de la conversación
+            instance.conversation.updated_at = instance.edited_at
+            instance.conversation.save()
+            
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -86,10 +114,10 @@ class MessageViewSet(viewsets.ModelViewSet):
         conversation_id = request.data.get('conversation')
         try:
             conversation = Conversation.objects.get(id=conversation_id, participants=request.user)
-            message = Message.objects.create(
-                conversation=conversation,
+            message = Message.objects.create(                conversation=conversation,
                 sender=request.user,
-                content=request.data.get('content')
+                content=request.data.get('content'),
+                liked=False
             )
             
             conversation.updated_at = message.created_at
@@ -99,3 +127,39 @@ class MessageViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Conversation.DoesNotExist:
             return Response({'detail': 'Conversación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+    @action(detail=True, methods=['post'], url_path='like')
+    def like(self, request, pk=None):
+        """Permitir dar like o remover like a mensajes (no propios)."""
+        message = self.get_object()
+        user = request.user
+        if message.sender == user:
+            return Response({'detail': 'No se puede dar like a tu propio mensaje.'}, status=status.HTTP_400_BAD_REQUEST)
+        if user in message.liked_by.all():
+            message.liked_by.remove(user)
+            liked = False
+        else:
+            message.liked_by.add(user)
+            liked = True            # Crear notificación si el usuario está dando like
+            from notifications.models import Notification
+            Notification.objects.create(
+                user=message.sender,
+                from_user=user,
+                type='like_message',
+                title='Nuevo like en tu mensaje',
+                message=f'{user.username} le ha dado like a tu mensaje',
+                related_message=message,
+                related_conversation=message.conversation
+            )
+        
+        # Actualizar el campo "liked" si hay al menos un like
+        message.liked = message.liked_by.count() > 0
+        message.save()
+        
+        # Devolver información detallada de los usuarios que dieron like
+        liked_by_users = [{'id': u.id, 'username': u.username} for u in message.liked_by.all()]
+        
+        return Response({
+            'liked_by': [u.id for u in message.liked_by.all()],
+            'liked': message.liked,
+            'liked_by_users': liked_by_users
+        })

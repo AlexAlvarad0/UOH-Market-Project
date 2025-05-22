@@ -81,6 +81,38 @@ class NotificationViewSet(viewsets.ModelViewSet):
             'count': count
         })
     
+    @action(detail=False, methods=['post'])
+    def mark_message_read(self, request):
+        """Marca como leídas todas las notificaciones relacionadas con un mensaje específico"""
+        message_id = request.data.get('message_id')
+        if not message_id:
+            return Response(
+                {"detail": "Se requiere el ID del mensaje"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Marcar como leídas todas las notificaciones de este mensaje para el usuario actual
+        notifications = self.get_queryset().filter(
+            related_message=message_id,
+            is_read=False
+        )
+        
+        count = notifications.count()
+        notifications.update(is_read=True)
+        
+        return Response({
+            'status': f'Se marcaron {count} notificaciones del mensaje como leídas',
+            'count': count
+        })
+    
+    @action(detail=False, methods=['delete'], url_path='delete_all')
+    def delete_all(self, request):
+        """Elimina todas las notificaciones del usuario autenticado"""
+        queryset = self.get_queryset()
+        count = queryset.count()
+        queryset.delete()
+        return Response({'status': f'Se eliminaron {count} notificaciones', 'count': count})
+    
     def create(self, request, *args, **kwargs):
         """
         Sobrescribimos el método create para que solo los administradores 

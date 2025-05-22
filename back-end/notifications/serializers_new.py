@@ -10,6 +10,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     time_ago = SerializerMethodField()
     message_info = SerializerMethodField()
+    
     class Meta:
         model = Notification
         fields = [
@@ -33,7 +34,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             return f'hace {minutes} {"minuto" if minutes == 1 else "minutos"}'
         
         return f'hace {timesince(obj.created_at)}'
-        
+    
     def get_message_info(self, obj):
         """Retorna información adicional sobre el mensaje relacionado si existe"""
         if obj.related_message:

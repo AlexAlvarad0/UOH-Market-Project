@@ -1,0 +1,30 @@
+/* Animaciones para notificaciones */
+.notification-item {
+  transform-origin: right;
+  transition: all 0.3s ease;
+}
+
+.notification-exit {
+  animation: slideOutRight 0.3s forwards;
+}
+
+@keyframes slideOutRight {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Botón de eliminar notificación */
+.delete-button {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.notification-item:hover .delete-button {
+  opacity: 1;
+}

@@ -1,18 +1,23 @@
-import React, { useState, useEffect, useRef, MouseEvent, UIEvent } from 'react';
+import React, { useState, useEffect, useRef, useCallback, MouseEvent, UIEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.hooks';
 import notificationsService from '../services/notifications';
 import { 
   IconButton, Badge, Popover, Box, Typography, 
   Button, Divider, List, ListItem, ListItemText,
-  ListItemAvatar, Avatar 
+  ListItemAvatar, Avatar, Tooltip
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import MessageIcon from '@mui/icons-material/Message';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import CheckIcon from '@mui/icons-material/Check';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import '../styles/scroll.css';
+import '../styles/notification-animations.css';
 
 interface Notification {
   id: number;
@@ -32,59 +37,70 @@ interface Notification {
     title: string;
   };
   related_conversation?: number;
+  related_message?: number;
+  message_info?: {
+    id: number;
+    content: string;
+    conversation_id: number;
+  };
 }
 
 const NotificationsMenu: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const { isAuthenticated } = useAuth();
+  const touchStartXRef = useRef<Record<number, number>>({}); // Referencia para posiciones de touch por notificación
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const loadUnreadCount = async () => {
+      try {
+        const response = await notificationsService.getUnread();
+        if (response.success && response.data) {
+          const data = response.data.results || response.data;
+          setUnreadCount(data.length);
+        }
+      } catch (err) {
+        console.error('Error al obtener notificaciones no leídas:', err);
+      }
+    };
+    loadUnreadCount();
+  }, [isAuthenticated]);
   const navigate = useNavigate();
   const listRef = useRef<HTMLDivElement>(null);
   const [topGradientOpacity, setTopGradientOpacity] = useState<number>(0);
   const [bottomGradientOpacity, setBottomGradientOpacity] = useState<number>(1);
+  const [animatingItems, setAnimatingItems] = useState<number[]>([]);
 
-  // Función para cargar las notificaciones
-  const loadNotifications = async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      setLoading(true);
-      const response = await notificationsService.getAll();
-      
-      if (response.success && response.data) {
-        setNotifications(response.data.results || response.data);
-        
-        // Contar notificaciones no leídas
-        const unread = (response.data.results || response.data).filter(
-          (notification: Notification) => !notification.is_read
-        ).length;
-        
-        setUnreadCount(unread);
-      } else {
-        console.error('Error al cargar notificaciones:', response.error);
-      }
-    } catch (err) {
-      console.error('Error inesperado al cargar notificaciones:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Cargar notificaciones cuando el componente se monta
   useEffect(() => {
-    if (isAuthenticated) {
-      loadNotifications();
-      
-      // Recargar notificaciones cada minuto
-      const interval = setInterval(loadNotifications, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
+    if (!isOpen || !isAuthenticated) return;
+    const fetchNotifications = async () => {
+      setLoading(true);
+      try {
+        const response = await notificationsService.getAll();
+        if (response.success && response.data) {
+          const data = response.data.results || response.data;
+          setNotifications(data);
+          setUnreadCount(data.filter((n: Notification) => !n.is_read).length);
+        } else {
+          console.error('Error al cargar notificaciones:', response.error);
+        }
+      } catch (err) {
+        console.error('Error inesperado al cargar notificaciones:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [isOpen, isAuthenticated]);
 
-  // Manejador para el scroll de la lista
   const handleScroll = (e: UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
     const { scrollTop, scrollHeight, clientHeight } = target;
@@ -97,25 +113,21 @@ const NotificationsMenu: React.FC = () => {
     );
   };
 
-  // Abrir el menú de notificaciones
   const handleOpen = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
     setIsOpen(true);
   };
 
-  // Cerrar el menú de notificaciones
   const handleClose = () => {
     setIsOpen(false);
     setAnchorEl(null);
   };
 
-  // Marcar todas las notificaciones como leídas
   const handleMarkAllAsRead = async () => {
     try {
       const response = await notificationsService.markAllAsRead();
       
       if (response.success) {
-        // Actualizar el estado de las notificaciones localmente
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => ({
             ...notification,
@@ -129,13 +141,11 @@ const NotificationsMenu: React.FC = () => {
     }
   };
 
-  // Marcar una notificación específica como leída
   const markAsRead = async (notificationId: number) => {
     try {
       const response = await notificationsService.markAsRead(notificationId);
       
       if (response.success) {
-        // Actualizar el estado de la notificación localmente
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => 
             notification.id === notificationId 
@@ -143,8 +153,6 @@ const NotificationsMenu: React.FC = () => {
               : notification
           )
         );
-        
-        // Actualizar el contador de no leídas
         setUnreadCount(prevCount => Math.max(0, prevCount - 1));
       }
     } catch (err) {
@@ -152,22 +160,47 @@ const NotificationsMenu: React.FC = () => {
     }
   };
 
-  // Navegar a la página correspondiente según el tipo de notificación
+  const handleDelete = (e: React.MouseEvent<HTMLElement>, notificationId: number) => {
+    e.stopPropagation();
+    setAnimatingItems(prev => [...prev, notificationId]);
+    setTimeout(async () => {
+      try {
+        await notificationsService.deleteNotification(notificationId);
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        const wasUnread = notifications.find(n => n.id === notificationId)?.is_read === false;
+        if (wasUnread) setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error(`Error al eliminar notificación ${notificationId}:`, err);
+      }
+      setAnimatingItems(prev => prev.filter(id => id !== notificationId));
+    }, 300);
+  };
+
+  const handleDeleteAll = () => {
+    const allIds = notifications.map(n => n.id);
+    setAnimatingItems(allIds);
+    setTimeout(async () => {
+      try {
+        await notificationsService.deleteAllNotifications();
+        setNotifications([]);
+        setUnreadCount(0);
+      } catch (err) {
+        console.error('Error al eliminar todas las notificaciones:', err);
+      }
+      setAnimatingItems(prev => prev.filter(id => !allIds.includes(id)));
+    }, 300);
+  };
+
   const handleNotificationClick = async (notification: Notification) => {
     try {
-      // Marcar como leída si aún no lo está
       if (!notification.is_read) {
         await markAsRead(notification.id);
       }
       
       handleClose();
       
-      // Navegar según el tipo de notificación
       if (notification.type === 'message' && notification.related_conversation) {
-        // Marcar todas las notificaciones de esta conversación como leídas
         await notificationsService.markConversationAsRead(notification.related_conversation);
-        
-        // Actualizar el estado localmente
         setNotifications(prevNotifications => 
           prevNotifications.map(notif => 
             notif.related_conversation === notification.related_conversation
@@ -175,23 +208,31 @@ const NotificationsMenu: React.FC = () => {
               : notif
           )
         );
-        
-        // Recalcular unreadCount después de marcar todas las notificaciones de la conversación
         const unreadNotifications = notifications.filter(
           n => n.is_read === false && n.related_conversation !== notification.related_conversation
         ).length;
         setUnreadCount(unreadNotifications);
-        
-        // Navegar a la conversación
         navigate(`/chat/${notification.related_conversation}`);
+      } else if (notification.type === 'like_message' && notification.message_info?.conversation_id) {
+        const conversationId = notification.message_info.conversation_id;
+        if (notification.related_message) {
+          await notificationsService.markMessageAsRead(notification.related_message);
+        }
+        setNotifications(prevNotifications => 
+          prevNotifications.map(notif => 
+            notif.related_message === notification.related_message
+              ? { ...notif, is_read: true }
+              : notif
+          )
+        );
+        const unreadNotifications = notifications.filter(
+          n => n.is_read === false && n.related_message !== notification.related_message
+        ).length;
+        setUnreadCount(unreadNotifications);
+        navigate(`/chat/${conversationId}`);
       } else if (notification.related_product && notification.related_product.id) {
-        // Registrar para depuración
         console.log('Navegando al producto:', notification.related_product);
-        
-        // Marcar todas las notificaciones de este producto como leídas
         await notificationsService.markProductAsRead(notification.related_product.id);
-        
-        // Actualizar el estado localmente
         setNotifications(prevNotifications => 
           prevNotifications.map(notif => 
             notif.related_product?.id === notification.related_product?.id
@@ -199,14 +240,10 @@ const NotificationsMenu: React.FC = () => {
               : notif
           )
         );
-        
-        // Recalcular unreadCount después de marcar todas las notificaciones del producto
         const unreadNotifications = notifications.filter(
           n => n.is_read === false && n.related_product?.id !== notification.related_product?.id
         ).length;
         setUnreadCount(unreadNotifications);
-        
-        // Navegar al producto usando el ID correcto
         navigate(`/products/${notification.related_product.id}`);
       } else {
         console.warn('Notificación sin destino válido:', notification);
@@ -216,17 +253,30 @@ const NotificationsMenu: React.FC = () => {
     }
   };
 
-  // Obtener el icono según el tipo de notificación
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'message':
-        return <MessageIcon sx={{ fontSize: '1.2rem' }} />;
+        return <MessageIcon sx={{ fontSize: '1.2rem', color: '#1976d2' }} />;
       case 'views':
-        return <VisibilityIcon sx={{ fontSize: '1.2rem' }} />;
+        return <VisibilityIcon sx={{ fontSize: '1.2rem', color: '#000000' }} />;
       case 'favorite':
-        return <FavoriteIcon sx={{ fontSize: '1.2rem' }} />;
+        return <FavoriteIcon sx={{ fontSize: '1.2rem', color: '#f44336' }} />;
+      case 'like_message':
+        return <ThumbUpIcon sx={{ fontSize: '1.2rem', color: '#1976d2' }} />;
       default:
         return <NotificationsIcon sx={{ fontSize: '1.2rem' }} />;
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>, id: number) => {
+    touchStartXRef.current[id] = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>, id: number) => {
+    const startX = touchStartXRef.current[id];
+    const endX = e.changedTouches[0].clientX;
+    if (startX !== undefined && Math.abs(startX - endX) > 50) {
+      handleDelete(e as unknown as MouseEvent<HTMLElement>, id);
     }
   };
 
@@ -291,17 +341,21 @@ const NotificationsMenu: React.FC = () => {
               Marcar todas como leídas
             </Button>
           )}
+          {notifications.length > 0 && (
+            <Tooltip title="Eliminar todas">
+              <IconButton size="small" onClick={handleDeleteAll} sx={{ color: '#f44336' }}>
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
         
         <div className="scroll-list-container" style={{ maxHeight: '400px' }}>
           <div
             ref={listRef}
+            className="scroll-list no-scrollbar"
             onScroll={handleScroll}
-            style={{
-              maxHeight: '400px',
-              overflowY: 'auto',
-              position: 'relative',
-            }}
+            style={{ maxHeight: '400px' }}
           >
             {loading ? (
               <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -314,21 +368,49 @@ const NotificationsMenu: React.FC = () => {
             ) : (
               <List sx={{ p: 0 }}>
                 {notifications.map((notification) => (
-                  <React.Fragment key={notification.id}>
-                    <ListItem 
+                  <div
+                    key={notification.id}
+                    className={`notification-item ${animatingItems.includes(notification.id) ? 'notification-exit' : ''}`}
+                    onTouchStart={(e) => handleTouchStart(e, notification.id)}
+                    onTouchEnd={(e) => handleTouchEnd(e, notification.id)}
+                  >
+                    <ListItem
                       alignItems="flex-start"
                       onClick={() => handleNotificationClick(notification)}
+                      secondaryAction={
+                        <IconButton
+                          edge="end"
+                          size="small"
+                          className="delete-button"
+                          sx={{ visibility: 'visible', opacity: isMobile ? 1 : 1 }}
+                          onClick={(e) => handleDelete(e, notification.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      }
                       sx={{
                         cursor: 'pointer',
-                        backgroundColor: notification.is_read ? 'transparent' : 'rgba(63, 81, 181, 0.08)',
+                        backgroundColor: notification.is_read ? 'transparent' : 'rgba(25, 118, 210, 0.08)',
+                        borderLeft: notification.is_read ? 'none' : '3px solid #1976d2',
                         '&:hover': {
                           backgroundColor: 'rgba(0, 0, 0, 0.04)',
                         },
                         py: 1.5,
+                        transition: 'all 0.2s ease',
                       }}
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: '#f0f0f0' }}>
+                        <Avatar 
+                          sx={{ 
+                            bgcolor: notification.type === 'like_message' || notification.type === 'message' 
+                              ? '#e3f2fd' 
+                              : notification.type === 'favorite' 
+                                ? '#ffebee' 
+                                : '#f5f5f5',
+                            width: 40,
+                            height: 40
+                          }}
+                        >
                           {getNotificationIcon(notification.type)}
                         </Avatar>
                       </ListItemAvatar>
@@ -337,7 +419,11 @@ const NotificationsMenu: React.FC = () => {
                           <Typography 
                             variant="subtitle2" 
                             component="span"
-                            sx={{ fontWeight: notification.is_read ? 'normal' : 'bold' }}
+                            sx={{ 
+                              fontWeight: 'bold',
+                              fontSize: '0.9rem',
+                              color: notification.is_read ? '#000000' : '#1976d2'
+                            }}
                           >
                             {notification.title}
                           </Typography>
@@ -350,7 +436,7 @@ const NotificationsMenu: React.FC = () => {
                               color="textPrimary"
                               sx={{ 
                                 display: 'block',
-                                fontWeight: notification.is_read ? 'normal' : 'medium',
+                                fontWeight: 'normal',
                                 fontSize: '0.85rem',
                                 mb: 0.5,
                               }}
@@ -370,12 +456,11 @@ const NotificationsMenu: React.FC = () => {
                       />
                     </ListItem>
                     <Divider component="li" />
-                  </React.Fragment>
+                  </div>
                 ))}
               </List>
             )}
             
-            {/* Gradientes para indicar scroll */}
             <div 
               className="top-gradient" 
               style={{ 

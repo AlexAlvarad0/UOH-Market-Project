@@ -147,6 +147,73 @@ class NotificationsService {
       };
     }
   }
+
+  // Marcar como leídas todas las notificaciones relacionadas con un mensaje
+  async markMessageAsRead(messageId: string | number) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/notifications/mark_message_read/`,
+        { message_id: messageId },
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      let errorMsg = 'Error al marcar notificaciones de mensaje como leídas';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
+      console.error(`Error al marcar notificaciones de mensaje ${messageId} como leídas:`, error);
+      return {
+        success: false,
+        error: errorMsg
+      };
+    }
+  }
+
+  // Eliminar una notificación específica
+  async deleteNotification(notificationId: string | number) {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/notifications/${notificationId}/`,
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      let errorMsg = 'Error al eliminar la notificación';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
+      console.error(`Error al eliminar notificación ${notificationId}:`, error);
+      return {
+        success: false,
+        error: errorMsg
+      };
+    }
+  }
+  
+  // Eliminar todas las notificaciones
+  async deleteAllNotifications() {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/notifications/delete_all/`,
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      let errorMsg = 'Error al eliminar todas las notificaciones';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const axiosError = error as { response?: { data?: string } };
+        errorMsg = axiosError.response?.data || errorMsg;
+      }
+      console.error('Error al eliminar todas las notificaciones:', error);
+      return {
+        success: false,
+        error: errorMsg
+      };
+    }
+  }
 }
 
 export default new NotificationsService();
