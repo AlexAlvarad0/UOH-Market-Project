@@ -321,7 +321,11 @@ const ProductDetailPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1, sm: 2, md: 3 }, mt: { xs: 2, sm: 3 }, mb: 8 }}>
+    <Container maxWidth="xl" sx={{ 
+        py: { xs: 0, sm: 1 },
+        px: { xs: 0, sm: 1, md: 3 },
+        mt: { xs: 0, sm: 1 },
+      }}>
       <BreadcrumbNav 
         items={[
           { name: 'Productos', href: '/', current: false },

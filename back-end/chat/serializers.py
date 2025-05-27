@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Conversation, Message
 from accounts.serializers import UserSerializer
 from products.serializers import ProductSerializer
+from accounts.models import User
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.ReadOnlyField(source='sender.username')
@@ -24,8 +25,28 @@ class MessageSerializer(serializers.ModelSerializer):
         message = Message.objects.create(sender=user, **validated_data)
         return message
 
+class ParticipantSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'profile_picture']
+    
+    def get_profile_picture(self, obj):
+        """Devuelve la URL de la foto de perfil si existe"""
+        try:
+            if hasattr(obj, 'profile') and obj.profile.profile_picture:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.profile.profile_picture.url)
+                else:
+                    return obj.profile.profile_picture.url
+            return None
+        except Exception:
+            return None
+
 class ConversationSerializer(serializers.ModelSerializer):
-    participants = UserSerializer(many=True, read_only=True)
+    participants = ParticipantSerializer(many=True, read_only=True)
     product = ProductSerializer(read_only=True)
     latest_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()

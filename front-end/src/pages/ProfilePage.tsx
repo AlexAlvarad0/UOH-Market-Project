@@ -78,6 +78,8 @@ const ProfilePage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
+  // Estado para datos de perfil
+  const [profileData, setProfileData] = useState<any>(null);
 
   const handleOpenEditModal = () => setEditModalOpen(true);
   const handleCloseEditModal = () => setEditModalOpen(false);
@@ -90,6 +92,12 @@ const ProfilePage = () => {
     }
 
     const fetchUserData = async () => {
+      // Fetch profile
+      try {
+        const profileRes = await api.getUserProfile();
+        if (profileRes.success) setProfileData(profileRes.data);
+      } catch {};
+
       setLoading(true);
       setError('');
 
@@ -191,13 +199,19 @@ const ProfilePage = () => {
     <MyErrorBoundary>
       <Container>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-          <Avatar sx={{ width: 100, height: 100, mr: 3 }} />
-          <Box>          <Typography variant="h4">
-              {(user as UserWithProfile).name || (user as UserWithProfile).username || user.email}
+          <Avatar src={profileData?.profile_picture} sx={{ width: 100, height: 100, mr: 3 }} />
+          <Box>
+            <Typography variant="h4">
+              {profileData?.first_name || profileData?.last_name
+                ? `${profileData.first_name || ''} ${profileData.last_name || ''}`
+                : (user as UserWithProfile).username || user.email}
             </Typography>
             <Typography variant="body1" color="textSecondary">
-              {user.email}
+              {profileData?.email || user.email}
             </Typography>
+            {profileData?.bio && <Typography variant="body2" sx={{ mt: 1 }}>{profileData.bio}</Typography>}
+            {profileData?.location && <Typography variant="body2" sx={{ mt: 0.5 }}>Ubicación: {profileData.location}</Typography>}
+            {profileData?.birth_date && <Typography variant="body2" sx={{ mt: 0.5 }}>Nacimiento: {profileData.birth_date}</Typography>}
           </Box>
           <Button variant="outlined" sx={{ ml: 'auto' }} onClick={handleOpenEditModal}>
             Editar Perfil

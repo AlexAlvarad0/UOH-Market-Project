@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from products.views import CategoryViewSet, ProductViewSet, FavoriteViewSet
 from chat.views import ConversationViewSet, MessageViewSet
+from accounts.views import UserProfileView  # Importar la vista UserProfileView
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -16,6 +17,7 @@ router.register(r'messages', MessageViewSet, basename='message')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),  # Todas las rutas de autenticación
+    path('api/profile/', UserProfileView.as_view(), name='user-profile'),  # Ruta para el perfil de usuario
     path('api/', include(router.urls)),          # <-- CORREGIDO AQUÍ
     path('api/notifications/', include('notifications.urls')),  # Rutas de notificaciones
 ]

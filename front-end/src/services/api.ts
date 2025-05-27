@@ -520,7 +520,7 @@ class ApiService {
   // Método para obtener el perfil del usuario autenticado
   async getUserProfile() {
     try {
-      const response = await axios.get(`${API_URL}/users/profile/`, {
+      const response = await axios.get(`${API_URL}/profile/`, {
         headers: this.getHeaders()
       });
       return { success: true, data: response.data };    } catch (error: unknown) {

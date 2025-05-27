@@ -58,28 +58,32 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class ProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
+    username = serializers.CharField(source='user.username')  # ahora editable
     email = serializers.CharField(source='user.email', read_only=True)
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
+    profile_picture = serializers.ImageField(allow_null=True, required=False)
 
     class Meta:
         model = Profile
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture')
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
-        
+
+        # Actualizar campos del usuario
+        if 'username' in user_data:
+            instance.user.username = user_data['username']
         if 'first_name' in user_data:
             instance.user.first_name = user_data['first_name']
         if 'last_name' in user_data:
             instance.user.last_name = user_data['last_name']
-        
         instance.user.save()
-        
+         
+        # Actualizar campos del perfil
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
+         
         instance.save()
         return instance
 

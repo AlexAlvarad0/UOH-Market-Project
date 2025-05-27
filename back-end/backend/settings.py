@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-q+0lgi)&jl2ro0dxcl5qar%)yoz2nid1^)gk&$ulj#dul%-v4#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 
 # Root URL Configuration
 ROOT_URLCONF = 'backend.urls'

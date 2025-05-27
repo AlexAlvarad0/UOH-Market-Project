@@ -157,3 +157,13 @@ class LoginView(generics.GenericAPIView):
                 'username': user.username or user.email,
             }
         })
+
+from rest_framework.generics import RetrieveUpdateAPIView
+
+class UserProfileView(RetrieveUpdateAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self):
+        profile, _ = Profile.objects.get_or_create(user=self.request.user)
+        return profile

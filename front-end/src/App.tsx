@@ -10,13 +10,11 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
-import ConfirmEmailPage from './pages/ConfirmEmailPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProfileEditForm from './pages/ProfileEditForm';
 import FavoritesPage from './pages/FavoritesPage';
 import ChatPage from './pages/ChatPage';
-import VerifyEmailPage from './pages/VerifyEmailPage';
 import PrivateRoute from './components/PrivateRoute';
 import NewProductPage from './pages/NewProductPage';
 import EditProductPage from './pages/EditProductPage';
@@ -28,7 +26,7 @@ import SellerDashboardPage from './pages/SellerDashboardPage';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#4f46e5',
+      main: '#004f9e',
     },
     secondary: {
       main: '#3730a3',
@@ -63,7 +61,7 @@ function AppContent() {
   return (
     <Box sx={{ 
       width: '100%', 
-      minHeight: '100vh',
+      minHeight: '100%',
       bgcolor: 'background.default',
       position: 'relative',
       paddingTop: '64px', /* Ajuste para la altura del header */
@@ -79,8 +77,6 @@ function AppContent() {
                 </ErrorBoundary>
               } />
               <Route path="login" element={<LoginPage />} />
-              <Route path="verify-email" element={<VerifyEmailPage />} />
-              <Route path="confirm-email/:uid/:token" element={<ConfirmEmailPage />} />
               <Route 
                 path="products/:productId" 
                 element={<ProductDetailPage />} 
