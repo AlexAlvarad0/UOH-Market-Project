@@ -22,6 +22,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
   
   // Determinar si el producto ya está marcado como favorito
   const isFavorite = !!product.is_favorite;
+    // Función para obtener el estado del producto y su color
+  const getStatusInfo = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'available':
+        return { label: 'Disponible', color: '#4caf50' };
+      case 'pending':
+        return { label: 'En revisión', color: '#ff9800' };
+      case 'unavailable':
+        return { label: 'No disponible', color: '#f44336' };
+      default:
+        return { label: 'Disponible', color: '#4caf50' };
+    }
+  };
+  
+  const statusInfo = getStatusInfo(product.status || 'available');
+  
   const handleFavoriteChange = (e: React.MouseEvent<HTMLDivElement>) => {
     // Prevenir la navegación cuando se hace clic en el botón de favoritos
     e.preventDefault();
@@ -42,21 +58,38 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
       transform: 'translateY(-5px)'
     }
   };
-  
-  const imageContainerStyle: React.CSSProperties = {
-    aspectRatio: '1/1', // Mantener relación cuadrada
+    const imageContainerStyle: React.CSSProperties = {
+    aspectRatio: '1/1',
     position: 'relative',
     width: '100%',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    padding: '3px', // Margen blanco de 3px
+    backgroundColor: '#ffffff',
+    borderRadius: '12px' // Bordes redondeados
   };
 
   const imageStyle: React.CSSProperties = {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover'
+    top: '3px',
+    left: '3px',
+    width: 'calc(100% - 6px)', // Ajustar por el padding
+    height: 'calc(100% - 6px)', // Ajustar por el padding
+    objectFit: 'cover',
+    borderRadius: '9px' // Bordes redondeados para la imagen interior
+  };
+
+  const statusPillStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '8px',
+    left: '8px',
+    backgroundColor: statusInfo.color,
+    color: 'white',
+    padding: '4px 8px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    zIndex: 10,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
   };
 
   const contentStyle: React.CSSProperties = {
@@ -74,8 +107,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
         textDecoration: 'none',
         color: 'inherit',
         width: '100%'
-      }}>
-        <div style={imageContainerStyle}>
+      }}>        <div style={imageContainerStyle}>
+          {/* Pill del estado del producto */}
+          <div style={statusPillStyle}>
+            {statusInfo.label}
+          </div>
+          
           {imageUrl ? (
             <img 
               src={imageUrl} 
@@ -86,15 +123,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
           ) : (
             <Box sx={{ 
               position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
+              top: '3px',
+              left: '3px',
+              width: 'calc(100% - 6px)',
+              height: 'calc(100% - 6px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#ffffff',
-              color: '#999'
+              backgroundColor: '#f5f5f5',
+              color: '#999',
+              borderRadius: '9px'
             }}>
               <Typography variant="body2">Sin imagen</Typography>
             </Box>

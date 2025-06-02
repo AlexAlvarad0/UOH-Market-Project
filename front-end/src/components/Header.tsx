@@ -1,4 +1,4 @@
-import { useState, MouseEvent } from 'react';
+import { useState, MouseEvent, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.hooks';
 import AppBar from '@mui/material/AppBar';
@@ -6,6 +6,7 @@ import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Menu from '@mui/material/Menu';
+import Badge from '@mui/material/Badge';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import MoreIcon from '@mui/icons-material/MoreVert';
@@ -28,17 +29,118 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Avatar from '@mui/material/Avatar';
+import api from '../services/api';
+import notificationsService from '../services/notifications';
 
 const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { isAuthenticated, logout, user } = useAuth();
-  const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();  const [searchQuery, setSearchQuery] = useState('');
+  const [favoritesCount, setFavoritesCount] = useState<number>(0);
+  const [notificationsCount, setNotificationsCount] = useState<number>(0);
   
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const isMenuOpen = Boolean(anchorEl);  // Efecto para cargar el contador inicial y configurar listeners
+  useEffect(() => {
+    // Función para cargar el contador de favoritos
+    const loadFavoritesCount = async () => {
+      if (!isAuthenticated) {
+        setFavoritesCount(0);
+        return;
+      }
 
-  const isMenuOpen = Boolean(anchorEl);
+      try {
+        const response = await api.favorites.getAll();
+        if (response.success && response.data) {
+          let favoritesData;
+          if (Array.isArray(response.data)) {
+            favoritesData = response.data;
+          } else if (response.data.results) {
+            favoritesData = response.data.results;
+          } else {
+            favoritesData = [];
+          }
+          setFavoritesCount(favoritesData.length);
+        }
+      } catch (err) {
+        console.error('Error al obtener contador de favoritos:', err);
+        setFavoritesCount(0);
+      }
+    };
+
+    // Función para cargar el contador de notificaciones
+    const loadNotificationsCount = async () => {
+      if (!isAuthenticated) {
+        setNotificationsCount(0);
+        return;
+      }
+
+      try {
+        const response = await notificationsService.getUnread();
+        if (response.success && response.data) {
+          const data = response.data.results || response.data;
+          setNotificationsCount(data.length);
+        }
+      } catch (err) {
+        console.error('Error al obtener contador de notificaciones:', err);
+        setNotificationsCount(0);
+      }
+    };
+
+    if (!isAuthenticated) {
+      setFavoritesCount(0);
+      setNotificationsCount(0);
+      return;
+    }
+
+    // Cargar contadores inicial
+    loadFavoritesCount();
+    loadNotificationsCount();
+
+    // Escuchar eventos personalizados de favoritos
+    const handleFavoriteAdded = () => {
+      console.log('Evento: Favorito agregado - actualizando contador');
+      loadFavoritesCount();
+    };
+
+    const handleFavoriteRemoved = () => {
+      console.log('Evento: Favorito eliminado - actualizando contador');
+      loadFavoritesCount();
+    };
+
+    // Escuchar eventos personalizados de notificaciones
+    const handleNotificationsRead = () => {
+      console.log('Evento: Notificaciones leídas - actualizando contador');
+      loadNotificationsCount();
+    };
+
+    const handleNewNotifications = () => {
+      console.log('Evento: Nuevas notificaciones - actualizando contador');
+      loadNotificationsCount();
+    };
+
+    // Agregar event listeners
+    window.addEventListener('favoriteAdded', handleFavoriteAdded);
+    window.addEventListener('favoriteRemoved', handleFavoriteRemoved);
+    window.addEventListener('notificationsRead', handleNotificationsRead);
+    window.addEventListener('newNotifications', handleNewNotifications);
+    
+    // Actualizar los contadores cada 60 segundos como fallback
+    const interval = setInterval(() => {
+      loadFavoritesCount();
+      loadNotificationsCount();
+    }, 60000);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('favoriteAdded', handleFavoriteAdded);
+      window.removeEventListener('favoriteRemoved', handleFavoriteRemoved);
+      window.removeEventListener('notificationsRead', handleNotificationsRead);
+      window.removeEventListener('newNotifications', handleNewNotifications);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated]);
 
   const handleProfileMenuOpen = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -275,8 +377,7 @@ const Header = () => {
           minWidth: { sm: '150px', md: '180px' },
           width: { sm: '180px', md: '200px' },
           gap: { sm: 0.5, md: 1 },
-          height: '100%',
-        }}>
+          height: '100%',        }}>
           {isAuthenticated ? (
             <>
               <IconButton
@@ -285,10 +386,16 @@ const Header = () => {
                 onClick={() => navigate('/favorites')}
                 aria-label="favoritos"
               >
-                <FavoriteIcon />
+                <Badge 
+                  badgeContent={favoritesCount} 
+                  color="error"
+                  invisible={favoritesCount === 0}
+                >
+                  <FavoriteIcon />
+                </Badge>
               </IconButton>
               
-              <NotificationsMenu />
+              <NotificationsMenu externalUnreadCount={notificationsCount} />
               
               <IconButton
                 size="large"
@@ -329,7 +436,7 @@ const Header = () => {
           alignItems: 'center',
           height: '100%',
         }}>
-          <NotificationsMenu />
+          <NotificationsMenu externalUnreadCount={notificationsCount} />
           <IconButton
             size="small"
             aria-label="mostrar perfil"

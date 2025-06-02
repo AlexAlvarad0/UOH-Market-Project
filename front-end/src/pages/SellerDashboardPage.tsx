@@ -249,7 +249,7 @@ const SellerDashboardPage = () => {
   if (!user || userWithType.user_type !== 'seller') {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+        <Paper elevation={5} sx={{ p: 4, borderRadius: 2 }}>
           <Typography variant="h5" gutterBottom align="center">
             Acceso restringido
           </Typography>

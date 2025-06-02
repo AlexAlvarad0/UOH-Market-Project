@@ -148,8 +148,8 @@ function AppContent() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
 
-  // Verificar si estamos en la página de publicación de producto
-  const isProductPage = location.pathname === '/product/new';
+  // Verificar si estamos en páginas donde no debe mostrarse el botón de vender
+  const shouldHideButton = location.pathname === '/product/new' || location.pathname === '/login';
 
   const handleAddProduct = () => {
     if (!isAuthenticated) {
@@ -197,8 +197,8 @@ function AppContent() {
               
               {/* Página 404 */}
               <Route path="*" element={<NotFoundPage />} />
-            </Route>          </Routes>          {/* Botón flotante para agregar producto - oculto en la página de publicación */}
-          {!isProductPage && (
+            </Route>          </Routes>          {/* Botón flotante para agregar producto - oculto en login y página de publicación */}
+          {!shouldHideButton && (
             <StyledWrapper>
               <div className="button-container">
                 <button 

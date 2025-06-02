@@ -202,7 +202,7 @@ const NewProductPage: React.FC = () => {
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 3 }}>
         {/* Formulario de producto */}
         <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 7' } }}>
-          <Paper elevation={1} sx={{ p: 3, mb: 2 }}>
+          <Paper elevation={5} sx={{ p: 3, mb: 2 }}>
             <form onSubmit={handleCreateProduct}>
               {error && (
                 <Alert severity="error" sx={{ mb: 3 }}>
@@ -421,12 +421,12 @@ const NewProductPage: React.FC = () => {
         
         {/* Vista previa del producto */}
         <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 5' } }}>
-          <Paper elevation={1} sx={{ p: 3, position: 'sticky', top: 20 }}>
+          <Paper elevation={5} sx={{ p: 3, position: 'sticky', top: 20 }}>
             <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
               Vista previa
             </Typography>
             
-            <Card elevation={0} sx={{ border: '1px solid #e0e0e0' }}>
+            <Card elevation={5} sx={{ border: '1px solid #e0e0e0' }}>
               {imagePreviews.length > 0 ? (
                 <Box 
                   sx={{ 

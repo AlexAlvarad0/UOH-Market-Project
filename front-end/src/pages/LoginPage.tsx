@@ -145,7 +145,7 @@ const LoginPage = () => {
     },
     validationSchema: Yup.object({
       email: Yup.string().email('Correo inválido').required('Requerido'),
-      password: Yup.string().required('La contraseña es requerida')
+      password: Yup.string().required('')
     }),
     onSubmit: async (values, { setErrors }) => {
       // Verificar si hay campos vacíos
@@ -398,7 +398,7 @@ const LoginPage = () => {
               <EmailIcon className="input-icon" />
               <input
                 type="email"
-                placeholder="Correo"
+                placeholder="Correo electrónico"
                 name="email"
                 value={formik.values.email}
                 onChange={formik.handleChange}
@@ -432,13 +432,13 @@ const LoginPage = () => {
           <div className="overlay">
             <div className="overlay-panel overlay-left">
               <h1>¡Bienvenido de nuevo!</h1>
-              <p>Para mantenerse conectado, inicie sesión con su información personal</p>
-              <button className="ghost" onClick={togglePanel}>Iniciar Sesión</button>
+              <p>Inicie sesión con su sus credenciales</p>
+              <button className="ghost" style={{ backgroundColor: "#002C54" }} onClick={togglePanel}>Iniciar Sesión</button>
             </div>
             <div className="overlay-panel overlay-right">
-              <h1>¡Hola, amigo!</h1>
-              <p>Ingrese sus datos personales y comience su viaje con nosotros</p>
-              <button className="ghost" onClick={togglePanel}>Registrarse</button>
+              <h1>¡Bienvenido a UOH Market!</h1>
+              <p>Regístrese si aún no lo ha hecho para ser parte de la comunidad Mercadito UOH</p>
+              <button className="ghost" style={{ backgroundColor: "#002C54" }} onClick={togglePanel}>Registrarse</button>
             </div>
           </div>
         </div>

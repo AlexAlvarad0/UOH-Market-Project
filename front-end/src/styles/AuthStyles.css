@@ -46,7 +46,7 @@ button {
   color: #FFFFFF;
   font-size: 12px;
   font-weight: bold;
-  padding: 12px 100px;
+  padding: 12px 12px;
   letter-spacing: 2px;
   text-transform: uppercase;
   transition: transform 80ms ease-in;
@@ -96,7 +96,7 @@ form {
   max-width: 1150px; 
   min-height: 620px; 
   margin: 0 auto; /* Centrado horizontal */
-  transform: translateY(15vh); /* Ajustar posición vertical si es necesario */
+  transform: translateY(4vh); /* Ajustar posición vertical si es necesario */
 }
 
 .form-container {
@@ -256,7 +256,7 @@ footer a {
 }
 
 .error-text {
-  color: #ff0033;
+  color: #fff;
   font-size: 10px;
   /* Posicionamiento absoluto */
   position: absolute;
@@ -423,7 +423,7 @@ footer a {
 /* Panel flotante para requisitos de contraseña */
 .password-reqs-floating {
   position: absolute;
-  top: 110%;
+  top: 70%;
   left: 0;
   width: 260px;
   background: #fff;
@@ -453,16 +453,26 @@ footer a {
 
 @media (max-width: 600px) {
   .password-reqs-floating {
-    width: 98vw;
-    left: 50%;
-    transform: translateX(-50%);
+    width: 110%;
+    left: 0;
+    transform: none;
     font-size: 12px;
-    padding: 10px 6px;
+    padding: 10px 12px;
+    top: 70%;
   }
 }
 
 /* Media query para pantallas pequeñas */
 @media (max-width: 768px) {
+  .password-reqs-floating {
+    width: 110%;
+    left: 0;
+    transform: none;
+    top: 85%;
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
   .container {
     width: 75%;
     min-height: 750px;
@@ -538,9 +548,8 @@ footer a {
   form {
     padding: 0 20px;
   }
-
   /* Hacer botones menos anchos en móvil */
-  button {
+  .form-container button, .overlay-panel button {
     padding: 10px 50px;
   }
   
@@ -619,10 +628,6 @@ footer a {
     padding: 8px;
   }
 
-  /* Ocultar mensajes de error en rojo en registro para pantallas pequeñas */
-  .sign-up-container .error-text {
-    display: none;
-  }
   /* Ajustar posición del icono de mostrar/ocultar contraseña */
   .password-toggle {
     right: 10px; /* más cerca del borde */

@@ -16,18 +16,21 @@
     height: 100%;
     object-fit: cover;
   }
-  
-  .product-card {
-    height: 100% !important; /* Asegurarse de que la tarjeta ocupe el 100% de la altura del contenedor */
-    width: 100% !important;  /* Corregir "weight" a "width" */
+    .product-card {
+    height: 100% !important;
+    width: 100% !important;
     display: flex;
     flex-direction: column;
-    transition: transform 0.2s ease;
-    margin-bottom: 16px; /* Agregar margen inferior */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   
   .product-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   }
   
   .product-content {

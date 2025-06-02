@@ -740,8 +740,7 @@ const ChatPage = () => {
                             duration={msg.audio_duration}
                             isOwnMessage={isCurrentUser}
                             senderName={msg.sender_username}
-                            timestamp={new Date(msg.created_at).toLocaleTimeString()}
-                          />
+                            timestamp={new Date(msg.created_at).toLocaleTimeString()}                          />
                           {/* Metadatos como en texto */}
                           <Typography
                             variant="caption"
@@ -752,7 +751,7 @@ const ChatPage = () => {
                               mt: 1
                             }}
                           >
-                            {msg.sender_username} - {new Date(msg.created_at).toLocaleTimeString()}
+                            {new Date(msg.created_at).toLocaleTimeString()}
                             {msg.is_edited && ' (editado)'}
                           </Typography>
                         </>
@@ -760,8 +759,7 @@ const ChatPage = () => {
                         <>
                           <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
                             {msg.content}
-                          </Typography>
-                          
+                          </Typography>                          
                           {/* Metadatos */}
                           <Typography 
                             variant="caption" 
@@ -772,7 +770,7 @@ const ChatPage = () => {
                               mt: 1
                             }}
                           >
-                            {msg.sender_username} - {new Date(msg.created_at).toLocaleTimeString()}
+                            {new Date(msg.created_at).toLocaleTimeString()}
                             {msg.is_edited && ' (editado)'}
                           </Typography>
                         </>
@@ -911,11 +909,23 @@ const ChatPage = () => {
                   );
                 })}
                 <div ref={messagesEndRef} />
-                  {/* Menú contextual para acciones en mensajes */}
-                <Menu
+                  {/* Menú contextual para acciones en mensajes */}                <Menu
                   anchorEl={anchorEl}
                   open={Boolean(anchorEl)}
                   onClose={handleMenuClose}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  PaperProps={{
+                    sx: {
+                      borderRadius: '25px'
+                    }
+                  }}
                 >
                   {(() => {
                     const selectedMessage = messages.find(msg => msg.id === selectedMessageId);
@@ -971,8 +981,10 @@ const ChatPage = () => {
         onClose={cancelDeleteMessage}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">
+      >        <DialogTitle 
+          id="alert-dialog-title"
+          sx={{ borderRadius: '25px 25px 0 0' }}
+        >
           {"¿Eliminar mensaje?"}
         </DialogTitle>
         <DialogContent>

@@ -207,36 +207,39 @@ const ProductDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-  const handleAddToFavorites = async () => {
+  };  const handleAddToFavorites = async () => {
     if (!product || !isAuthenticated) return;
     
     try {
-      const response = await api.addToFavorites(product.id);
-      if (response.success) {
-        setIsFavorite(!isFavorite); // Alternar estado local
-        setNotification({
-          message: isFavorite ? 'Producto eliminado de favoritos' : 'Producto añadido a favoritos',
-          type: 'success'
-        });
+      if (isFavorite) {
+        await api.removeFromFavorites(product.id);
+        // Disparar evento personalizado para notificar que se eliminó un favorito
+        window.dispatchEvent(new CustomEvent('favoriteRemoved', { detail: { productId: product.id } }));
       } else {
-        setNotification({
-          message: response.error || 'Error al actualizar favoritos',
-          type: 'error'
-        });
+        await api.addToFavorites(product.id);
+        // Disparar evento personalizado para notificar que se agregó un favorito
+        window.dispatchEvent(new CustomEvent('favoriteAdded', { detail: { productId: product.id } }));
       }
+      
+      // Actualizar el estado local y el producto
+      const newFavoriteState = !isFavorite;
+      setIsFavorite(newFavoriteState);
+      
+      // También actualizar el objeto product para mantener consistencia
+      if (product) {
+        setProduct(prev => prev ? { ...prev, is_favorite: newFavoriteState } : null);
+      }
+      
+      setNotification({
+        message: newFavoriteState ? 'Producto añadido a favoritos' : 'Producto eliminado de favoritos',
+        type: 'success'
+      });
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setNotification({
-          message: err.message || 'Error al actualizar favoritos',
-          type: 'error'
-        });
-      } else {
-        setNotification({
-          message: 'Error desconocido al actualizar favoritos',
-          type: 'error'
-        });
-      }
+      console.error('Error al actualizar favoritos:', err);
+      setNotification({
+        message: 'Error al actualizar favoritos',
+        type: 'error'
+      });
     }
   };
 
@@ -377,18 +380,7 @@ const ProductDetailPage = () => {
           Detalles del producto
         </Typography>      </Box>      {/* Contenido principal - Layout reorganizado */}
       <Grid container spacing={{ xs: 2, md: 3 }} sx={{ px: { xs: 1, sm: 1, md: 0 } }}>        {/* Columna izquierda: imágenes, botones de acción y información del vendedor */}
-          <Grid size={{ xs: 12, md: 8 }}>{/* Botones de edición arriba de las fotos para todas las pantallas */}
-          {isAuthenticated && isOwner && (
-            <Box sx={{ 
-              display: 'flex',
-              gap: 2, 
-              mb: 2, 
-              justifyContent: 'flex-start'
-            }}>
-              <EditButton onClick={() => setEditModalOpen(true)} />
-              <DeleteButton onClick={() => setDeleteDialogOpen(true)} />
-            </Box>
-          )}
+          <Grid size={{ xs: 12, md: 8 }}>
 
           <Card elevation={3} sx={{ 
             mb: { xs: 2, md: 3 }, 
@@ -399,7 +391,30 @@ const ProductDetailPage = () => {
                 bgcolor: '#f5f5f5', 
                 height: { xs: '400px', sm: '450px', md: '500px', lg: '700px', xl: '800px' },
                 width: '100%'
-              }}>
+              }}>                {/* Botones flotantes sobre las imágenes - solo para el propietario */}
+                {isAuthenticated && isOwner && (
+                  <>
+                    {/* EditButton - esquina superior izquierda */}
+                    <Box sx={{ 
+                      position: 'absolute', 
+                      top: 12, 
+                      left: 10, 
+                      zIndex: 10
+                    }}>
+                      <EditButton onClick={() => setEditModalOpen(true)} />
+                    </Box>
+                    
+                    {/* DeleteButton - esquina superior derecha */}
+                    <Box sx={{ 
+                      position: 'absolute', 
+                      top: 8, 
+                      right: 10, 
+                      zIndex: 10
+                    }}>
+                      <DeleteButton onClick={() => setDeleteDialogOpen(true)} />
+                    </Box>
+                  </>
+                )}
                 <IconButton 
                   onClick={() => setActiveImageIndex((activeImageIndex - 1 + product.images.length) % product.images.length)}
                   sx={{ 
@@ -488,7 +503,7 @@ const ProductDetailPage = () => {
           </Card>
 
           {/* Título y descripción del producto - Solo en pantallas pequeñas */}
-          <Card elevation={3} sx={{ 
+          <Card elevation={5} sx={{ 
             mb: { xs: 2, md: 0 }, 
             width: '100%',
             display: { xs: 'block', md: 'none' }
@@ -609,7 +624,7 @@ const ProductDetailPage = () => {
           )}
 
           {/* Información del vendedor debajo de los botones */}
-          <Card elevation={3} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
+          <Card elevation={5} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Información del vendedor
@@ -692,7 +707,7 @@ const ProductDetailPage = () => {
           </Card>
 
           {/* Consejos de seguridad - Solo en pantallas pequeñas */}
-          <Card elevation={3} sx={{ 
+          <Card elevation={5} sx={{ 
             bgcolor: '#f5f7fa', 
             mb: { xs: 2, md: 0 }, 
             width: '100%',
@@ -716,7 +731,7 @@ const ProductDetailPage = () => {
 
           {/* Botón de inicio de sesión para usuarios no autenticados */}
           {!isAuthenticated && (
-            <Card elevation={3} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
+            <Card elevation={5} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
               <CardContent>
                 <Button 
                   variant="contained" 
@@ -733,13 +748,13 @@ const ProductDetailPage = () => {
           {/* Espaciado para alinear con los botones de edición en pantallas grandes - solo si es el propietario */}
           {isAuthenticated && isOwner && (
             <Box sx={{ 
-              height: { xs: 0, md: '71px' }, // Altura aproximada de los botones de edición + margen
+              height: { xs: 0, md: '0px' }, // Altura aproximada de los botones de edición + margen
               display: { xs: 'none', md: 'block' }
             }} />
           )}
           
           {/* Información básica del producto */}
-          <Card elevation={3} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
+          <Card elevation={5} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
             <CardContent>
               <Typography variant="h4" gutterBottom>
                 {product.title}
@@ -805,7 +820,7 @@ const ProductDetailPage = () => {
           </Card>
 
           {/* Consejos de seguridad */}
-          <Card elevation={3} sx={{ bgcolor: '#f5f7fa' }}>
+          <Card elevation={5} sx={{ bgcolor: '#f5f7fa' }}>
             <CardContent>
               <Typography variant="subtitle1" gutterBottom>
                 Consejos de seguridad
@@ -824,12 +839,11 @@ const ProductDetailPage = () => {
         </Grid>
       </Grid>
 
-      {/* Diálogo de confirmación para eliminar */}
-      <Dialog
+      {/* Diálogo de confirmación para eliminar */}      <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogTitle sx={{ borderRadius: '25px 25px 0 0' }}>Confirmar eliminación</DialogTitle>
         <DialogContent>
           <DialogContentText>
             ¿Estás seguro que deseas eliminar este producto? Esta acción no se puede deshacer.

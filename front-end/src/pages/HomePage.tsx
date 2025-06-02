@@ -241,7 +241,6 @@ const HomePage = () => {
     setPage(value);
     window.scrollTo(0, 0);
   };
-
   const handleFavoriteClick = async (productId: number) => {
     if (!isAuthenticated) {
       return;
@@ -253,8 +252,12 @@ const HomePage = () => {
       
       if (isFavorite) {
         await api.removeFromFavorites(productId);
+        // Disparar evento personalizado para notificar que se eliminó un favorito
+        window.dispatchEvent(new CustomEvent('favoriteRemoved', { detail: { productId } }));
       } else {
         await api.addToFavorites(productId);
+        // Disparar evento personalizado para notificar que se agregó un favorito
+        window.dispatchEvent(new CustomEvent('favoriteAdded', { detail: { productId } }));
       }
       
       setProducts(prevProducts => 

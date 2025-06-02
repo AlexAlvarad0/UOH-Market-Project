@@ -41,7 +41,7 @@ const CreateProductPage: React.FC = () => {
           Crear un nuevo producto
         </Typography>
         
-        <Paper elevation={3} sx={{ p: 4 }}>
+        <Paper elevation={5} sx={{ p: 4 }}>
           <ProductForm onSubmit={handleSubmit} />
         </Paper>
       </Box>

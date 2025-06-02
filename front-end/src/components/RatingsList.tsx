@@ -123,7 +123,7 @@ const RatingsList: React.FC<RatingsListProps> = ({
       ) : (        <Box className="ratings-list">          {ratings.map((rating, index) => {
             console.log("Renderizando calificación:", rating);
             return (
-              <Paper key={rating.id || index} className="rating-item" elevation={1}>
+              <Paper key={rating.id || index} className="rating-item" elevation={5}>
                 <Box className="rating-header">
                   <Box>
                     <Typography className="rating-user">

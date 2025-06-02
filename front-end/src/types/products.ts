@@ -14,6 +14,7 @@ export interface Product {
   category: number;
   category_name?: string;
   condition: string;
+  status?: string;
   created_at: string;
   updated_at: string;
   seller: number;

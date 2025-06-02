@@ -191,28 +191,20 @@ class ApiService {
         error: error instanceof Error ? error.message : 'Error al añadir a favoritos. Inténtalo de nuevo más tarde.'
       };
     }
-  }
-
-  // Método para eliminar un producto de favoritos
+  }  // Método para eliminar un producto de favoritos
   async removeFromFavorites(productId: number) {
     try {
-      // Primero intentamos encontrar el ID del favorito
-      const favorites = await this.favorites.getAll();
-      if (!favorites.success) {
-        throw new Error('No se pudieron obtener los favoritos');
-      }
-
-      const favorite = favorites.data.find((f: { product: { id: number } }) => f.product.id === productId);
-      if (!favorite) {
-        throw new Error('Favorito no encontrado');
-      }
-
-      // Eliminamos el favorito usando su ID
+      console.log(`Eliminando producto ${productId} de favoritos`);
+      
+      // Usar el endpoint simplificado del backend que funciona directamente con product_id
       const response = await axios.delete(
-        `${API_URL}/favorites/${favorite.id}/`,
+        `${API_URL}/favorites/${productId}/remove/`,
         { headers: this.getHeaders() }
       );
-      return { success: true, data: response.data };    } catch (error: unknown) {
+      
+      console.log('Favorito eliminado exitosamente');
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
       console.error('Error al eliminar de favoritos:', error);
       if (axios.isAxiosError(error) && error.response) {
         return { success: false, error: error.response.data || 'Error al eliminar de favoritos' };

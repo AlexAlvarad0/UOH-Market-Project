@@ -46,7 +46,7 @@ class ErrorBoundary extends Component<Props, State> {
           minHeight: '50vh',
           p: 3 
         }}>
-          <Paper sx={{ p: 4, maxWidth: 600, textAlign: 'center' }} elevation={3}>
+          <Paper sx={{ p: 4, maxWidth: 600, textAlign: 'center' }} elevation={5}>
             <Typography variant="h5" color="error" gutterBottom>
               Algo salió mal
             </Typography>

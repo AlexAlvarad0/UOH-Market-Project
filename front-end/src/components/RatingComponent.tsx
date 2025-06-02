@@ -100,7 +100,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({
   };
 
   return (
-    <Paper elevation={1} className="rating-input">
+    <Paper elevation={5} className="rating-input">
       <Typography variant="h6" component="h4">
         {hasExistingRating ? 'Actualizar tu calificación' : `Calificar al vendedor ${sellerName}`}
       </Typography>

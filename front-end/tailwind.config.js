@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
     darkMode: ["class"],
     content: [
     "./index.html", // Incluye el archivo HTML principal
@@ -53,8 +53,12 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
+  		},
+  		backgroundImage: {
+  			'grid-pattern': 'url("data:image/svg+xml,%3csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3e%3cg fill=\'none\' fill-rule=\'evenodd\'%3e%3cg fill=\'%239C92AC\' fill-opacity=\'0.4\'%3e%3ccircle cx=\'30\' cy=\'30\' r=\'1.5\'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e")',
+  			'grid-pattern-light': 'url("data:image/svg+xml,%3csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3e%3cg fill=\'none\' fill-rule=\'evenodd\'%3e%3cg fill=\'%23000000\' fill-opacity=\'0.1\'%3e%3ccircle cx=\'30\' cy=\'30\' r=\'1.5\'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e")'
   		}
   	}
   },
   plugins: [require("tailwindcss-animate")],
-}
+};
