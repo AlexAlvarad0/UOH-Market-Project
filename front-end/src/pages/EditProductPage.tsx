@@ -30,6 +30,7 @@ const EditProductPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const [statusChanging, setStatusChanging] = useState(false);
 
   // Comprobar autenticación
   useEffect(() => {
@@ -169,6 +170,34 @@ const EditProductPage: React.FC = () => {
     }
   };
 
+  const handleToggleAvailability = async () => {
+    if (!productId || !product) {
+      setError('No se puede cambiar el estado de un producto no cargado.');
+      return;
+    }
+
+    setStatusChanging(true);
+    setError(null);
+
+    try {
+      const response = await api.toggleProductAvailability(parseInt(productId));
+      if (response.success && response.data && response.data.product) {
+        setProduct(response.data.product); // Actualizar el estado del producto con la respuesta
+        // Opcionalmente, mostrar un mensaje de éxito
+      } else {
+        throw new Error(response.error || 'Error al cambiar el estado del producto');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error desconocido al cambiar el estado del producto');
+      }
+    } finally {
+      setStatusChanging(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return null; // No renderizar nada mientras redirige
   }
@@ -213,6 +242,21 @@ const EditProductPage: React.FC = () => {
             />
           )}
         </Box>
+
+        {/* Botón para cambiar disponibilidad */}
+        {product && product.status !== 'pending' && (
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="outlined"
+              color={product.status === 'available' ? 'error' : 'success'}
+              onClick={handleToggleAvailability}
+              disabled={statusChanging || submitting}
+              startIcon={statusChanging ? <CircularProgress size={20} /> : null}
+            >
+              {product.status === 'available' ? 'Marcar como No Disponible' : 'Marcar como Disponible'}
+            </Button>
+          </Box>
+        )}
 
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <Grid container spacing={3}>

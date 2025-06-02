@@ -217,3 +217,6 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
+
+# Base URL para generar URLs absolutas cuando no hay contexto de request
+BASE_URL = 'http://localhost:8000'

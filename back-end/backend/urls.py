@@ -16,10 +16,10 @@ router.register(r'messages', MessageViewSet, basename='message')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('accounts.urls')),  # Todas las rutas de autenticación
-    path('api/profile/', UserProfileView.as_view(), name='user-profile'),  # Ruta para el perfil de usuario
-    path('api/', include(router.urls)),          # <-- CORREGIDO AQUÍ
-    path('api/notifications/', include('notifications.urls')),  # Rutas de notificaciones
+    path('api/auth/', include('accounts.urls')),
+    path('api/profile/', UserProfileView.as_view(), name='user-profile'), 
+    path('api/', include(router.urls)),          
+    path('api/notifications/', include('notifications.urls')),  
 ]
 
 # Añadir URLs para archivos estáticos y media en modo de desarrollo

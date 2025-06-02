@@ -10,12 +10,15 @@ class NotificationSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     time_ago = SerializerMethodField()
     message_info = SerializerMethodField()
+    rating_info = SerializerMethodField()
+    
     class Meta:
         model = Notification
         fields = [
             'id', 'type', 'type_display', 'title', 'message', 'is_read', 
             'created_at', 'from_user', 'related_product', 
-            'related_conversation', 'related_message', 'time_ago', 'message_info'
+            'related_conversation', 'related_message', 'related_rating',
+            'time_ago', 'message_info', 'rating_info'
         ]
     
     def get_time_ago(self, obj):
@@ -41,5 +44,16 @@ class NotificationSerializer(serializers.ModelSerializer):
                 'id': obj.related_message.id,
                 'content': obj.related_message.content[:50] + ('...' if len(obj.related_message.content) > 50 else ''),
                 'conversation_id': obj.related_message.conversation.id if obj.related_message.conversation else None
+            }
+        return None
+    
+    def get_rating_info(self, obj):
+        """Retorna información adicional sobre la calificación relacionada si existe"""
+        if obj.related_rating:
+            return {
+                'id': obj.related_rating.id,
+                'rating': obj.related_rating.rating,
+                'comment': obj.related_rating.comment,
+                'rated_user_id': obj.related_rating.rated_user.id
             }
         return None

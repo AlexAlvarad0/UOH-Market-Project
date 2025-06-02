@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from .models import Category, Product, Favorite
 from .serializers import CategorySerializer, ProductSerializer, ProductDetailSerializer, FavoriteSerializer
+from .filters import ProductFilter
 import logging
 
 # Configurar el logger
@@ -51,7 +52,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['category', 'condition']
+    filterset_class = ProductFilter
     search_fields = ['title', 'description']
     ordering_fields = ['price', 'created_at', 'views_count']
     ordering = ['-created_at']

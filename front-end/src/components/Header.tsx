@@ -13,6 +13,7 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import CategoryMenu from './buttons/CategoryMenu';
 import SearchInput from './common/SearchInput';
+import { SearchService } from '../services/searchService';
 import NotificationsMenu from './NotificationsMenu';
 import logoImage from '../assets/logo.png';
 import '../styles/fonts.css';
@@ -57,9 +58,10 @@ const Header = () => {
       window.location.reload();
     }, 50);
   };
-
   const handleSearch = (query: string) => {
     if (query.trim()) {
+      // Almacenar en historial de búsquedas
+      SearchService.addToSearchHistory(query);
       navigate(`/?search=${encodeURIComponent(query)}`);
     }
   };
@@ -255,16 +257,11 @@ const Header = () => {
             },
             '& .MuiSvgIcon-root': {
               fontSize: { md: '26px' }
-            },
-            '& > div': {
-              display: 'flex',
-              alignItems: 'center',
-              height: '100%'
             }
           }}>
             <SearchInput
               placeholder={window.innerWidth < 400 ? "Buscar..." : "Buscar productos..."}
-              onSearch={() => handleSearch(searchQuery)}
+              onSearch={handleSearch}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

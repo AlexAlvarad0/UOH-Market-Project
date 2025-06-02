@@ -54,24 +54,35 @@ class ConversationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
     
+    def get_serializer_context(self):
+        """Asegurar que el request context esté disponible en todos los serializers"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
         """Obtiene los mensajes de una conversación y los marca como leídos."""
         conversation = self.get_object()
         messages = conversation.messages.all().order_by('created_at')
-        
-        # Marcar mensajes como leídos cuando el usuario actual accede a ellos
+          # Marcar mensajes como leídos cuando el usuario actual accede a ellos
         unread_messages = messages.filter(is_read=False).exclude(sender=request.user)
         for message in unread_messages:
             message.is_read = True
             message.save()
             
-        serializer = MessageSerializer(messages, many=True)
+        serializer = MessageSerializer(messages, many=True, context={'request': request})
         return Response(serializer.data)
 
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
+    
+    def get_serializer_context(self):
+        """Asegurar que el request context esté disponible en todos los serializers"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     def get_queryset(self):
         conversation_id = self.request.query_params.get('conversation_id')
@@ -105,26 +116,53 @@ class MessageViewSet(viewsets.ModelViewSet):
             
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
-    
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
         # Buscar 'conversation' en lugar de 'conversation_id'
         conversation_id = request.data.get('conversation')
+        
         try:
             conversation = Conversation.objects.get(id=conversation_id, participants=request.user)
-            message = Message.objects.create(                conversation=conversation,
-                sender=request.user,
-                content=request.data.get('content'),
-                liked=False
-            )
+            
+            # Determinar el tipo de mensaje
+            message_type = request.data.get('message_type', 'text')
+            
+            # Crear el mensaje según el tipo
+            if message_type == 'audio':
+                # Para mensajes de audio
+                audio_file = request.FILES.get('audio_file')
+                audio_duration = request.data.get('audio_duration')
+                
+                if not audio_file:
+                    return Response({'detail': 'Se requiere un archivo de audio.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                message = Message.objects.create(
+                    conversation=conversation,
+                    sender=request.user,
+                    message_type='audio',
+                    audio_file=audio_file,
+                    audio_duration=audio_duration,
+                    liked=False
+                )
+            else:
+                # Para mensajes de texto
+                content = request.data.get('content')
+                if not content:
+                    return Response({'detail': 'El contenido del mensaje es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                message = Message.objects.create(
+                    conversation=conversation,
+                    sender=request.user,
+                    content=content,
+                    message_type='text',
+                    liked=False
+                )
             
             conversation.updated_at = message.created_at
             conversation.save()
             
-            serializer = MessageSerializer(message)
+            serializer = MessageSerializer(message, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
         except Conversation.DoesNotExist:
             return Response({'detail': 'Conversación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
     @action(detail=True, methods=['post'], url_path='like')
@@ -163,3 +201,30 @@ class MessageViewSet(viewsets.ModelViewSet):
             'liked': message.liked,
             'liked_by_users': liked_by_users
         })
+    def destroy(self, request, *args, **kwargs):
+        """Marcar mensaje como eliminado en lugar de eliminarlos completamente."""
+        print(f"Backend destroy - llamada recibida para mensaje ID: {kwargs.get('pk')}")
+        instance = self.get_object()
+        print(f"Backend destroy - mensaje encontrado: {instance.id}, sender: {instance.sender.username}")
+        
+        # Verificar que sea el remitente del mensaje
+        if instance.sender != request.user:
+            print(f"Backend destroy - usuario {request.user.username} no tiene permiso para eliminar mensaje de {instance.sender.username}")
+            return Response(
+                {"detail": "No tienes permiso para eliminar este mensaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Marcar como eliminado en lugar de eliminar
+        print(f"Backend destroy - marcando mensaje {instance.id} como eliminado")
+        instance.is_deleted = True
+        instance.save()
+        print(f"Backend destroy - mensaje {instance.id} marcado como eliminado exitosamente")
+        
+        # Actualizar timestamp de la conversación
+        instance.conversation.updated_at = timezone.now()
+        instance.conversation.save()
+        
+        serializer = self.get_serializer(instance)
+        print(f"Backend destroy - retornando respuesta exitosa")
+        return Response(serializer.data)

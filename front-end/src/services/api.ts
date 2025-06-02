@@ -457,7 +457,60 @@ class ApiService {
     }
   }
 
-  // Método para eliminar un producto - IMPLEMENTACIÓN COMPLETA DE BORRADO
+  // Método para cambiar la disponibilidad de un producto
+  async toggleProductAvailability(productId: number) {
+    try {
+      if (!this.token) {
+        return {
+          success: false,
+          error: 'No hay sesión activa. Por favor, inicia sesión nuevamente.'
+        };
+      }
+
+      console.log(`Cambiando disponibilidad del producto ${productId}...`);
+      const response = await axios.post(
+        `${API_URL}/products/${productId}/toggle_availability/`,
+        {}, // No se necesita cuerpo para esta solicitud POST
+        {
+          headers: {
+            'Authorization': `Token ${this.token}`
+          },
+          timeout: 15000 // 15 segundos
+        }
+      );
+      
+      console.log('Respuesta de cambio de disponibilidad:', response);
+      return { 
+        success: true, 
+        data: response.data 
+      };
+    } catch (error: unknown) {
+      console.error(`Error al cambiar disponibilidad del producto ${productId}:`, error);
+      
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Estado HTTP:', error.response.status);
+        console.error('Datos de error:', error.response.data);
+        
+        let errorMessage = 'Error al cambiar la disponibilidad.';
+        if (error.response.data && error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+        
+        return {
+          success: false,
+          error: errorMessage
+        };
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido al cambiar la disponibilidad'
+      };
+    }
+  }
+
+  // Método para eliminar un producto
   async deleteProduct(productId: number) {
     try {
       if (!this.token) {
@@ -647,6 +700,35 @@ class ApiService {
     }
   }
 
+  async sendAudioMessage(conversationId: number, audioFile: File, duration?: number) {
+    try {
+      const formData = new FormData();
+      formData.append('conversation', conversationId.toString());
+      formData.append('message_type', 'audio');
+      formData.append('audio_file', audioFile);
+      if (duration) {
+        formData.append('audio_duration', duration.toString());
+      }
+
+      // Headers para FormData (sin Content-Type para que axios lo establezca automáticamente)
+      const headers = {
+        ...(this.token ? { 'Authorization': `Token ${this.token}` } : {})
+      };
+
+      const response = await axios.post(
+        `${API_URL}/messages/`,
+        formData,
+        { headers }
+      );
+      return { success: true, data: response.data };    
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al enviar mensaje de audio' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al enviar mensaje de audio' };
+    }
+  }
+
   async updateMessage(messageId: number, content: string) {
     try {
       const response = await axios.patch(
@@ -661,16 +743,19 @@ class ApiService {
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al actualizar mensaje' };
     }
-  }
-  async deleteMessage(messageId: number) {
+  }  async deleteMessage(messageId: number) {
     try {
+      console.log('API deleteMessage - enviando DELETE request para messageId:', messageId);
       const response = await axios.delete(
         `${API_URL}/messages/${messageId}/`,
         { headers: this.getHeaders() }
       );
+      console.log('API deleteMessage - respuesta exitosa:', response.data);
       return { success: true, data: response.data };    
     } catch (error: unknown) {
+      console.error('API deleteMessage - error:', error);
       if (axios.isAxiosError(error) && error.response) {
+        console.error('API deleteMessage - error response:', error.response.data);
         return { success: false, error: error.response.data || 'Error al eliminar mensaje' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al eliminar mensaje' };

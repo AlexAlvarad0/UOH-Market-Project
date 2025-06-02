@@ -4,9 +4,10 @@ import {
   Container, Typography, Box, CircularProgress, Alert, 
   Pagination, FormControl, InputLabel, Select, MenuItem,
   Dialog, DialogTitle, DialogContent,
-  DialogActions, Button as MuiButton, 
+  DialogActions, Button as MuiButton, Chip, IconButton,
 } from '@mui/material';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import { useAuth } from '../hooks/useAuth.hooks';
 import ProductList from '../components/ProductList';
 import OffersCarousel from '../components/OffersCarousel';
@@ -107,8 +108,9 @@ const HomePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalPages, setTotalPages] = useState(1);
-  const [categories, setCategories] = useState<Array<{id: number, name: string}>>([]);
+  const [totalPages, setTotalPages] = useState(1);  const [categories, setCategories] = useState<Array<{id: number, name: string}>>([]);
+  const [maxPrice, setMaxPrice] = useState(1000000);
+  const [maxPriceInitialized, setMaxPriceInitialized] = useState(false);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -140,7 +142,6 @@ const HomePage = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
-
   useEffect(() => {
     const fetchCategories = async () => {      try {
         const response = await api.getCategories();
@@ -157,8 +158,40 @@ const HomePage = () => {
       }
     };
 
+    const initializeMaxPrice = async () => {
+      if (!maxPriceInitialized) {
+        try {
+          // Obtener TODOS los productos sin filtros para establecer el precio máximo
+          const response = await api.getProducts({
+            page: 1,
+            search: '',
+            category: '',
+            min_price: 0,
+            max_price: 999999999,
+            condition: '',
+            ordering: '-created_at'
+          });
+          
+          if (response.success && response.data) {
+            const productData = response.data.results || response.data;
+            if (Array.isArray(productData) && productData.length > 0) {
+              const foundMaxPrice = productData.reduce((acc, prod) => Math.max(acc, prod.price), 0);
+              setMaxPrice(foundMaxPrice);
+              setTempPriceRange([0, foundMaxPrice]);
+              setFilters(prev => ({ ...prev, max_price: foundMaxPrice }));
+            }
+          }
+        } catch (err) {
+          console.error("Error initializing max price:", err);
+        } finally {
+          setMaxPriceInitialized(true);
+        }
+      }
+    };
+
     fetchCategories();
-  }, []);
+    initializeMaxPrice();
+  }, [maxPriceInitialized]);
 
   useEffect(() => {
     const getProducts = async () => {
@@ -178,13 +211,14 @@ const HomePage = () => {
         });
         
         console.log('Products response:', response);
-        
-        if (response.success && response.data) {
+          if (response.success && response.data) {
           const productData = response.data.results || response.data;
           const totalCount = response.data.count || productData.length;
           
           setProducts(Array.isArray(productData) ? productData : []);
           setTotalPages(Math.ceil(totalCount / 12));
+          // Removed: const foundMaxPrice = productData.reduce((acc, prod) => Math.max(acc, prod.price), 0);
+          // Removed: setMaxPrice(foundMaxPrice);
         } else {
           setError("No se pudieron cargar los productos.");
           setProducts([]);
@@ -234,7 +268,6 @@ const HomePage = () => {
       console.error('Error toggling favorite:', error);
     }
   };
-
   const handleOpenFilterDialog = () => {
     setTempFilters({
       category: filters.category,
@@ -258,7 +291,6 @@ const HomePage = () => {
   const handleTempPriceRangeChange = (newValue: number[]) => {
     setTempPriceRange(newValue);
   };
-
   const applyFiltersAndClose = () => {
     setFilters({
       ...filters,
@@ -268,6 +300,78 @@ const HomePage = () => {
     });
     setPage(1);
     setFilterDialogOpen(false);
+  };  const clearFilters = () => {
+    const clearedFilters = {
+      search: '', // Ahora también limpiamos la búsqueda
+      category: '',
+      min_price: 0,
+      max_price: maxPrice,
+      condition: '',
+      ordering: '-created_at'
+    };
+    
+    setFilters(clearedFilters);
+    setTempFilters({
+      category: '',
+      condition: '',
+      ordering: '-created_at',
+      min_price: 0,
+      max_price: maxPrice
+    });
+    setTempPriceRange([0, maxPrice]);
+    setPage(1);
+    setFilterDialogOpen(false);
+  };
+  const removeFilter = (filterType: string) => {
+    const updatedFilters = { ...filters };
+    
+    switch (filterType) {
+      case 'search':
+        updatedFilters.search = '';
+        break;
+      case 'category':
+        updatedFilters.category = '';
+        break;
+      case 'condition':
+        updatedFilters.condition = '';
+        break;
+      case 'price':
+        updatedFilters.min_price = 0;
+        updatedFilters.max_price = maxPrice;
+        break;
+      case 'ordering':
+        updatedFilters.ordering = '-created_at';
+        break;
+    }
+    
+    setFilters(updatedFilters);
+    setPage(1);
+  };
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(cat => cat.id.toString() === categoryId);
+    return category ? category.name : '';
+  };
+
+  const getConditionName = (condition: string) => {
+    const conditionMap: { [key: string]: string } = {
+      'new': 'Nuevo',
+      'like_new': 'Como nuevo',
+      'good': 'Buen estado',
+      'fair': 'Estado aceptable',
+      'poor': 'Deteriorado'
+    };
+    return conditionMap[condition] || condition;
+  };
+
+  const getOrderingName = (ordering: string) => {
+    const orderingMap: { [key: string]: string } = {
+      '-created_at': 'Más recientes',
+      'price': 'Precio: menor a mayor',
+      '-price': 'Precio: mayor a menor',
+      '-views_count': 'Más vistos'
+    };
+    return orderingMap[ordering] || ordering;
   };
 
   return (
@@ -300,9 +404,7 @@ const HomePage = () => {
         }}
       >
         Productos disponibles
-      </Typography>
-
-      <Box sx={{ 
+      </Typography>      <Box sx={{ 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-start',
@@ -328,7 +430,81 @@ const HomePage = () => {
         >
           Filtros
         </MuiButton>
-      </Box>
+          {(filters.search || filters.category || filters.condition || filters.min_price > 0 || filters.max_price < maxPrice || filters.ordering !== '-created_at') && (
+          <IconButton 
+            onClick={clearFilters}
+            sx={{ 
+              mr: 1,
+              color: '#ff6b6b',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 107, 107, 0.04)',
+              },
+              flexShrink: 0
+            }}
+            title="Limpiar todos los filtros"
+          >
+            <CleaningServicesIcon />
+          </IconButton>
+        )}
+      </Box>      {/* Pills de filtros activos */}
+      {(filters.search || filters.category || filters.condition || filters.min_price > 0 || filters.max_price < maxPrice || filters.ordering !== '-created_at') && (
+        <Box sx={{ 
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1,
+          mb: 2
+        }}>
+          {filters.search && (
+            <Chip
+              label={`Búsqueda: "${filters.search}"`}
+              onDelete={() => removeFilter('search')}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          )}
+          
+          {filters.category && (
+            <Chip
+              label={`Categoría: ${getCategoryName(filters.category)}`}
+              onDelete={() => removeFilter('category')}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          )}
+          
+          {filters.condition && (
+            <Chip
+              label={`Condición: ${getConditionName(filters.condition)}`}
+              onDelete={() => removeFilter('condition')}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          )}
+          
+          {(filters.min_price > 0 || filters.max_price < maxPrice) && (
+            <Chip
+              label={`Precio: ${formatPrice(filters.min_price)} - ${formatPrice(filters.max_price)}`}
+              onDelete={() => removeFilter('price')}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          )}
+          
+          {filters.ordering !== '-created_at' && (
+            <Chip
+              label={`Orden: ${getOrderingName(filters.ordering)}`}
+              onDelete={() => removeFilter('ordering')}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          )}
+        </Box>
+      )}
 
       <Dialog 
         open={filterDialogOpen} 
@@ -351,24 +527,24 @@ const HomePage = () => {
           }}
         >
           Filtros
-        </DialogTitle>
-        <DialogContent 
+        </DialogTitle>        <DialogContent 
           dividers={false} 
           sx={{ 
             p: 2,
+            pt: 3, // Agregar padding top para separar del borde azul
             borderTop: 'none',
             '& .MuiDialogContent-dividers': {
               borderTop: 'none',
               borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
             }
           }}
-        >
-          <Box sx={{ gridColumn: 'span 12' }}>
+        >          <Box sx={{ gridColumn: 'span 12' }}>
             <FormControl 
               fullWidth 
               size="small"
               sx={{ 
                 mb: 1.5,
+                mt: 1, // Agregar margen superior para separar del borde
                 '& .MuiOutlinedInput-root': {
                   '&.Mui-focused fieldset': {
                     borderColor: '#004f9e',
@@ -518,7 +694,6 @@ const HomePage = () => {
                 <MenuItem value="-views_count">Más vistos</MenuItem>
               </Select>
             </FormControl>
-          
             <Typography sx={{ fontWeight: 500, mb: 1 }}>Rango de precios</Typography>
             <Box sx={{ px: 0.5 }}>
               <ShadcnSlider
@@ -526,8 +701,8 @@ const HomePage = () => {
                 onChange={handleTempPriceRangeChange}
                 onValueCommit={handleTempPriceRangeChange}
                 min={0}
-                max={1000000}
-                step={1000}
+                max={maxPrice}
+                step={1}
               />
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
                 <Typography variant="body2">{formatPrice(tempPriceRange[0])}</Typography>
@@ -535,8 +710,7 @@ const HomePage = () => {
               </Box>
             </Box>
           </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 2, py: 1.5 }}>
+        </DialogContent>        <DialogActions sx={{ px: 2, py: 1.5 }}>
           <MuiButton 
             onClick={handleCloseFilterDialog}
             sx={{ 

@@ -5,29 +5,24 @@ import {
   Chip, Button, Divider, Alert, CircularProgress, 
   Dialog, DialogTitle, DialogContent, DialogContentText, 
   DialogActions, Snackbar, Card, CardContent,
-  IconButton, Avatar
+  IconButton, Avatar, Tabs, Tab
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ShareIcon from '@mui/icons-material/Share';
 import { useAuth } from '../hooks/useAuth.hooks';
 import api from '../services/api';
+import { getUserRatingForSeller, Rating } from '../api';
 import EditButton from '../components/buttons/EditButton';
 import DeleteButton from '../components/buttons/DeleteButton';
 import EditProductModal from '../components/EditProductModal';
 import BreadcrumbNav from '../components/BreadcrumbNav';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel"
+import StarRating from '../components/StarRating';
+import RatingComponent from '../components/RatingComponent';
+import RatingsList from '../components/RatingsList';
 import { formatPrice } from '../utils/formatPrice';
-
-// Estilos para los botones de carrusel (eliminado porque no se usa)
+import '../styles/ProductCard.css';
 
 // Tipo para el producto
 interface ProductType {
@@ -44,6 +39,10 @@ interface ProductType {
     id: number;
     username: string;
     email: string;
+    profile?: {
+      average_rating: number;
+      total_ratings: number;
+    };
   };
   images: {
     id: number;
@@ -53,8 +52,9 @@ interface ProductType {
   created_at: string;
   views_count: number;
   location?: string;
-  category_name?: string; // Para compatibilidad
-  status: string; // Nuevo campo para el estado del producto
+  category_name?: string;
+  status: string;
+  is_favorite?: boolean;
 }
 
 const getStatusChip = (status: string) => {
@@ -75,10 +75,12 @@ const ProductDetailPage = () => {
   const [product, setProduct] = useState<ProductType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);  const [editModalOpen, setEditModalOpen] = useState(false);  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [currentUserRating, setCurrentUserRating] = useState<Rating | null>(null);
+  const [sellerTabValue, setSellerTabValue] = useState(0);
+  const [ratingsRefreshKey, setRatingsRefreshKey] = useState(0);
   
   // Determinar si el usuario actual es el propietario del producto
   const isOwner = user && product && user.id === product.seller.id;
@@ -158,10 +160,32 @@ const ProductDetailPage = () => {
       } finally {
         setLoading(false);
       }
+    };    getProductDetails();
+  }, [productId]);
+  // Sincronizar estado de favoritos cuando el producto se carga
+  useEffect(() => {
+    if (product) {
+      setIsFavorite(!!product.is_favorite);
+    }
+  }, [product]);
+
+  // Cargar la calificación actual del usuario para este vendedor
+  useEffect(() => {    const loadCurrentUserRating = async () => {
+      if (product && isAuthenticated && !isOwner) {
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            const rating = await getUserRatingForSeller(product.seller.id, token);
+            setCurrentUserRating(rating);
+          }
+        } catch (error) {
+          console.error('Error al cargar la calificación del usuario:', error);
+        }
+      }
     };
 
-    getProductDetails();
-  }, [productId]);
+    loadCurrentUserRating();
+  }, [product, isAuthenticated, isOwner]);
 
   const reloadProductData = async () => {
     if (!productId) return;
@@ -184,32 +208,32 @@ const ProductDetailPage = () => {
       setLoading(false);
     }
   };
-
   const handleAddToFavorites = async () => {
     if (!product || !isAuthenticated) return;
     
     try {
       const response = await api.addToFavorites(product.id);
       if (response.success) {
+        setIsFavorite(!isFavorite); // Alternar estado local
         setNotification({
-          message: 'Producto añadido a favoritos',
+          message: isFavorite ? 'Producto eliminado de favoritos' : 'Producto añadido a favoritos',
           type: 'success'
         });
       } else {
         setNotification({
-          message: response.error || 'Error al añadir a favoritos',
+          message: response.error || 'Error al actualizar favoritos',
           type: 'error'
         });
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setNotification({
-          message: err.message || 'Error al añadir a favoritos',
+          message: err.message || 'Error al actualizar favoritos',
           type: 'error'
         });
       } else {
         setNotification({
-          message: 'Error desconocido al añadir a favoritos',
+          message: 'Error desconocido al actualizar favoritos',
           type: 'error'
         });
       }
@@ -318,20 +342,20 @@ const ProductDetailPage = () => {
         </Button>
       </Container>
     );
-  }
-
-  return (
+  }  return (
     <Container maxWidth="xl" sx={{ 
         py: { xs: 0, sm: 1 },
         px: { xs: 0, sm: 1, md: 3 },
         mt: { xs: 0, sm: 1 },
-      }}>
-      <BreadcrumbNav 
-        items={[
-          { name: 'Productos', href: '/', current: false },
-          { name: product?.title || 'Detalle del producto', href: '#', current: true }
-        ]} 
-      />
+        width: '100%'
+      }}>      <Box sx={{ px: { xs: 1, sm: 1, md: 0 } }}>
+        <BreadcrumbNav 
+          items={[
+            { name: 'Productos', href: '/', current: false },
+            { name: product?.title || 'Detalle del producto', href: '#', current: true }
+          ]} 
+        />
+      </Box>
       <Snackbar 
         open={!!notification} 
         autoHideDuration={6000} 
@@ -343,102 +367,92 @@ const ProductDetailPage = () => {
             bgcolor: notification?.type === 'success' ? 'success.main' : 'error.main'
           }
         }}
-      />
-      
+      />      
       {/* Encabezado con botón de volver atrás */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, px: { xs: 1, sm: 1, md: 0 } }}>
         <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6">
           Detalles del producto
-        </Typography>
-      </Box>
-      
-      {/* Contenido principal */}
-      <Grid container spacing={3}>
-        {/* Columna izquierda: imágenes y detalles */}
-        <Grid >
-          <Card elevation={1} sx={{ mb: 3, overflow: 'hidden' }}>
-            {/* Carrusel de imágenes */}
-            {product.images && product.images.length > 0 ? (
-              <Box sx={{ position: 'relative', bgcolor: '#f5f5f5' }}>
-                <Carousel 
-                  onSelect={(event) => {
-                    const index = parseInt(event.currentTarget.dataset.index || '0', 10);
-                    setActiveImageIndex(index);
+        </Typography>      </Box>      {/* Contenido principal - Layout reorganizado */}
+      <Grid container spacing={{ xs: 2, md: 3 }} sx={{ px: { xs: 1, sm: 1, md: 0 } }}>        {/* Columna izquierda: imágenes, botones de acción y información del vendedor */}
+          <Grid size={{ xs: 12, md: 8 }}>{/* Botones de edición arriba de las fotos para todas las pantallas */}
+          {isAuthenticated && isOwner && (
+            <Box sx={{ 
+              display: 'flex',
+              gap: 2, 
+              mb: 2, 
+              justifyContent: 'flex-start'
+            }}>
+              <EditButton onClick={() => setEditModalOpen(true)} />
+              <DeleteButton onClick={() => setDeleteDialogOpen(true)} />
+            </Box>
+          )}
+
+          <Card elevation={3} sx={{ 
+            mb: { xs: 2, md: 3 }, 
+            width: '100%'
+          }}>{/* Carrusel de imágenes manual */}
+            {product.images && product.images.length > 0 && (              <Box sx={{ 
+                position: 'relative', 
+                bgcolor: '#f5f5f5', 
+                height: { xs: '400px', sm: '450px', md: '500px', lg: '700px', xl: '800px' },
+                width: '100%'
+              }}>
+                <IconButton 
+                  onClick={() => setActiveImageIndex((activeImageIndex - 1 + product.images.length) % product.images.length)}
+                  sx={{ 
+                    position: 'absolute', 
+                    left: 8, 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    zIndex: 1,
+                    '&:active': {
+                      transform: 'translateY(-50%)',
+                    },
+                    '&:focus': {
+                      transform: 'translateY(-50%)',
+                    }
                   }}
-                  opts={{ loop: true }}
                 >
-                  <CarouselContent>
-                    {product.images.map((img) => (
-                      <CarouselItem key={img.id}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            height: {xs: '300px', sm: '400px', md: '500px'},
-                            width: '100%',
-                            bgcolor: '#f5f5f5'
-                          }}
-                        >
-                          <img
-                            src={img.image}
-                            alt={`Imagen ${img.id}`}
-                            style={{
-                              height: '100%',
-                              maxWidth: '100%',
-                              objectFit: 'contain'
-                            }}
-                          />
-                        </Box>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  
-                  {/* Mostrar botones de navegación solo si hay más de una imagen */}
-                  {product.images.length > 1 && (
-                    <>
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: '10px',
-                          transform: 'translateY(-50%)',
-                          zIndex: 10,
-                        }}
-                      >
-                        <CarouselPrevious style={{ minWidth: 0, width: '36px', height: '36px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', color: '#fff', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, margin: 0 }} />
-                      </Box>
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '50%',
-                          right: '10px',
-                          transform: 'translateY(-50%)',
-                          zIndex: 10,
-                        }}
-                      >
-                        <CarouselNext style={{ minWidth: 0, width: '36px', height: '36px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', color: '#fff', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, margin: 0 }} />
-                      </Box>
-                    </>
-                  )}
-                </Carousel>
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  height: { xs: '300px', sm: '400px', md: '500px' },
-                  bgcolor: '#f5f5f5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Typography variant="subtitle1" color="text.secondary">
-                  No hay imagen disponible
-                </Typography>
+                  <ArrowBackIcon />
+                </IconButton>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%',
+                  width: '100%'
+                }}>
+                  <img 
+                    src={product.images[activeImageIndex].image} 
+                    alt={`Imagen ${activeImageIndex + 1}`} 
+                    style={{ 
+                      height: '100%', 
+                      width: '100%', 
+                      objectFit: 'cover' 
+                    }} 
+                  />
+                </Box>
+                <IconButton 
+                  onClick={() => setActiveImageIndex((activeImageIndex + 1) % product.images.length)}
+                  sx={{ 
+                    position: 'absolute', 
+                    right: 8, 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    zIndex: 1,
+                    '&:active': {
+                      transform: 'translateY(-50%)',
+                    },
+                    '&:focus': {
+                      transform: 'translateY(-50%)',
+                    }
+                  }}
+                >
+                  <ArrowBackIcon sx={{ transform: 'rotate(180deg)' }} />
+                </IconButton>
               </Box>
             )}
 
@@ -470,14 +484,17 @@ const ProductDetailPage = () => {
                     />
                   </Box>
                 ))}
-              </Box>
-            )}
+              </Box>            )}
           </Card>
 
-          {/* Detalles del producto */}
-          <Card elevation={1} sx={{ mb: 3 }}>
+          {/* Título y descripción del producto - Solo en pantallas pequeñas */}
+          <Card elevation={3} sx={{ 
+            mb: { xs: 2, md: 0 }, 
+            width: '100%',
+            display: { xs: 'block', md: 'none' }
+          }}>
             <CardContent>
-              <Typography variant="h5" gutterBottom>
+              <Typography variant="h4" gutterBottom>
                 {product.title}
               </Typography>
 
@@ -537,65 +554,62 @@ const ProductDetailPage = () => {
               <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-line' }}>
                 {product.description}
               </Typography>
-
-              {/* Botones de acción móviles (solo en pantallas pequeñas) */}
-              <Box sx={{ mt: 3, display: { xs: 'flex', md: 'none' }, gap: 2, flexDirection: 'row' }}>
-                {isAuthenticated ? (
-                  !isOwner ? (
-                    <>
-                      <Button 
-                        variant="contained" 
-                        fullWidth 
-                        onClick={handleContactSeller}
-                        sx={{ py: 1.5 }}
-                      >
-                        Contactar Vendedor
-                      </Button>
-                      <Button 
-                        variant="outlined" 
-                        color="secondary" 
-                        fullWidth 
-                        onClick={handleAddToFavorites}
-                        startIcon={<FavoriteBorderIcon />}
-                        sx={{ py: 1.5 }}
-                      >
-                        Añadir a Favoritos
-                      </Button>
-                      <Button 
-                        variant="outlined" 
-                        fullWidth 
-                        onClick={handleShareProduct}
-                        startIcon={<ShareIcon />}
-                        sx={{ py: 1.5 }}
-                      >
-                        Compartir
-                      </Button>
-                    </>
-                  ) : (
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <EditButton onClick={() => setEditModalOpen(true)} />
-                      <DeleteButton onClick={() => setDeleteDialogOpen(true)} />
-                    </Box>
-                  )
-                ) : (
-                  <Button 
-                    variant="contained" 
-                    fullWidth 
-                    onClick={() => navigate('/login')}
-                    sx={{ py: 1.5 }}
-                  >
-                    Inicia sesión para contactar
-                  </Button>
-                )}
-              </Box>
             </CardContent>
           </Card>
-        </Grid>
 
-        {/* Columna derecha: información del vendedor y botones de acción */}
-        <Grid>
-          {/* Información del vendedor */}
-          <Card elevation={1} sx={{ mb: 3 }}>
+          {/* Botones de acción debajo de las fotos */}
+          {isAuthenticated && !isOwner && (
+            <Box sx={{ 
+              mb: { xs: 2, md: 3 }, 
+              width: '100%',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 2
+            }}>
+              <Button 
+                variant="contained" 
+                onClick={handleContactSeller}
+                sx={{ py: 1.5, flex: 1 }}
+              >
+                Contactar Vendedor
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleAddToFavorites}
+                sx={{
+                  py: 1.5,
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <div className="ui-bookmark">
+                  <input type="checkbox" checked={isFavorite} onChange={() => {}} />
+                  <div className="bookmark">
+                    <svg viewBox="0 0 16 16" style={{marginTop: 0}} className="bi bi-heart-fill" height={20} width={20}>
+                      <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314" fillRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                <Typography variant="body2">
+                  {isFavorite ? 'En Favoritos' : 'Favoritos'}
+                </Typography>
+              </Button>
+              <Button 
+                variant="outlined" 
+                onClick={handleShareProduct}
+                startIcon={<ShareIcon />}
+                sx={{ py: 1.5, flex: 1 }}
+              >
+                Compartir
+              </Button>
+            </Box>
+          )}
+
+          {/* Información del vendedor debajo de los botones */}
+          <Card elevation={3} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Información del vendedor
@@ -614,62 +628,96 @@ const ProductDetailPage = () => {
                   <Typography variant="body2" color="text.secondary">
                     Miembro desde {new Date().getFullYear()}
                   </Typography>
-                </Box>
-              </Box>
+                  {product.seller.profile && (
+                    <Box sx={{ mt: 1 }}>
+                      <StarRating
+                        rating={product.seller.profile.average_rating || 0}
+                        totalRatings={product.seller.profile.total_ratings || 0}
+                        showText={true}
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </Box>              </Box>
 
-              {/* Estadísticas del vendedor */}
-              <Box sx={{ mt: 2 }}>
+              {/* Información básica del vendedor */}
+              <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  • <strong>100%</strong> de valoraciones positivas
-                </Typography>
-                <Typography variant="body2">
                   • <strong>Verificado</strong> por nuestro equipo
                 </Typography>
+                <Typography variant="body2">
+                  • <strong>{product.seller.profile?.total_ratings || 0}</strong> calificaciones
+                </Typography>
               </Box>
+
+              {/* Pestañas para alternar entre calificaciones y calificar */}
+              <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                <Tabs value={sellerTabValue} onChange={(_, newValue) => setSellerTabValue(newValue)}>
+                  <Tab label="Calificaciones" />
+                  {isAuthenticated && !isOwner && <Tab label="Calificar" />}
+                </Tabs>
+              </Box>
+
+              {/* Contenido de las pestañas */}
+              {sellerTabValue === 0 && (
+                <RatingsList
+                  sellerId={product.seller.id}
+                  averageRating={product.seller.profile?.average_rating || 0}
+                  totalRatings={product.seller.profile?.total_ratings || 0}
+                  key={ratingsRefreshKey}
+                />
+              )}              {sellerTabValue === 1 && isAuthenticated && !isOwner && (
+                <RatingComponent
+                  sellerId={product.seller.id}
+                  sellerName={product.seller.username}
+                  currentUserRating={currentUserRating}                  onRatingSubmitted={async () => {
+                    setRatingsRefreshKey(prev => prev + 1);
+                    setSellerTabValue(0); // Cambiar a la pestaña de calificaciones
+                    
+                    // Recargar los datos del producto para obtener el promedio actualizado
+                    await reloadProductData();
+                    
+                    // Recargar la calificación actual del usuario
+                    try {
+                      const token = localStorage.getItem('authToken');
+                      if (token) {
+                        const rating = await getUserRatingForSeller(product.seller.id, token);
+                        setCurrentUserRating(rating);
+                      }
+                    } catch (error) {
+                      console.error('Error al recargar la calificación del usuario:', error);
+                    }
+                  }}
+                />              )}</CardContent>
+          </Card>
+
+          {/* Consejos de seguridad - Solo en pantallas pequeñas */}
+          <Card elevation={3} sx={{ 
+            bgcolor: '#f5f7fa', 
+            mb: { xs: 2, md: 0 }, 
+            width: '100%',
+            display: { xs: 'block', md: 'none' }
+          }}>
+            <CardContent>
+              <Typography variant="subtitle1" gutterBottom>
+                Consejos de seguridad
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                • Nunca pagues por adelantado sin verificar
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                • Revisa el producto antes de comprarlo
+              </Typography>
+              <Typography variant="body2">
+                • Acuerda reunirte en un lugar público
+              </Typography>
             </CardContent>
           </Card>
 
-          {/* Botones de acción (solo en pantallas medianas y grandes) */}
-          <Card elevation={1} sx={{ display: { xs: 'none', md: 'block' } }}>
-            <CardContent>
-              {isAuthenticated ? (
-                !isOwner ? (
-                  <>
-                    <Button 
-                      variant="contained" 
-                      fullWidth 
-                      onClick={handleContactSeller}
-                      sx={{ py: 1.5, mb: 2 }}
-                    >
-                      Contactar Vendedor
-                    </Button>
-                    <Button 
-                      variant="outlined" 
-                      color="secondary" 
-                      fullWidth 
-                      onClick={handleAddToFavorites}
-                      startIcon={<FavoriteBorderIcon />}
-                      sx={{ py: 1.5, mb: 2 }}
-                    >
-                      Añadir a Favoritos
-                    </Button>
-                    <Button 
-                      variant="outlined" 
-                      fullWidth 
-                      onClick={handleShareProduct}
-                      startIcon={<ShareIcon />}
-                      sx={{ py: 1.5 }}
-                    >
-                      Compartir
-                    </Button>
-                  </>
-                ) : (
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <EditButton onClick={() => setEditModalOpen(true)} />
-                    <DeleteButton onClick={() => setDeleteDialogOpen(true)} />
-                  </Box>
-                )
-              ) : (
+          {/* Botón de inicio de sesión para usuarios no autenticados */}
+          {!isAuthenticated && (
+            <Card elevation={3} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
+              <CardContent>
                 <Button 
                   variant="contained" 
                   fullWidth 
@@ -678,12 +726,86 @@ const ProductDetailPage = () => {
                 >
                   Inicia sesión para contactar
                 </Button>
-              )}
+              </CardContent>
+            </Card>
+          )}        </Grid>{/* Columna derecha: información básica del producto únicamente - Solo en pantallas medianas y grandes */}
+        <Grid size={{ xs: 12, md: 4 }} sx={{ display: { xs: 'none', md: 'block' } }}>
+          {/* Espaciado para alinear con los botones de edición en pantallas grandes - solo si es el propietario */}
+          {isAuthenticated && isOwner && (
+            <Box sx={{ 
+              height: { xs: 0, md: '71px' }, // Altura aproximada de los botones de edición + margen
+              display: { xs: 'none', md: 'block' }
+            }} />
+          )}
+          
+          {/* Información básica del producto */}
+          <Card elevation={3} sx={{ mb: { xs: 2, md: 3 }, width: '100%' }}>
+            <CardContent>
+              <Typography variant="h4" gutterBottom>
+                {product.title}
+              </Typography>
+
+              <Typography variant="h4" color="primary" gutterBottom>
+                {formatPrice(product.price)}
+              </Typography>
+
+              {/* Fecha relativa */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {getRelativeTime(product.created_at)}
+                </Typography>
+              </Box>
+
+              {/* Estado del producto */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                  Estado:
+                </Typography>
+                {product && getStatusChip(product.status)}
+              </Box>
+
+              {/* Estadísticas */}
+              <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <VisibilityIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    {product.views_count} visualizaciones
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Etiquetas */}
+              <Box sx={{ mb: 3 }}>
+                <Chip 
+                  label={getCategoryName(product)} 
+                  color="primary" 
+                  variant="outlined" 
+                  size="small"
+                  sx={{ mr: 1 }} 
+                />
+                <Chip 
+                  label={getConditionName(product.condition)} 
+                  color="secondary" 
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Descripción */}
+              <Typography variant="h6" gutterBottom>
+                Descripción
+              </Typography>
+
+              <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-line' }}>
+                {product.description}
+              </Typography>
             </CardContent>
           </Card>
 
           {/* Consejos de seguridad */}
-          <Card elevation={1} sx={{ mt: 3, bgcolor: '#f5f7fa' }}>
+          <Card elevation={3} sx={{ bgcolor: '#f5f7fa' }}>
             <CardContent>
               <Typography variant="subtitle1" gutterBottom>
                 Consejos de seguridad

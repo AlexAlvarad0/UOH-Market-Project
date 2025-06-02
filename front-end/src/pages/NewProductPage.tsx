@@ -468,7 +468,11 @@ const NewProductPage: React.FC = () => {
                 </Typography>
                 
                 <Typography variant="h5" color="primary.main" gutterBottom>
-                  {price ? `$${price}` : 'Precio'}
+                  {price === '' 
+                    ? 'Precio' 
+                    : parseFloat(price) === 0 
+                      ? 'Gratis' 
+                      : `$${price}`}
                 </Typography>
                 
                 <Typography variant="body2" color="text.secondary" gutterBottom>

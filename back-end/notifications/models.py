@@ -8,6 +8,7 @@ class Notification(models.Model):
         ('views', 'Vistas de producto'),
         ('favorite', 'Añadido a favoritos'),
         ('like_message', 'Like en mensaje'),
+        ('rating', 'Nueva calificación'),
     )
     
     user = models.ForeignKey(
@@ -50,7 +51,6 @@ class Notification(models.Model):
         related_name='notifications',
         help_text='Producto relacionado con la notificación'
     )
-    
     related_conversation = models.ForeignKey(
         'chat.Conversation',
         on_delete=models.SET_NULL,
@@ -67,6 +67,15 @@ class Notification(models.Model):
         blank=True,
         related_name='notifications',
         help_text='Mensaje relacionado (para notificaciones de likes)'
+    )
+    
+    related_rating = models.ForeignKey(
+        'accounts.Rating',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notifications',
+        help_text='Calificación relacionada (para notificaciones de nuevas calificaciones)'
     )
     
     is_read = models.BooleanField(

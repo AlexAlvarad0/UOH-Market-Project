@@ -1,0 +1,158 @@
+/* StarRating Styles */
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.star-container {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.star.interactive:hover {
+  transform: scale(1.1);
+}
+
+.star.filled {
+  color: #ffd700;
+}
+
+.star.empty {
+  color: #e0e0e0;
+}
+
+.star.half {
+  color: #ffd700;
+}
+
+.rating-text {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Animación para las estrellas cuando se hace hover */
+.star.interactive:hover {
+  animation: starPulse 0.3s ease;
+}
+
+@keyframes starPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1.1); }
+}
+
+/* Estilo para el componente de calificación interactivo */
+.rating-input {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  margin-top: 16px;
+}
+
+.rating-input h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rating-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rating-comment {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.rating-comment:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.rating-submit-btn {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.rating-submit-btn:hover {
+  background-color: #1976d2;
+}
+
+.rating-submit-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Estilo para la lista de calificaciones */
+.ratings-list {
+  margin-top: 16px;
+}
+
+.rating-item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  background-color: white;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.rating-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.rating-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rating-user {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.rating-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.rating-comment-text {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.4;
+  margin-top: 8px;
+}

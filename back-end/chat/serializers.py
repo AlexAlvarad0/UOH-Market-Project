@@ -9,11 +9,27 @@ class MessageSerializer(serializers.ModelSerializer):
     is_edited = serializers.ReadOnlyField()
     edited_at = serializers.ReadOnlyField()
     liked_by_users = serializers.SerializerMethodField()
+    audio_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
-        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'created_at', 'edited_at', 'is_edited', 'is_read', 'liked', 'liked_by', 'liked_by_users']
-        read_only_fields = ['sender', 'created_at', 'edited_at', 'is_edited', 'is_read', 'liked', 'liked_by', 'liked_by_users']
+        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'message_type', 'audio_file', 
+                 'audio_url', 'audio_duration', 'created_at', 'edited_at', 'is_edited', 'is_read', 'is_deleted', 
+                 'liked', 'liked_by', 'liked_by_users']
+        read_only_fields = ['sender', 'created_at', 'edited_at', 'is_edited', 'is_read', 'is_deleted', 
+                           'liked', 'liked_by', 'liked_by_users', 'audio_url']
+    def get_audio_url(self, obj):
+        """Devuelve la URL completa del archivo de audio si existe"""
+        if obj.audio_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.audio_file.url)
+            else:
+                # Fallback: construir URL absoluta manualmente
+                from django.conf import settings
+                base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                return f"{base_url}{obj.audio_file.url}"
+        return None
     
     def get_liked_by_users(self, obj):
         """Devuelve información detallada sobre los usuarios que han dado like al mensaje"""
@@ -58,7 +74,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_latest_message(self, obj):
         latest = obj.messages.order_by('-created_at').first()
         if latest:
-            return MessageSerializer(latest).data
+            return MessageSerializer(latest, context=self.context).data
         return None
 
     def get_unread_count(self, obj):

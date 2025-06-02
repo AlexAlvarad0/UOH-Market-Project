@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, TextField, MenuItem, FormControl, InputLabel, 
-  Select, CircularProgress, Alert, Typography, Box
+  Select, CircularProgress, Alert, Typography, Box, Chip,
+  Switch, FormControlLabel // <--- Añadir Switch y FormControlLabel
 } from '@mui/material';
 import api from '../services/api';
 
@@ -18,6 +19,7 @@ interface ProductToEdit {
   price: number | string;
   category: number | { id: number; name: string };
   condition: string;
+  status: string; // Añadir status
 }
 
 interface EditProductModalProps {
@@ -33,10 +35,12 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [condition, setCondition] = useState('');
+  const [productStatus, setProductStatus] = useState(''); // Estado para la disponibilidad
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [statusChanging, setStatusChanging] = useState(false); // Estado para el cambio de disponibilidad
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,6 +72,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
       setTitle(product.title || '');
       setDescription(product.description || '');
       setPrice(typeof product.price === 'number' ? product.price.toString() : product.price?.toString() || '');
+      setProductStatus(product.status || ''); // Inicializar estado del producto
       
       if (typeof product.category === 'object' && product.category?.id) {
         setCategoryId(product.category.id);
@@ -109,6 +114,27 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
       setError(err.message || 'Error al actualizar el producto');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleToggleAvailability = async () => {
+    if (!product) return;
+
+    setStatusChanging(true);
+    setError(null);
+    try {
+      const response = await api.toggleProductAvailability(product.id);
+      if (response.success && response.data && response.data.product) {
+        setProductStatus(response.data.product.status); // Actualizar el estado local
+        onSuccess(); // Notificar al padre para que pueda refrescar
+      } else {
+        setError(response.error || 'Error al cambiar la disponibilidad');
+      }
+    } catch (err: any) {
+      console.error('Error cambiando disponibilidad:', err);
+      setError(err.message || 'Error al cambiar la disponibilidad');
+    } finally {
+      setStatusChanging(false);
     }
   };
 
@@ -198,6 +224,25 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
                 ))}
               </Select>
             </FormControl>
+            
+            {/* Sección para cambiar disponibilidad */}
+            {product && product.status !== 'pending' && (
+              <Box sx={{ my: 2, p: 2, border: '1px dashed grey', borderRadius: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={productStatus === 'available'}
+                      onChange={handleToggleAvailability}
+                      disabled={statusChanging || submitting}
+                      color={productStatus === 'available' ? 'success' : 'error'}
+                    />
+                  }
+                  label={productStatus === 'available' ? 'Producto Disponible' : 'Producto No Disponible'}
+                  disabled={statusChanging || submitting}
+                />
+                {statusChanging && <CircularProgress size={20} sx={{ ml: 1 }} />}
+              </Box>
+            )}
             
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
               Nota: Para cambiar las imágenes del producto, utiliza la función de editar completa.

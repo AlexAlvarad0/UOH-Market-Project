@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, MouseEvent, UIEvent } from 'react';
+import React, { useState, useEffect, useRef, MouseEvent, UIEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.hooks';
 import notificationsService from '../services/notifications';
@@ -12,6 +12,7 @@ import MessageIcon from '@mui/icons-material/Message';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import HotelClassIcon from '@mui/icons-material/HotelClass';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTheme } from '@mui/material/styles';
@@ -38,10 +39,17 @@ interface Notification {
   };
   related_conversation?: number;
   related_message?: number;
+  related_rating?: number;
   message_info?: {
     id: number;
     content: string;
     conversation_id: number;
+  };
+  rating_info?: {
+    id: number;
+    rating: number;
+    comment: string;
+    rated_user_id: number;
   };
 }
 
@@ -53,7 +61,7 @@ const NotificationsMenu: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const touchStartXRef = useRef<Record<number, number>>({}); // Referencia para posiciones de touch por notificación
 
   useEffect(() => {
@@ -226,10 +234,12 @@ const NotificationsMenu: React.FC = () => {
           )
         );
         const unreadNotifications = notifications.filter(
-          n => n.is_read === false && n.related_message !== notification.related_message
-        ).length;
+          n => n.is_read === false && n.related_message !== notification.related_message        ).length;
         setUnreadCount(unreadNotifications);
         navigate(`/chat/${conversationId}`);
+      } else if (notification.type === 'rating' && user?.id) {
+        // Navegar al perfil del usuario actual (quien recibió la calificación), en la pestaña de calificaciones
+        navigate(`/profile`);
       } else if (notification.related_product && notification.related_product.id) {
         console.log('Navegando al producto:', notification.related_product);
         await notificationsService.markProductAsRead(notification.related_product.id);
@@ -252,7 +262,6 @@ const NotificationsMenu: React.FC = () => {
       console.error('Error al procesar clic en notificación:', error);
     }
   };
-
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'message':
@@ -263,6 +272,8 @@ const NotificationsMenu: React.FC = () => {
         return <FavoriteIcon sx={{ fontSize: '1.2rem', color: '#f44336' }} />;
       case 'like_message':
         return <ThumbUpIcon sx={{ fontSize: '1.2rem', color: '#1976d2' }} />;
+      case 'rating':
+        return <HotelClassIcon sx={{ fontSize: '1.2rem', color: '#ffd700' }} />;
       default:
         return <NotificationsIcon sx={{ fontSize: '1.2rem' }} />;
     }
@@ -399,13 +410,14 @@ const NotificationsMenu: React.FC = () => {
                         transition: 'all 0.2s ease',
                       }}
                     >
-                      <ListItemAvatar>
-                        <Avatar 
+                      <ListItemAvatar>                        <Avatar 
                           sx={{ 
                             bgcolor: notification.type === 'like_message' || notification.type === 'message' 
                               ? '#e3f2fd' 
                               : notification.type === 'favorite' 
-                                ? '#ffebee' 
+                                ? '#ffebee'
+                              : notification.type === 'rating'
+                                ? '#fffbf0'
                                 : '#f5f5f5',
                             width: 40,
                             height: 40

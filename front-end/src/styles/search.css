@@ -42,7 +42,7 @@
 
 .search-group {
   display: flex;
-  border-radius: 8px;
+  border-radius: 20px; /* Bordes más redondeados */
   line-height: 24px;
   align-items: center;
   position: relative;
@@ -51,17 +51,18 @@
 
 .search-input {
   width: 100%;
-  height: 32px; /* Más delgada que antes */
-  line-height: 24px;
-  padding: 0 1rem;
-  padding-left: 0rem;
+  height: 32px;
+  line-height: 32px; /* Igual que la altura para centrar verticalmente */
+  padding: 0 0rem 0 0rem; /* Espaciado más balanceado */
   border: 2px solid transparent;
-  border-radius: 8px;
+  border-radius: 20px;
   outline: none;
   background-color: #fff;
   color: #0d0c22;
   transition: 0.3s ease;
-  font-size: 0.85rem; /* Texto más pequeño */
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center; /* Centrado vertical adicional */
 }
 
 .search-input::placeholder {
@@ -78,16 +79,147 @@
 
 .search-icon {
   position: absolute;
-  left: 0.8rem; /* Ajustado para la barra más delgada */
+  left: 0.6rem; /* Reducido para mejor espaciado */
   fill: #9e9ea7;
-  width: 0.9rem; /* Icono más pequeño */
+  width: 0.9rem;
   height: 0.9rem;
+  top: 50%; /* Centrado vertical del icono */
+  transform: translateY(-50%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .search-input {
+    padding: 0 2.5rem 0 1rem; /* Más espacio en móvil */
+    font-size: 0.9rem;
+  }
+  
+  .search-icon {
+    left: 0.8rem; /* Más espacio en móvil */
+  }
+}
+
+@media (min-width: 1024px) {
+  .search-input {
+    padding: 0 2.5rem 0 0rem;
+    font-size: 0.85rem;
+  }
+  
+  .search-icon {
+    left: 0.5rem;
+  }
+}
+
+/* Estilos para el dropdown de sugerencias y historial */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.search-dropdown-section {
+  padding: 8px 0;
+}
+
+.search-dropdown-header {
+  padding: 2px 16px;
+  color: #222; /* Color negro para mejor visibilidad */
+  font-size: 0.8rem;
+  font-weight: 600; /* Más negrita */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-dropdown-clear {
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  color: #e53935; /* Color rojo */
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.search-dropdown-clear:hover {
+  background-color: rgba(229, 57, 53, 0.1);
+}
+
+.search-dropdown-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.search-dropdown-item:hover {
+  background-color: rgba(247, 127, 0, 0.1);
+}
+
+.search-dropdown-item-icon {
+  margin-right: 10px;
+  color: #555; /* Más oscuro */
+  font-size: 0.9rem;
+}
+
+.search-dropdown-item-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #222; /* Color negro para el texto */
+  font-weight: 400; /* Normal */
+}
+
+.search-dropdown-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 4px 0;
 }
 
 /* Estilos para evitar bordes inesperados en diálogos */
 .MuiDialogContent-root.MuiDialogContent-dividers {
   border-top: none !important;
   border-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Botón para limpiar el texto de búsqueda */
+.search-clear-button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.search-clear-button:hover {
+  color: #666;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.search-clear-button:active {
+  transform: translateY(-50%) scale(0.95);
 }
 
 /* Responsive adjustments */

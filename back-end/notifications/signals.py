@@ -2,6 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from chat.models import Message
 from products.models import Product, Favorite
+from accounts.models import Rating
 from .models import Notification
 import logging
 
@@ -109,3 +110,32 @@ def check_product_views(sender, instance, **kwargs):
     
     except Exception as e:
         logger.error(f"Error al verificar vistas del producto: {str(e)}")
+
+@receiver(post_save, sender=Rating)
+def create_rating_notification(sender, instance, created, **kwargs):
+    """
+    Crea una notificación cuando un usuario recibe una nueva calificación.
+    """
+    if not created:
+        return  # Solo notificamos calificaciones nuevas
+        
+    try:
+        rated_user = instance.rated_user  # Usuario que recibió la calificación
+        rater = instance.rater           # Usuario que calificó
+        
+        # Solo crear notificación si el calificador no es el mismo usuario calificado
+        if rated_user != rater:
+            # Crear la notificación
+            Notification.objects.create(
+                user=rated_user,
+                type='rating',
+                title='Nueva calificación',
+                message=f'{rater.username} te calificó con {instance.rating} estrellas',
+                from_user=rater,
+                related_rating=instance
+            )
+            
+            logger.info(f"Notificación de calificación creada para {rated_user.username}")
+    
+    except Exception as e:
+        logger.error(f"Error al crear notificación de calificación: {str(e)}")

@@ -12,13 +12,22 @@ class Conversation(models.Model):
         return f"Conversation about {self.product.title}"
 
 class Message(models.Model):
+    MESSAGE_TYPES = [
+        ('text', 'Texto'),
+        ('audio', 'Audio'),
+    ]
+    
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    content = models.TextField()
+    content = models.TextField(blank=True, null=True)  # Opcional para mensajes de audio
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text')
+    audio_file = models.FileField(upload_to='audio_messages/', null=True, blank=True)
+    audio_duration = models.PositiveIntegerField(null=True, blank=True, help_text='Duración en segundos')
     created_at = models.DateTimeField(auto_now_add=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     is_edited = models.BooleanField(default=False)
     is_read = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     # Indica si este mensaje ha sido marcado como liked (boolean)
     liked = models.BooleanField(default=False)
     # Usuarios que han dado like a este mensaje

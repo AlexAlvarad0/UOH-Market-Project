@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import Profile
+from .models import Profile, Rating
 
 User = get_user_model()
 
@@ -63,10 +63,12 @@ class ProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
     profile_picture = serializers.ImageField(allow_null=True, required=False)
+    average_rating = serializers.ReadOnlyField()
+    total_ratings = serializers.ReadOnlyField()
 
     class Meta:
         model = Profile
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture', 'average_rating', 'total_ratings')
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
@@ -86,6 +88,46 @@ class ProfileSerializer(serializers.ModelSerializer):
          
         instance.save()
         return instance
+
+class RatingSerializer(serializers.ModelSerializer):
+    rater_username = serializers.CharField(source='rater.username', read_only=True)
+    rated_user_username = serializers.CharField(source='rated_user.username', read_only=True)
+
+    class Meta:
+        model = Rating
+        fields = ['id', 'rated_user', 'rater', 'rating', 'comment', 'created_at', 'rater_username', 'rated_user_username']
+        read_only_fields = ['rater', 'created_at']
+
+    def validate(self, data):
+        request = self.context.get('request')
+        if request and request.user:
+            # Evitar que un usuario se califique a sí mismo
+            if data['rated_user'] == request.user:
+                raise serializers.ValidationError("No puedes calificarte a ti mismo.")
+        return data
+
+    def create(self, validated_data):
+        validated_data['rater'] = self.context['request'].user
+        return super().create(validated_data)
+
+class RatingListSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para listar calificaciones"""
+    rater_username = serializers.CharField(source='rater.username', read_only=True)
+    rater = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Rating
+        fields = ['id', 'rating', 'comment', 'created_at', 'rater_username', 'rater']
+        
+    def get_rater(self, obj):
+        if obj.rater:
+            return {
+                'id': obj.rater.id,
+                'username': obj.rater.username,
+                'first_name': obj.rater.first_name,
+                'last_name': obj.rater.last_name
+            }
+        return None
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)

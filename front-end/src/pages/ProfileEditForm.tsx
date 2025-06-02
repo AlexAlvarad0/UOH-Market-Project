@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Box, Button, TextField, CircularProgress, Typography, IconButton } from '@mui/material';
 import { PhotoCamera } from '@mui/icons-material';
 import apiService from '../services/api';
 
-const ProfileEditForm: React.FC = () => {
+interface ProfileEditFormProps {
+  onProfileSaved?: () => void;
+}
+
+const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ onProfileSaved }) => {
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -14,11 +18,9 @@ const ProfileEditForm: React.FC = () => {
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);  const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,7 +43,6 @@ const ProfileEditForm: React.FC = () => {
 
     fetchProfile();
   }, []);
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -50,10 +51,6 @@ const ProfileEditForm: React.FC = () => {
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
     }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,15 +70,19 @@ const ProfileEditForm: React.FC = () => {
       formData.append('profile_picture', profileImage);
     }
 
-    const response = await apiService.updateUserProfile(formData);
-
-    setSaving(false);
+    const response = await apiService.updateUserProfile(formData);    setSaving(false);
     if (response.success) {
       setSuccessMsg('Perfil actualizado correctamente');
-      // Redirigir después de un breve delay
-      setTimeout(() => {
-        navigate('/profile');
-      }, 1500);
+      // Llamar al callback si está disponible, sino navegar
+      if (onProfileSaved) {
+        setTimeout(() => {
+          onProfileSaved();
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          navigate('/profile');
+        }, 1500);
+      }
     } else {
       setError(response.error || 'Error al actualizar el perfil');
     }
@@ -112,7 +113,7 @@ const ProfileEditForm: React.FC = () => {
         <Button variant="contained" color="primary" type="submit" disabled={saving}>
           {saving ? <CircularProgress size={24} /> : 'Guardar Cambios'}
         </Button>
-        <Button variant="outlined" onClick={() => navigate('/profile')}>Cancelar</Button>
+        <Button variant="outlined" onClick={() => onProfileSaved ? onProfileSaved() : navigate('/profile')}>Cancelar</Button>
       </Box>
     </Box>
   );

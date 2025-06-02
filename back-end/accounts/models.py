@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.conf import settings
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
 class CustomUserManager(BaseUserManager):
@@ -55,6 +56,61 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.email
+
+    @property
+    def average_rating(self):
+        """Calcula el promedio de las calificaciones recibidas por este usuario"""
+        ratings = self.user.received_ratings.all()
+        if ratings.exists():
+            total = sum(rating.rating for rating in ratings)
+            return round(total / ratings.count(), 1)
+        return 0.0
+
+    @property
+    def total_ratings(self):
+        """Cuenta el total de calificaciones recibidas por este usuario"""
+        return self.user.received_ratings.count()
+
+class Rating(models.Model):
+    """Modelo para calificaciones de vendedores"""
+    rated_user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='received_ratings',
+        verbose_name='Usuario calificado'
+    )
+    rater = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='given_ratings',
+        verbose_name='Usuario que califica'
+    )
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name='Calificación'
+    )
+    comment = models.TextField(
+        max_length=500, 
+        blank=True, 
+        null=True,
+        verbose_name='Comentario'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('rated_user', 'rater')
+        verbose_name = 'Calificación'
+        verbose_name_plural = 'Calificaciones'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.rater.username} calificó a {self.rated_user.username} con {self.rating} estrellas'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.rated_user == self.rater:
+            raise ValidationError('Un usuario no puede calificarse a sí mismo.')
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
