@@ -10,6 +10,7 @@ export interface Product {
   title: string;
   description: string;
   price: string;
+  original_price?: number | null;
   is_favorite?: boolean;
   category: number;
   category_name?: string;
@@ -20,4 +21,8 @@ export interface Product {
   seller: number;
   seller_name?: string;
   images?: ProductImage[];
+}
+
+export interface WeeklyOffer extends Product {
+  discount_percentage: number;
 }

@@ -9,7 +9,6 @@ import Menu from '@mui/material/Menu';
 import Badge from '@mui/material/Badge';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-import MoreIcon from '@mui/icons-material/MoreVert';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import CategoryMenu from './buttons/CategoryMenu';
@@ -26,19 +25,24 @@ import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Avatar from '@mui/material/Avatar';
 import api from '../services/api';
-import notificationsService from '../services/notifications';
+import Divider from '@mui/material/Divider';
 
 const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMedium = useMediaQuery(theme.breakpoints.down('lg')); // Para pantallas sm y md (menores a lg)
   const { isAuthenticated, logout, user } = useAuth();
-  const navigate = useNavigate();  const [searchQuery, setSearchQuery] = useState('');
-  const [favoritesCount, setFavoritesCount] = useState<number>(0);
-  const [notificationsCount, setNotificationsCount] = useState<number>(0);
+  const navigate = useNavigate();
+  // Estado para nombre de usuario
+  const [firstName, setFirstName] = useState<string>('');
+  // Estado para foto de perfil
+  const [profilePic, setProfilePic] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');  const [favoritesCount, setFavoritesCount] = useState<number>(0);
   
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const isMenuOpen = Boolean(anchorEl);  // Efecto para cargar el contador inicial y configurar listeners
@@ -69,34 +73,13 @@ const Header = () => {
       }
     };
 
-    // Función para cargar el contador de notificaciones
-    const loadNotificationsCount = async () => {
-      if (!isAuthenticated) {
-        setNotificationsCount(0);
-        return;
-      }
-
-      try {
-        const response = await notificationsService.getUnread();
-        if (response.success && response.data) {
-          const data = response.data.results || response.data;
-          setNotificationsCount(data.length);
-        }
-      } catch (err) {
-        console.error('Error al obtener contador de notificaciones:', err);
-        setNotificationsCount(0);
-      }
-    };
-
     if (!isAuthenticated) {
       setFavoritesCount(0);
-      setNotificationsCount(0);
       return;
     }
 
-    // Cargar contadores inicial
+    // Cargar contador inicial
     loadFavoritesCount();
-    loadNotificationsCount();
 
     // Escuchar eventos personalizados de favoritos
     const handleFavoriteAdded = () => {
@@ -109,37 +92,42 @@ const Header = () => {
       loadFavoritesCount();
     };
 
-    // Escuchar eventos personalizados de notificaciones
-    const handleNotificationsRead = () => {
-      console.log('Evento: Notificaciones leídas - actualizando contador');
-      loadNotificationsCount();
-    };
-
-    const handleNewNotifications = () => {
-      console.log('Evento: Nuevas notificaciones - actualizando contador');
-      loadNotificationsCount();
-    };
-
     // Agregar event listeners
     window.addEventListener('favoriteAdded', handleFavoriteAdded);
     window.addEventListener('favoriteRemoved', handleFavoriteRemoved);
-    window.addEventListener('notificationsRead', handleNotificationsRead);
-    window.addEventListener('newNotifications', handleNewNotifications);
     
-    // Actualizar los contadores cada 60 segundos como fallback
+    // Actualizar el contador cada 60 segundos como fallback
     const interval = setInterval(() => {
       loadFavoritesCount();
-      loadNotificationsCount();
     }, 60000);
 
     // Cleanup
     return () => {
       window.removeEventListener('favoriteAdded', handleFavoriteAdded);
       window.removeEventListener('favoriteRemoved', handleFavoriteRemoved);
-      window.removeEventListener('notificationsRead', handleNotificationsRead);
-      window.removeEventListener('newNotifications', handleNewNotifications);
       clearInterval(interval);
     };
+  }, [isAuthenticated]);
+
+  // Efecto para cargar datos de perfil
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!isAuthenticated) {
+        setFirstName('');
+        setProfilePic('');
+        return;
+      }
+      try {
+        const profileRes = await api.getUserProfile();
+        if (profileRes.success && profileRes.data) {
+          setFirstName(profileRes.data.first_name);
+          if (profileRes.data.profile_picture) setProfilePic(profileRes.data.profile_picture);
+        }
+      } catch (err) {
+        console.error('Error al obtener perfil en header:', err);
+      }
+    };
+    loadProfile();
   }, [isAuthenticated]);
 
   const handleProfileMenuOpen = (event: MouseEvent<HTMLElement>) => {
@@ -203,20 +191,35 @@ const Header = () => {
         },
       }}
     >
-      <div className="profile-menu">
+      <div className="profile-menu">        {(isMobile || isMedium) && isAuthenticated && (
+          <>
+            <Divider sx={{ width: '80%', mx: 'auto', my: 1 }} />
+            <Typography
+              variant="subtitle1"
+              align="center"
+              sx={{ width: '100%', py: 1 }}
+            >
+              ¡Hola <strong>{firstName}</strong>!
+            </Typography>
+            <Divider sx={{ width: '80%', mx: 'auto', my: 1 }} />
+          </>
+        )}
         {isAuthenticated ? (
           <>
             <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/profile'); }}>
               <PersonIcon />
               <span className="menu-item-text">Mi Perfil</span>
             </button>
-            
-            <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/product/new'); }}>
+              <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/product/new'); }}>
               <SellIcon />
               <span className="menu-item-text">Vender Producto</span>
             </button>
             
-            {isMobile && (
+            <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/my-products'); }}>
+              <InventoryIcon />
+              <span className="menu-item-text">Mis Productos</span>
+            </button>
+              {(isMobile || isMedium) && (
               <>
                 <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/favorites'); }}>
                   <FavoriteIcon />
@@ -257,24 +260,23 @@ const Header = () => {
       zIndex: 1100,
       boxShadow: 3,
       height: { xs: '64px', md: '72px' },
-    }}>
-      <Toolbar sx={{ 
+    }}>      <Toolbar sx={{ 
         display: 'flex', 
-        flexWrap: { xs: 'nowrap', sm: 'wrap' },
+        flexWrap: 'nowrap',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: { xs: '0 10px', sm: '0 16px', md: '0 24px' },
+        padding: { xs: '0 8px', sm: '0 16px', md: '0 24px' },
         minHeight: { xs: '56px', sm: '64px', md: '72px' },
         width: '100%',
         boxSizing: 'border-box'
-      }}>
-        <Box sx={{ 
+      }}>        <Box sx={{ 
           display: 'flex',
           alignItems: 'center',
-          minWidth: { xs: 'auto', sm: '150px', md: '180px' },
-          width: { xs: 'auto', sm: '180px', md: '200px' },
+          minWidth: { xs: '40px', sm: '150px', md: '180px' },
+          width: { xs: '40px', sm: '180px', md: '200px' },
           mr: { xs: 0.5, sm: 1, md: 2 },
           height: '100%',
+          flexShrink: 0,
         }}>
           <Link to="/" style={{ 
             display: 'flex', 
@@ -312,14 +314,14 @@ const Header = () => {
             </Typography>
           </Link>
         </Box>
-        
-        <Box sx={{ 
+          <Box sx={{ 
           flexGrow: 1,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center', 
+          justifyContent: 'center',
           width: { xs: '100%', sm: 'auto' },
-          maxWidth: { xs: 'calc(100% - 120px)', sm: '500px', md: '1200px' },
+          maxWidth: { xs: 'calc(100% - 100px)', sm: '400px', md: '600px' },
+          minWidth: { xs: '120px', sm: '200px' },
           height: '50%',
         }}>
           <Box sx={{ 
@@ -367,27 +369,41 @@ const Header = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </Box>
-        </Box>
+          </Box>        </Box>
         
         <Box sx={{ 
-          display: { xs: 'none', sm: 'flex' },
+          display: { xs: 'none', sm: 'none', lg: 'flex' },
           alignItems: 'center',
           justifyContent: 'flex-end',
-          minWidth: { sm: '150px', md: '180px' },
-          width: { sm: '180px', md: '200px' },
-          gap: { sm: 0.5, md: 1 },
-          height: '100%',        }}>
-          {isAuthenticated ? (
+          minWidth: { lg: '240px' },
+          width: { lg: '280px' },
+          gap: { lg: 1 },
+          height: '100%',
+        }}>
+          {isAuthenticated && (
+            <Typography
+              variant="body1"
+              sx={{ 
+                color: 'white', 
+                mr: 2,
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+                display: { xs: 'none', sm: 'none', lg: 'block' } 
+              }}
+            >
+              ¡Hola <strong>{firstName}</strong>!
+            </Typography>
+          )}          {isAuthenticated ? (
             <>
               <IconButton
                 size="large"
                 color="inherit"
                 onClick={() => navigate('/favorites')}
                 aria-label="favoritos"
+                sx={{ flexShrink: 0 }}
               >
                 <Badge 
-                  badgeContent={favoritesCount} 
+                  badgeContent={favoritesCount}
                   color="error"
                   invisible={favoritesCount === 0}
                 >
@@ -395,7 +411,7 @@ const Header = () => {
                 </Badge>
               </IconButton>
               
-              <NotificationsMenu externalUnreadCount={notificationsCount} />
+              <NotificationsMenu />
               
               <IconButton
                 size="large"
@@ -405,38 +421,41 @@ const Header = () => {
                 aria-haspopup="true"
                 onClick={handleProfileMenuOpen}
                 color="inherit"
+                sx={{ flexShrink: 0 }}
               >
-                {user?.profile_picture ? (
-                  <Avatar src={user.profile_picture} sx={{ width: 32, height: 32 }} />
+                {profilePic || user?.profile_picture ? (
+                  <Avatar src={profilePic || user!.profile_picture!} sx={{ width: 32, height: 32 }} />
                 ) : (
                   <AccountCircle />
                 )}
               </IconButton>
-            </>
-          ) : (
+            </>          ) : (
             <Button 
               color="inherit" 
               onClick={() => navigate('/login')}
               size="small"
               sx={{
-                fontSize: { md: '1rem' },
-                padding: { md: '6px 12px' }
+                fontSize: { lg: '1rem' },
+                padding: { lg: '6px 12px' },
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}
             >
               Iniciar Sesión
             </Button>
           )}
  
-        </Box>
-        
-        <Box sx={{ 
-          display: { xs: 'flex', sm: 'none' },
+        </Box>        <Box sx={{ 
+          display: { xs: 'flex', sm: 'flex', lg: 'none' },
+          minWidth: '80px',
+          width: '80px',
           ml: 0.5,
           flexShrink: 0,
           alignItems: 'center',
+          justifyContent: 'flex-end',
           height: '100%',
         }}>
-          <NotificationsMenu externalUnreadCount={notificationsCount} />
+          <NotificationsMenu />
           <IconButton
             size="small"
             aria-label="mostrar perfil"
@@ -446,7 +465,11 @@ const Header = () => {
             color="inherit"
             sx={{ padding: '6px' }}
           >
-            <MoreIcon />
+            {profilePic || user?.profile_picture ? (
+              <Avatar src={profilePic || user!.profile_picture!} sx={{ width: 28, height: 28 }} />
+            ) : (
+              <AccountCircle sx={{ fontSize: 28 }} />
+            )}
           </IconButton>
         </Box>
       </Toolbar>

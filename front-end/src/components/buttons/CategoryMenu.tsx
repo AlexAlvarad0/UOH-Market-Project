@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { Box, Typography, Popover } from '@mui/material';
 import { motion, useInView } from "framer-motion";
 import '../../styles/scroll.css';
+import CategoryIcon from '../CategoryIcon';
 
 interface Category {
   id: number;
@@ -272,7 +273,10 @@ const CategoryMenu = () => {
                     onClick={() => handleCategoryClick(category.id)}
                   >
                     <div className={`item ${selectedIndex === idx + 1 ? "selected" : ""}`}>
-                      <p className="item-text">{category.name}</p>
+                      <p className="item-text" style={{ display: 'flex', alignItems: 'center' }}>
+                        <CategoryIcon name={category.name} fontSize="small" sx={{ mr: 1 }} />
+                        {category.name}
+                      </p>
                     </div>
                   </AnimatedCategoryItem>
                 ))}

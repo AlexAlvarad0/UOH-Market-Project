@@ -9,10 +9,14 @@ import { useNavigate } from 'react-router-dom';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import api from '../services/api';
 import { processImages } from '../utils/imageUtils';
 import { useAuth } from '../hooks/useAuth.hooks';
 import BreadcrumbNav from '../components/BreadcrumbNav';
+import { formatPrice } from '../utils/formatPrice';
+import CategoryIcon from '../components/CategoryIcon';
 
 const NewProductPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,10 +33,12 @@ const NewProductPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('');
-  const [condition, setCondition] = useState('');
+  const [category, setCategory] = useState('');  const [condition, setCondition] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
+  // Estado para la navegación de imágenes en vista previa
+  const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
   
   // Estado para almacenar categorías y condiciones desde el backend
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -93,6 +99,15 @@ const NewProductPage: React.FC = () => {
   // Eliminar una imagen
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Nuevo manejador de cambio de precio: permitir solo dígitos con máximo un separador ',' o '.' y al menos un dígito antes
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Vacío o formato: dígitos+opcional(separador+dígitos)
+    if (value === '' || /^\d+(?:[,]\d*)?$/.test(value)) {
+      setPrice(value);
+    }
   };
 
   // Crear producto
@@ -175,15 +190,41 @@ const NewProductPage: React.FC = () => {
     const found = categories.find(cat => cat.id === category);
     return found ? found.name : '';
   };
-  
-  // Encontrar etiqueta de condición para la vista previa
+    // Encontrar etiqueta de condición para la vista previa
   const getConditionLabel = () => {
     const found = conditions.find(cond => cond.value === condition);
     return found ? found.label : '';
   };
+  // Funciones para navegación de imágenes en vista previa
+  const handlePreviousImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentPreviewIndex(prev => 
+      prev === 0 ? imagePreviews.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentPreviewIndex(prev => 
+      prev === imagePreviews.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  // Resetear índice cuando cambian las imágenes
+  useEffect(() => {
+    if (currentPreviewIndex >= imagePreviews.length) {
+      setCurrentPreviewIndex(0);
+    }
+  }, [imagePreviews.length, currentPreviewIndex]);
 
   return (
-    <Container maxWidth="xl" sx={{ mt: { xs: 2, sm: 3 }, mb: 4, py: { xs: 2, sm: 3 }, px: { xs: 1, sm: 2, md: 3 } }}>
+    <Container maxWidth="xl" sx={{ 
+        py: { xs: 0, sm: 1 },
+        px: { xs: 0, sm: 1, md: 3 },
+        mt: { xs: 0, sm: 1 },
+      }}>
       <BreadcrumbNav 
         items={[
           { name: 'Vender producto', href: '/product/new', current: true }
@@ -339,10 +380,10 @@ const NewProductPage: React.FC = () => {
                   label="Precio"
                   fullWidth
                   variant="outlined"
-                  type="number"
                   InputProps={{ startAdornment: '$' }}
                   value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  onChange={handlePriceChange}
+                  inputProps={{ pattern: "[0-9.,]*" }}
                   required
                   sx={{ mb: 3 }}
                 />
@@ -363,7 +404,10 @@ const NewProductPage: React.FC = () => {
                   ) : (
                     categories.map((cat) => (
                       <MenuItem key={cat.id} value={cat.id}>
-                        {cat.name}
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <CategoryIcon name={cat.name} fontSize="small" sx={{ mr: 1 }} />
+                          {cat.name}
+                        </Box>
                       </MenuItem>
                     ))
                   )}
@@ -371,13 +415,13 @@ const NewProductPage: React.FC = () => {
                 
                 <TextField
                   select
-                  label="Estado"
+                  label="Condición"
                   fullWidth
                   value={condition}
                   onChange={(e) => setCondition(e.target.value)}
                   variant="outlined"
                   required
-                  sx={{ mb: 3 }}
+                  sx={{ mb: 3, '& .MuiSelect-select': { textAlign: 'left' } }}
                 >
                   {conditions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -425,8 +469,7 @@ const NewProductPage: React.FC = () => {
             <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
               Vista previa
             </Typography>
-            
-            <Card elevation={5} sx={{ border: '1px solid #e0e0e0' }}>
+              <Card elevation={5} sx={{ border: '1px solid #e0e0e0' }}>
               {imagePreviews.length > 0 ? (
                 <Box 
                   sx={{ 
@@ -438,7 +481,7 @@ const NewProductPage: React.FC = () => {
                   }}
                 >
                   <img
-                    src={imagePreviews[0]}
+                    src={imagePreviews[currentPreviewIndex]}
                     alt="Vista previa principal"
                     style={{
                       maxWidth: '100%',
@@ -446,6 +489,80 @@ const NewProductPage: React.FC = () => {
                       objectFit: 'contain'
                     }}
                   />
+                  
+                  {/* Flechas de navegación solo si hay más de una imagen */}
+                  {imagePreviews.length > 1 && (
+                    <>                      <IconButton
+                        onMouseDown={handlePreviousImage}
+                        sx={{
+                          position: 'absolute',
+                          left: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          bgcolor: 'rgba(255, 255, 255, 0.8)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          },
+                          '&:active': {
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                            transform: 'translateY(-50%)', // Mantener posición al hacer clic
+                          },
+                          zIndex: 1,
+                          userSelect: 'none',
+                          outline: 'none',
+                          border: 'none'
+                        }}
+                        size="small"
+                        disableRipple
+                      >
+                        <ChevronLeftIcon />
+                      </IconButton>
+                      
+                      <IconButton
+                        onMouseDown={handleNextImage}
+                        sx={{
+                          position: 'absolute',
+                          right: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          bgcolor: 'rgba(255, 255, 255, 0.8)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          },
+                          '&:active': {
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                            transform: 'translateY(-50%)', // Mantener posición al hacer clic
+                          },
+                          zIndex: 1,
+                          userSelect: 'none',
+                          outline: 'none',
+                          border: 'none'
+                        }}
+                        size="small"
+                        disableRipple
+                      >
+                        <ChevronRightIcon />
+                      </IconButton>
+                      
+                      {/* Indicador de imagen actual */}
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          bottom: 8,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          bgcolor: 'rgba(0, 0, 0, 0.6)',
+                          color: 'white',
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: 1,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        {currentPreviewIndex + 1} / {imagePreviews.length}
+                      </Box>
+                    </>
+                  )}
                 </Box>
               ) : (
                 <Box 
@@ -468,21 +585,15 @@ const NewProductPage: React.FC = () => {
                 </Typography>
                 
                 <Typography variant="h5" color="primary.main" gutterBottom>
-                  {price === '' 
-                    ? 'Precio' 
-                    : parseFloat(price) === 0 
-                      ? 'Gratis' 
-                      : `$${price}`}
+                  {price === ''
+                    ? 'Precio'
+                    : formatPrice(price)}
                 </Typography>
                 
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Publicado{' '}
                   <Box component="span" sx={{ fontWeight: 'medium' }}>
                     hace unos segundos
-                  </Box>{' '}
-                  en{' '}
-                  <Box component="span" sx={{ fontWeight: 'medium' }}>
-                    {user?.profile?.location || 'Tu ubicación'}
                   </Box>
                 </Typography>
                 

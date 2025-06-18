@@ -1,30 +1,37 @@
 import axios from 'axios';
 import { API_URL } from '../config';
 
-class NotificationsService {
-  // Método para obtener los headers con el token de autenticación
+class NotificationsService {  // Método para obtener los headers con el token de autenticación
   getHeaders() {
     const token = localStorage.getItem('authToken');
+    console.log('Token de autenticación:', token ? `Token presente (${token.substring(0, 10)}...)` : 'Token no encontrado');
     if (token) {
       return {
         'Authorization': `Token ${token}`,
         'Content-Type': 'application/json'
       };
     }
+    console.warn('No se encontró token de autenticación, enviando request sin Authorization header');
     return { 'Content-Type': 'application/json' };
   }
-
   // Obtener todas las notificaciones del usuario
   async getAll() {
     try {
+      const headers = this.getHeaders();
+      console.log('Headers para getAll notifications:', headers);
+      console.log('URL de request:', `${API_URL}/api/notifications/`);
+      
       const response = await axios.get(`${API_URL}/api/notifications/`, {
-        headers: this.getHeaders()
+        headers
       });
+      
+      console.log('Respuesta exitosa de getAll notifications:', response.data);
       return { success: true, data: response.data };
     } catch (error) {
       let errorMsg = 'Error al obtener notificaciones';
       if (typeof error === 'object' && error !== null && 'response' in error) {
-        const axiosError = error as { response?: { data?: string } };
+        const axiosError = error as { response?: { data?: string; status?: number } };
+        console.error(`Error HTTP ${axiosError.response?.status} al obtener notificaciones:`, axiosError.response?.data);
         errorMsg = axiosError.response?.data || errorMsg;
       }
       console.error('Error al obtener notificaciones:', error);
@@ -59,16 +66,19 @@ class NotificationsService {
   // Marcar una notificación específica como leída
   async markAsRead(notificationId: string | number) {
     try {
+      console.log(`Intentando marcar notificación ${notificationId} como leída...`);
       const response = await axios.post(
         `${API_URL}/api/notifications/${notificationId}/mark_read/`,
         {},
         { headers: this.getHeaders() }
       );
+      console.log(`Respuesta del servidor al marcar notificación ${notificationId}:`, response.data);
       return { success: true, data: response.data };
     } catch (error) {
       let errorMsg = 'Error al marcar notificación como leída';
       if (typeof error === 'object' && error !== null && 'response' in error) {
-        const axiosError = error as { response?: { data?: string } };
+        const axiosError = error as { response?: { data?: string; status?: number } };
+        console.error(`Error HTTP ${axiosError.response?.status}:`, axiosError.response?.data);
         errorMsg = axiosError.response?.data || errorMsg;
       }
       console.error(`Error al marcar notificación ${notificationId} como leída:`, error);
@@ -82,16 +92,19 @@ class NotificationsService {
   // Marcar todas las notificaciones como leídas
   async markAllAsRead() {
     try {
+      console.log('Intentando marcar todas las notificaciones como leídas...');
       const response = await axios.post(
         `${API_URL}/api/notifications/mark_all_read/`,
         {},
         { headers: this.getHeaders() }
       );
+      console.log('Respuesta del servidor al marcar todas como leídas:', response.data);
       return { success: true, data: response.data };
     } catch (error) {
       let errorMsg = 'Error al marcar notificaciones como leídas';
       if (typeof error === 'object' && error !== null && 'response' in error) {
-        const axiosError = error as { response?: { data?: string } };
+        const axiosError = error as { response?: { data?: string; status?: number } };
+        console.error(`Error HTTP ${axiosError.response?.status}:`, axiosError.response?.data);
         errorMsg = axiosError.response?.data || errorMsg;
       }
       console.error('Error al marcar todas las notificaciones como leídas:', error);

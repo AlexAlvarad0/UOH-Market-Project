@@ -14,6 +14,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProfileEditForm from './pages/ProfileEditForm';
 import FavoritesPage from './pages/FavoritesPage';
+import MyProductsPage from './pages/MyProductsPage';
 import ChatPage from './pages/ChatPage';
 import PrivateRoute from './components/PrivateRoute';
 import NewProductPage from './pages/NewProductPage';
@@ -182,11 +183,11 @@ function AppContent() {
                 path="products/:productId" 
                 element={<ProductDetailPage />} 
               />
-              
-              {/* Rutas protegidas */}
+                {/* Rutas protegidas */}
               <Route path="profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
               <Route path="profile/edit" element={<PrivateRoute><ProfileEditForm /></PrivateRoute>} />
               <Route path="favorites" element={<PrivateRoute><FavoritesPage /></PrivateRoute>} />
+              <Route path="my-products" element={<PrivateRoute><MyProductsPage /></PrivateRoute>} />
               <Route path="chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
               <Route path="chat/:conversationId" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
               <Route path="product/new" element={<PrivateRoute><NewProductPage /></PrivateRoute>} />

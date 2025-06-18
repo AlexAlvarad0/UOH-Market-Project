@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, TextField, MenuItem, FormControl, InputLabel, 
-  Select, CircularProgress, Alert, Typography, Box, Chip,
-  Switch, FormControlLabel // <--- Añadir Switch y FormControlLabel
+  Select, CircularProgress, Alert, Typography // Removido Switch y FormControlLabel
 } from '@mui/material';
 import api from '../services/api';
+import { formatPrice } from '../utils/formatPrice';
+import Box from '@mui/material/Box';
+import CategoryIcon from './CategoryIcon';
+import CustomSwitch from './CustomSwitch'; // Importar el switch personalizado
 
 interface Category {
   id: number;
@@ -17,6 +20,7 @@ interface ProductToEdit {
   title: string;
   description: string;
   price: number | string;
+  original_price?: number | null;
   category: number | { id: number; name: string };
   condition: string;
   status: string; // Añadir status
@@ -35,12 +39,12 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [condition, setCondition] = useState('');
-  const [productStatus, setProductStatus] = useState(''); // Estado para la disponibilidad
+  const [productStatus, setProductStatus] = useState(''); // Estado local para la edición
+  const [originalStatus, setOriginalStatus] = useState(''); // Estado original del producto
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [statusChanging, setStatusChanging] = useState(false); // Estado para el cambio de disponibilidad
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,10 +57,9 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
           setCategories(response.data);
         } else {
           setError('No se pudieron cargar las categorías');
-        }
-      } catch (err) {
-        setError('Error al cargar las categorías');
-      } finally {
+        }    } catch {
+      setError('Error al cargar las categorías');
+    } finally {
         setLoading(false);
       }
     };
@@ -65,14 +68,14 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
       fetchCategories();
     }
   }, [open]);
-
   // Actualizar form con datos del producto cuando cambie
   useEffect(() => {
     if (product) {
       setTitle(product.title || '');
       setDescription(product.description || '');
       setPrice(typeof product.price === 'number' ? product.price.toString() : product.price?.toString() || '');
-      setProductStatus(product.status || ''); // Inicializar estado del producto
+      setProductStatus(product.status || ''); // Inicializar estado local del producto
+      setOriginalStatus(product.status || ''); // Guardar estado original
       
       if (typeof product.category === 'object' && product.category?.id) {
         setCategoryId(product.category.id);
@@ -85,7 +88,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
       setCondition(product.condition || '');
     }
   }, [product]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
@@ -101,40 +103,37 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
       formData.append('category', categoryId.toString());
       formData.append('condition', condition);
       
-      const response = await api.updateProduct(product.id, formData);
+      // Actualizar producto básico primero
+      const updateResponse = await api.updateProduct(product.id, formData);
       
-      if (response.success) {
-        onSuccess(); // Notificar al padre que hubo una actualización exitosa
-        onClose(); // Cerrar el modal
-      } else {
-        setError(response.error || 'Error al actualizar el producto');
+      if (!updateResponse.success) {
+        setError(updateResponse.error || 'Error al actualizar el producto');
+        return;
       }
-    } catch (err: any) {
+
+      // Si el estado cambió, actualizarlo por separado
+      if (productStatus !== originalStatus && product.status !== 'pending') {
+        const statusResponse = await api.toggleProductAvailability(product.id);
+        if (!statusResponse.success) {
+          setError(statusResponse.error || 'Error al cambiar la disponibilidad');
+          return;
+        }
+      }
+      
+      onSuccess(); // Notificar al padre que hubo una actualización exitosa
+      onClose(); // Cerrar el modal
+    } catch (err: unknown) {
       console.error('Error actualizando producto:', err);
-      setError(err.message || 'Error al actualizar el producto');
+      setError(err instanceof Error ? err.message : 'Error al actualizar el producto');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleToggleAvailability = async () => {
-    if (!product) return;
-
-    setStatusChanging(true);
-    setError(null);
-    try {
-      const response = await api.toggleProductAvailability(product.id);
-      if (response.success && response.data && response.data.product) {
-        setProductStatus(response.data.product.status); // Actualizar el estado local
-        onSuccess(); // Notificar al padre para que pueda refrescar
-      } else {
-        setError(response.error || 'Error al cambiar la disponibilidad');
-      }
-    } catch (err: any) {
-      console.error('Error cambiando disponibilidad:', err);
-      setError(err.message || 'Error al cambiar la disponibilidad');
-    } finally {
-      setStatusChanging(false);
+  };  // Función para cambiar el estado local (sin actualizar el servidor)
+  const handleToggleAvailability = () => {
+    if (productStatus === 'available') {
+      setProductStatus('unavailable');
+    } else {
+      setProductStatus('available');
     }
   };
 
@@ -183,17 +182,29 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
               rows={3}
               required
             />
-            
-            <TextField
-              fullWidth
-              margin="dense"
-              label="Precio"
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              InputProps={{ inputProps: { min: 0, step: 0.01 } }}
-              required
-            />
+              <TextField
+                fullWidth
+                margin="dense"
+                label="Precio"
+                type="number"
+                value={price}
+                rows={3}
+                onChange={(e) => setPrice(e.target.value)}
+                InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+                required
+              />              {product?.original_price && Math.abs(product.original_price - Number(price)) > 0.01 && (
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    display: 'block', 
+                    mt: 0.5, 
+                    color: 'text.secondary',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Precio original: <span style={{ textDecoration: 'line-through' }}>{formatPrice(product.original_price)}</span>
+                </Typography>
+              )}
             
             <FormControl fullWidth margin="dense" required>
               <InputLabel>Categoría</InputLabel>
@@ -204,7 +215,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
               >
                 {categories.map((category) => (
                   <MenuItem key={category.id} value={category.id}>
-                    {category.name}
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <CategoryIcon name={typeof category.name === 'string' ? category.name : ''} fontSize="small" sx={{ mr: 1 }} />
+                      {typeof category.name === 'string' ? category.name : ''}
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>
@@ -215,6 +229,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
               <Select
                 value={condition}
                 label="Condición"
+                sx={{ mb: 3, '& .MuiSelect-select': { textAlign: 'left' } }}
                 onChange={(e) => setCondition(e.target.value)}
               >
                 {conditions.map((option) => (
@@ -223,30 +238,59 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ open, onClose, prod
                   </MenuItem>
                 ))}
               </Select>
-            </FormControl>
-            
-            {/* Sección para cambiar disponibilidad */}
+            </FormControl>            {/* Sección para cambiar disponibilidad */}
             {product && product.status !== 'pending' && (
-              <Box sx={{ my: 2, p: 2, border: '1px dashed grey', borderRadius: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={productStatus === 'available'}
-                      onChange={handleToggleAvailability}
-                      disabled={statusChanging || submitting}
-                      color={productStatus === 'available' ? 'success' : 'error'}
-                    />
-                  }
-                  label={productStatus === 'available' ? 'Producto Disponible' : 'Producto No Disponible'}
-                  disabled={statusChanging || submitting}
-                />
-                {statusChanging && <CircularProgress size={20} sx={{ ml: 1 }} />}
+              <Box sx={{ 
+                my: 2, 
+                p: 2, 
+                border: '1px dashed grey', 
+                borderRadius: 1, 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                gap: 2 
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                    {productStatus === 'available' ? 'Producto Disponible' : 'Producto No Disponible'}
+                  </Typography>
+                  <CustomSwitch
+                    checked={productStatus === 'available'}
+                    onChange={handleToggleAvailability}
+                    disabled={submitting}
+                  />
+                </Box>
+                {productStatus !== originalStatus && (
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: 'warning.main',
+                      fontStyle: 'italic',
+                      textAlign: 'center'
+                    }}
+                  >
+                    (Cambio pendiente)
+                  </Typography>
+                )}
               </Box>
             )}
-            
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-              Nota: Para cambiar las imágenes del producto, utiliza la función de editar completa.
-            </Typography>
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  onClose();
+                  window.location.href = `/product/edit/${product?.id}`;
+                }}
+                sx={{ 
+                  fontSize: '0.75rem',
+                  py: 0.5,
+                  px: 1.5
+                }}
+              >
+                Edición completa (con imágenes)
+              </Button>
+            </Box>
           </Box>
         )}
       </DialogContent>

@@ -20,12 +20,11 @@ class ProductReviewMiddleware:
         response = self.get_response(request)
         
         return response
-    
     def check_pending_products(self):
         try:
             # Importamos aquí para evitar importaciones circulares
             from products.models import Product
-            from products.utils import moderate_content
+            from products.utils import moderate_content, validate_image_filenames
             import os
             
             # Obtener hora actual
@@ -58,8 +57,33 @@ class ProductReviewMiddleware:
                         # Obtener nombres de archivos de imágenes
                         image_filenames = [os.path.basename(img.image.name) for img in product.images.all()]
                         
-                        # Moderar solo usando título y nombres de archivos
-                        result = moderate_content(product.title, product.description, image_filenames)
+                        # Primero validar nombres de archivos
+                        filename_validation = validate_image_filenames(image_filenames)
+                        if not filename_validation['approved']:
+                            # Producto rechazado por nombre de archivo inapropiado
+                            product_id = product.id
+                            reason = filename_validation['reason']
+                            
+                            # Guardar imágenes para eliminarlas
+                            product_images = list(product.images.all())
+                            image_paths = [img.image.path for img in product_images]
+                            
+                            # Eliminar producto (lo que también eliminará las imágenes por CASCADE)
+                            product.delete()
+                            
+                            # Intentar eliminar archivos físicos
+                            for path in image_paths:
+                                try:
+                                    if os.path.exists(path):
+                                        os.remove(path)
+                                except Exception as e:
+                                    logger.error(f"Error eliminando imagen {path}: {str(e)}")
+                                    
+                            logger.warning(f"Producto #{product_id} rechazado por nombre de archivo: {reason}")
+                            continue
+                        
+                        # Si los nombres de archivos son apropiados, proceder con moderación de contenido
+                        result = moderate_content(product.title, product.description, image_paths)
                         
                         if result['approved']:
                             # Producto aprobado

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -16,9 +16,10 @@ import {
 } from '@mui/material';
 import Avatar from '@mui/material/Avatar';
 import { List } from 'antd';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth.hooks';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { 
   Edit as EditIcon, 
   Delete as DeleteIcon, 
@@ -37,7 +38,8 @@ const ChatPage = () => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));  interface Message {
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  interface Message {
     id: number;
     sender: number;
     sender_username: string;
@@ -53,23 +55,25 @@ const ChatPage = () => {
     liked_by?: number[];
     liked_by_users?: Array<{id: number, username: string}>;
     is_deleted?: boolean;
+    is_read?: boolean;
   }
+
   interface Participant {
     id: number;
     username: string;
     profile_picture?: string;
   }
-
   interface Product {
+    id: number;
     title: string;
   }
-
   interface Conversation {
     id: number;
     participants: Participant[];
     product?: Product;
     unread_count?: number;
     updated_at: string;
+    latest_message?: Message | null;
   }
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -84,6 +88,39 @@ const ChatPage = () => {
   
   // Estado para diálogo de confirmación de eliminación
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    // Estado para indicador de escritura
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+    // WebSocket hook - solo conectar si tenemos conversationId válido
+  const {
+    sendMessage: sendWSMessage,
+    markAsRead,
+    addChatMessageListener,
+    addConversationListener,
+    isConnected
+  } = useWebSocket(conversationId || null, localStorage.getItem('authToken'));  // Función para actualizar la lista de conversaciones (y sus contadores)
+  const refreshConversations = useCallback(async () => {
+    const res = await api.getConversations();
+    if (res.success) {
+      let convs = [];
+      if (Array.isArray(res.data)) {
+        convs = res.data;
+      } else if (res.data && Array.isArray(res.data.results)) {
+        convs = res.data.results;
+      } else if (res.data) {
+        convs = Object.values(res.data);
+      }
+      
+      // Filtrar conversaciones vacías (sin mensajes)
+      convs = convs.filter((conv: Conversation) => conv.latest_message !== null && conv.latest_message !== undefined);
+      
+      // Ordenar conversaciones por fecha de actualización
+      convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+      
+      setConversations(convs);
+    }
+  }, []);
   // Cargar conversaciones
   useEffect(() => {
     const fetchConversations = async () => {
@@ -99,19 +136,8 @@ const ChatPage = () => {
           convs = Object.values(res.data);
         }
 
-        // Debug logging para verificar profile_pictures
-        console.log('Conversaciones recibidas:', convs);
-        convs.forEach((conv: Conversation, index: number) => {
-          console.log(`Conversación ${index + 1}:`, {
-            id: conv.id,
-            participants: conv.participants.map(p => ({
-              id: p.id,
-              username: p.username,
-              profile_picture: p.profile_picture
-            })),
-            product: conv.product?.title
-          });
-        });
+        // Filtrar conversaciones vacías (sin mensajes)
+        convs = convs.filter((conv: Conversation) => conv.latest_message !== null && conv.latest_message !== undefined);
 
         // Ordenar conversaciones por fecha de actualización (más recientes primero)
         convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
@@ -149,41 +175,178 @@ const ChatPage = () => {
         if (messagesEndRef.current) {
           messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-      }, 100);
-    };
+      }, 100);    };
     
     fetchMessages();
-  }, [conversationId]);
+  }, [conversationId, refreshConversations]);
 
-  // Función para actualizar la lista de conversaciones (y sus contadores)
-  const refreshConversations = async () => {
-    const res = await api.getConversations();
-    if (res.success) {
-      let convs = [];
-      if (Array.isArray(res.data)) {
-        convs = res.data;
-      } else if (res.data && Array.isArray(res.data.results)) {
-        convs = res.data.results;
-      } else if (res.data) {
-        convs = Object.values(res.data);
-      }
-      
-      // Ordenar conversaciones por fecha de actualización
-      convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  // WebSocket listeners para mensajes en tiempo real
+  useEffect(() => {
+    if (!conversationId) return;    // Listener para nuevos mensajes
+    const unsubscribeNewMessage = addChatMessageListener('new_message', (data) => {
+      console.log('🔔 Received new_message event:', data);
+      const newMessage = data.message;
+      setMessages(prev => {
+        // Evitar duplicados
+        if (prev.some(msg => msg.id === newMessage.id)) {
+          console.log(`⚠️ Message ${newMessage.id} already exists, skipping`);
+          return prev;
+        }
+        console.log(`📨 Adding new message ${newMessage.id} to state`);
+        return [...prev, newMessage];
+      });
+
+      // Auto-scroll al final cuando llega un nuevo mensaje
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+
+      // Actualizar la lista de conversaciones
+      refreshConversations();
+    });// Listener para mensajes editados
+    const unsubscribeEditMessage = addChatMessageListener('message_edited', (data) => {
+      console.log('🔔 Received message_edited event:', data);
+      const editedMessage = data.message;
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === editedMessage.id) {
+            console.log(`✏️ Updating edited message ${editedMessage.id}`);
+            return editedMessage;
+          }
+          return msg;
+        })
       );
+    });
+
+    // Listener para mensajes eliminados
+    const unsubscribeDeleteMessage = addChatMessageListener('message_deleted', (data) => {
+      console.log('🔔 Received message_deleted event:', data);
+      const messageId = data.message_id;
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === messageId) {
+            console.log(`🗑️ Marking message ${messageId} as deleted`);
+            return { ...msg, is_deleted: true };
+          }
+          return msg;
+        })
+      );
+    });    // Listener para likes de mensajes
+    const unsubscribeLikes = addChatMessageListener('message_like', (data) => {
+      console.log('🔔 Received message_like event:', data);
+      const { message_id, liked_by, liked_by_users, liked } = data;
       
-      setConversations(convs);
-    }
-  };
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === message_id) {
+            console.log(`👍 Updating like for message ${message_id}: liked=${liked}`);
+            return {
+              ...msg,
+              liked: liked,
+              liked_by: liked_by || [],
+              liked_by_users: liked_by_users || []
+            };
+          }
+          return msg;
+        })
+      );
+    });
+
+    // Listener para indicador de escritura
+    const unsubscribeTyping = addChatMessageListener('typing', (data) => {
+      const { username, is_typing } = data;
+      setTypingUsers(prev => {
+        if (is_typing) {
+          return prev.includes(username) ? prev : [...prev, username];
+        } else {
+          return prev.filter(u => u !== username);
+        }
+      });
+
+      // Limpiar indicador después de 3 segundos
+      if (is_typing) {
+        setTimeout(() => {
+          setTypingUsers(prev => prev.filter(u => u !== username));
+        }, 3000);
+      }
+    });
+
+    // Listener para mensajes leídos
+    const unsubscribeRead = addChatMessageListener('message_read', (data) => {
+      const { message_id } = data;
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === message_id ? { ...msg, is_read: true } : msg
+        )
+      );
+    });
+
+    return () => {
+      unsubscribeNewMessage();
+      unsubscribeEditMessage();
+      unsubscribeDeleteMessage();
+      unsubscribeLikes();      unsubscribeTyping();
+      unsubscribeRead();
+    };
+  }, [conversationId, addChatMessageListener, refreshConversations]);
+
+  // WebSocket listeners para actualizaciones de conversaciones
+  useEffect(() => {
+    // Listener para nuevas conversaciones
+    const unsubscribeNewConv = addConversationListener('new_conversation', (data) => {
+      const newConversation = data.conversation;
+      setConversations(prev => {
+        // Evitar duplicados
+        if (prev.some(conv => conv.id === newConversation.id)) {
+          return prev;
+        }
+        return [newConversation, ...prev];
+      });
+    });
+
+    // Listener para actualizaciones de conversación
+    const unsubscribeUpdateConv = addConversationListener('conversation_updated', (data) => {
+      const { conversation_id, latest_message, unread_count } = data;
+      setConversations(prev => 
+        prev.map(conv => {
+          if (conv.id === conversation_id) {
+            return {
+              ...conv,
+              latest_message,
+              unread_count,
+              updated_at: new Date().toISOString()
+            };
+          }
+          return conv;
+        }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      );
+    });
+
+    return () => {
+      unsubscribeNewConv();
+      unsubscribeUpdateConv();
+    };
+  }, [addConversationListener]);
+
+  // Marcar mensajes como leídos cuando se abre una conversación
+  useEffect(() => {
+    if (!conversationId || messages.length === 0) return;
+
+    const unreadMessages = messages.filter(msg => 
+      !msg.is_read && msg.sender !== user?.id
+    );
+
+    unreadMessages.forEach(msg => {
+      markAsRead(msg.id);
+    });  }, [messages, conversationId, user?.id, markAsRead]);
 
   // Funciones para el menú contextual
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, messageId: number) => {
     setAnchorEl(event.currentTarget);
     setSelectedMessageId(messageId);
-  };
-
-  const handleMenuClose = () => {
+  };  const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedMessageId(null);
   };
@@ -201,57 +364,57 @@ const ChatPage = () => {
       }
       
       setEditingMessageId(selectedMessageId);
-      setMessage(messageToEdit.content); // Colocar el contenido en el input
+      setMessage(messageToEdit.content);
+      handleMenuClose();
     }
-    
-    handleMenuClose();
   };
 
-  // Cancelar edición
+  // Cancelar edición de mensaje
   const handleEditCancel = () => {
     setEditingMessageId(null);
     setMessage('');
-  };  // Eliminar mensaje
+  };  // Función para mostrar diálogo de confirmación de eliminación
   const handleDeleteMessage = () => {
-    // Mostrar diálogo de confirmación
+    console.log('🗑️ handleDeleteMessage llamada, selectedMessageId:', selectedMessageId);
     setDeleteDialogOpen(true);
-    // No cerrar el menú hasta que se confirme o cancele para mantener selectedMessageId
-    setAnchorEl(null); // Solo cerrar visualmente el menú
-  };
-  // Confirmar eliminación del mensaje
+    // NO llamar handleMenuClose() aquí para mantener selectedMessageId
+    setAnchorEl(null); // Solo cerrar el menú visual
+  };// Confirmar eliminación del mensaje
   const confirmDeleteMessage = async () => {
-    console.log('confirmDeleteMessage llamada, selectedMessageId:', selectedMessageId);
+    console.log('🗑️ confirmDeleteMessage llamada, selectedMessageId:', selectedMessageId);
     if (!selectedMessageId) {
-      console.log('No hay selectedMessageId, saliendo');
+      console.log('❌ No hay selectedMessageId, saliendo');
       return;
     }
     
-    console.log('Llamando a api.deleteMessage con ID:', selectedMessageId);
+    console.log('📤 Llamando a api.deleteMessage con ID:', selectedMessageId);
     const res = await api.deleteMessage(selectedMessageId);
-    console.log('Respuesta de api.deleteMessage:', res);
+    console.log('📥 Respuesta de api.deleteMessage:', res);
     
     if (res.success) {
-      console.log('Eliminación exitosa, actualizando estado');
-      // Marcar mensaje como eliminado en lugar de eliminarlo
-      setMessages(prev => prev.map(msg => 
-        msg.id === selectedMessageId ? { ...msg, is_deleted: true } : msg
-      ));
+      console.log('✅ Eliminación exitosa, actualizando estado local');
+      // Actualizar inmediatamente el estado local
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === selectedMessageId ? { ...msg, is_deleted: true } : msg
+        )
+      );
+      
       // Actualizar conversaciones
       refreshConversations();
     } else {
-      console.error('Error al eliminar mensaje:', res.error);
+      console.error('❌ Error eliminando mensaje:', res.error);
     }
     
     setDeleteDialogOpen(false);
     setSelectedMessageId(null);
   };
+
   // Cancelar eliminación del mensaje
   const cancelDeleteMessage = () => {
     setDeleteDialogOpen(false);
-    setSelectedMessageId(null); // Limpiar el mensaje seleccionado al cancelar
-  };
-
-  // Modificar handleSend para manejar también la edición
+    setSelectedMessageId(null);
+  };  // Modificar handleSend para manejar también la edición
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -259,31 +422,36 @@ const ChatPage = () => {
     if (editingMessageId) {
       if (!message.trim()) return;
       
+      // Usar API REST para editar
       const res = await api.updateMessage(editingMessageId, message);
       if (res.success) {
-        // Actualizar el mensaje en la lista
-        setMessages(prev => prev.map(msg => 
-          msg.id === editingMessageId ? res.data : msg
-        ));
-        
-        // Limpiar estado de edición
-        setEditingMessageId(null);
-        setMessage('');
+        // Actualizar inmediatamente el estado local
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === editingMessageId ? { 
+              ...msg, 
+              content: message, 
+              is_edited: true, 
+              edited_at: new Date().toISOString() 
+            } : msg
+          )
+        );
         
         // Actualizar conversaciones
         refreshConversations();
       }
+      
+      // Limpiar estado de edición
+      setEditingMessageId(null);
+      setMessage('');
     } 
     // Si estamos enviando un mensaje nuevo
     else {
       if (!message.trim() || !conversationId) return;
       
-      const res = await api.sendMessage(Number(conversationId), message);
-      if (res.success) {
-        // Añadir mensaje a la lista y limpiar campo
-        setMessages((prev) => [...prev, res.data]);
-        setMessage('');
-      }
+      // Usar WebSocket para enviar mensaje
+      sendWSMessage(message, 'text');
+      setMessage('');
     }
     
     // Scroll al final de los mensajes
@@ -292,54 +460,58 @@ const ChatPage = () => {
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }, 100);
-      // Actualizar la lista de conversaciones
-    refreshConversations();
-  };
-
-  // Función para enviar mensaje de audio
+  };  // Función para enviar mensaje de audio
   const handleSendAudio = async (audioFile: File, duration: number) => {
     if (!conversationId) return;
     
     try {
       const res = await api.sendAudioMessage(Number(conversationId), audioFile, duration);
       if (res.success) {
-        // Añadir mensaje de audio a la lista
-        setMessages((prev) => [...prev, res.data]);
+        console.log('✅ Audio message sent successfully:', res.data);
         
-        // Scroll al final de los mensajes
+        // NO agregar el mensaje localmente aquí, ya que llegará por WebSocket
+        // Esto evita la duplicación del audio
+        
+        // Actualizar conversaciones
+        refreshConversations();
+        
+        // Scroll al final
         setTimeout(() => {
           if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
           }
         }, 100);
-        
-        // Actualizar la lista de conversaciones
-        refreshConversations();
       }
     } catch (error) {
       console.error('Error al enviar audio:', error);
     }
   };
-
   // Función para dar like a un mensaje
   const handleLikeMessage = async (messageId: number) => {
+    // Usar API REST en lugar de WebSocket para mayor confiabilidad
     const res = await api.likeMessage(messageId);
     if (res.success) {
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId ? { 
-          ...msg, 
-          liked_by: res.data.liked_by, 
-          liked: res.data.liked,
-          liked_by_users: res.data.liked_by_users
-        } : msg
-      ));
+      // Actualizar inmediatamente el estado local
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              liked_by: res.data.liked_by || [],
+              liked: res.data.liked,
+              liked_by_users: res.data.liked_by_users || []
+            };
+          }
+          return msg;
+        })
+      );
     }
   };
+  
   // Función para volver a la lista de conversaciones en móvil
   const handleBackToConversations = () => {
     navigate('/chat');
   };
-
   // Función para formatear la fecha
   const formatDateHeader = (date: string) => {
     const messageDate = new Date(date);
@@ -384,11 +556,13 @@ const ChatPage = () => {
         sx={{ 
           pt: 0,
           pb: 0,
-          px: 0,
+          px: { xs: 0, sm: 0, md: 0 },
           mt: 0,
-          height: 'calc(100vh - 64px)', 
+          height: { xs: 'calc(100vh - 64px)', md: 'calc(100vh - 72px)' },
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden'
         }}
       >
         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
@@ -396,71 +570,50 @@ const ChatPage = () => {
             Conversaciones
           </Typography>
         </Box>
-        
-        <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
           {loadingConvs ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-              <CircularProgress size={24} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+              <CircularProgress />
             </Box>
-          ) : (            <List
+          ) : (
+            <List
               itemLayout="horizontal"
               dataSource={conversations}
-              renderItem={(item: { id: number; participants: { id: number; username: string; profile_picture?: string }[]; product?: { title: string }; unread_count?: number }) => {
+              renderItem={(item: { id: number; participants: { id: number; username: string; profile_picture?: string }[]; product?: { id: number; title: string }; unread_count?: number }) => {
                 const otherUser = item.participants.find((u: { id: number; username: string; profile_picture?: string }) => u.id !== user?.id);
                 const unreadCount = item.unread_count || 0;
                 
-                console.log('Renderizando conversación móvil:', {
-                  id: item.id,
-                  otherUser: otherUser,
-                  profilePicture: otherUser?.profile_picture
-                });
-                
                 return (
                   <List.Item
-                    style={{ 
-                      cursor: 'pointer', 
-                      position: 'relative',
-                      borderLeft: unreadCount > 0 ? '4px solid #1976d2' : 'none',
-                      margin: '0 16px',
-                      borderBottom: '1px solid #f0f0f0',
-                      padding: '12px 0'
-                    }}
+                    key={item.id}
                     onClick={() => navigate(`/chat/${item.id}`)}
-                  >                    <Box sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      width: '100%',
-                      gap: 2
-                    }}>
-                      {/* Foto de perfil a la izquierda */}
-                      <Avatar 
-                        src={otherUser?.profile_picture || undefined}
-                        sx={{ width: 48, height: 48, flexShrink: 0 }}
-                      >
-                        {!otherUser?.profile_picture && otherUser?.username?.charAt(0).toUpperCase()}
-                      </Avatar>
-                      
-                      {/* Contenido principal en el centro */}
-                      <Box sx={{ flexGrow: 1 }}>
-                        {/* Nombre del producto */}
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'medium', mb: 0.5 }}>
-                          {item.product?.title || 'Sin producto'}
+                    style={{
+                      cursor: 'pointer',
+                      backgroundColor: 'transparent',
+                      padding: '16px',
+                      borderRadius: '8px',
+                      marginBottom: '8px',
+                      border: '1px solid #e0e0e0'
+                    }}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <Badge badgeContent={unreadCount} color="error">
+                          <Avatar 
+                            src={otherUser?.profile_picture || undefined}
+                            sx={{ width: 50, height: 50 }}
+                          >
+                            {!otherUser?.profile_picture && otherUser?.username?.charAt(0).toUpperCase()}
+                          </Avatar>
+                        </Badge>
+                      }
+                      title={
+                        <Typography variant="subtitle1" component="span">
+                          {item.product?.title || 'Chat'}
                         </Typography>
-                        {/* Nombre de la persona */}
-                        <Typography variant="body2" color="text.secondary">
-                          {otherUser ? `${otherUser.username || 'Usuario'}` : ''}
-                        </Typography>
-                      </Box>
-                      
-                      {/* Badge de mensajes no leídos a la derecha */}
-                      {unreadCount > 0 && (
-                        <Badge 
-                          badgeContent={unreadCount} 
-                          color="primary"
-                          sx={{ flexShrink: 0 }}
-                        />
-                      )}
-                    </Box>
+                      }
+                      description={otherUser?.username || 'Usuario'}
+                    />
                   </List.Item>
                 );
               }}
@@ -470,6 +623,7 @@ const ChatPage = () => {
       </Container>
     );
   }
+
   return (
     <Container 
       maxWidth="xl" 
@@ -482,8 +636,7 @@ const ChatPage = () => {
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
-        overflow: 'hidden' // Agregar esta línea
-        // Solución al problema del margen blanco
+        overflow: 'hidden'
       }}
     >
       <Box sx={{ display: 'flex', height: '100%', flex: 1 }}>
@@ -495,82 +648,49 @@ const ChatPage = () => {
             </Typography>
             {loadingConvs ? (
               <CircularProgress size={24} />
-            ) : (              <List
+            ) : (
+              <List
                 itemLayout="horizontal"
-                dataSource={conversations}
-                renderItem={(item: { id: number; participants: { id: number; username: string; profile_picture?: string }[]; product?: { title: string }; unread_count?: number }) => {
+                dataSource={conversations}                renderItem={(item: { id: number; participants: { id: number; username: string; profile_picture?: string }[]; product?: { id: number; title: string }; unread_count?: number }) => {
                   const otherUser = item.participants.find((u: { id: number; username: string; profile_picture?: string }) => u.id !== user?.id);
                   const unreadCount = item.unread_count || 0;
                   
-                  console.log('Renderizando conversación desktop:', {
-                    id: item.id,
-                    otherUser: otherUser,
-                    profilePicture: otherUser?.profile_picture
-                  });
-                  
                   return (
                     <List.Item
-                      style={{ 
-                        cursor: 'pointer', 
-                        background: String(item.id) === conversationId ? '#f0f4ff' : undefined,
-                        position: 'relative',
-                        borderLeft: unreadCount > 0 ? '4px solid #1976d2' : 'none',
-                        padding: '12px 8px',
-                        borderBottom: '1px solid #f0f0f0'
-                      }}
+                      key={item.id}
                       onClick={() => navigate(`/chat/${item.id}`)}
-                    >                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        width: '100%',
-                        gap: 2
-                      }}>
-                        {/* Foto de perfil a la izquierda */}
-                        <Avatar 
-                          src={otherUser?.profile_picture || undefined}
-                          sx={{ width: 40, height: 40, flexShrink: 0 }}
-                        >
-                          {!otherUser?.profile_picture && otherUser?.username?.charAt(0).toUpperCase()}
-                        </Avatar>
-                        
-                        {/* Contenido principal en el centro */}
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                          {/* Nombre del producto */}
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              fontWeight: 'medium', 
-                              mb: 0.5,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor: String(item.id) === conversationId ? '#f5f5f5' : 'transparent',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <Badge badgeContent={unreadCount} color="error">
+                            <Avatar 
+                              src={otherUser?.profile_picture || undefined}
+                              sx={{ width: 50, height: 50 }}
+                            >
+                              {!otherUser?.profile_picture && otherUser?.username?.charAt(0).toUpperCase()}
+                            </Avatar>
+                          </Badge>
+                        }
+                        title={
+                          <Link 
+                            to={item.product ? `/products/${item.product.id}` : '#'} 
+                            style={{ textDecoration: 'none', color: 'inherit' }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {item.product?.title || 'Sin producto'}
-                          </Typography>
-                          {/* Nombre de la persona */}
-                          <Typography 
-                            variant="caption" 
-                            color="text.secondary"
-                            sx={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {otherUser ? `${otherUser.username || 'Usuario'}` : ''}
-                          </Typography>
-                        </Box>
-                        
-                        {/* Badge de mensajes no leídos a la derecha */}
-                        {unreadCount > 0 && (
-                          <Badge 
-                            badgeContent={unreadCount} 
-                            color="primary"
-                            sx={{ flexShrink: 0 }}
-                          />
-                        )}
-                      </Box>
+                            <Typography variant="subtitle1" component="span">
+                              {item.product?.title || 'Chat'}
+                            </Typography>
+                          </Link>
+                        }
+                        description={otherUser?.username || 'Usuario'}
+                      />
                     </List.Item>
                   );
                 }}
@@ -580,17 +700,13 @@ const ChatPage = () => {
         )}
 
         {/* Área de chat */}
-        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>          {/* Header con botón de volver en móvil */}
+        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+          {/* Header con botón de volver en móvil */}
           {isMobile && conversationId && (() => {
             const conv = conversations.find(c => String(c.id) === conversationId);
             const other = conv?.participants.find(p => p.id !== user?.id);
             
-            console.log('Header móvil - Usuario encontrado:', {
-              conversation: conv?.id,
-              otherUser: other,
-              profilePicture: other?.profile_picture
-            });
-              return (
+            return (
               <Box sx={{ p:2, borderBottom:1, borderColor:'divider', display:'flex', alignItems:'center', gap:2 }}>
                 <IconButton onClick={handleBackToConversations}><ArrowBackIcon /></IconButton>
                 <Avatar 
@@ -600,35 +716,50 @@ const ChatPage = () => {
                   {!other?.profile_picture && other?.username?.charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6">{conv?.product?.title || 'Chat'}</Typography>
+                  <Link to={conv?.product ? `/products/${conv.product.id}` : '#'} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Typography variant="h6">{conv?.product?.title || 'Chat'}</Typography>
+                  </Link>
                   <Typography variant="caption" color="text.secondary">
                     {other?.username || 'Usuario'}
                   </Typography>
                 </Box>
               </Box>
             );
-          })()}          {/* Header desktop con foto de perfil */}
+          })()}
+
+          {/* Header desktop con foto de perfil */}
           {!isMobile && conversationId && (() => {
             const conv = conversations.find(c => String(c.id) === conversationId);
             const other = conv?.participants.find(p => p.id !== user?.id);
             
-            console.log('Header desktop - Usuario encontrado:', {
-              conversation: conv?.id,
-              otherUser: other,
-              profilePicture: other?.profile_picture
-            });
-              return (
-              <Box sx={{ p:2, borderBottom:1, borderColor:'divider', display:'flex', alignItems:'center', gap:2 }}>
+            return (
+              <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Avatar 
                   src={other?.profile_picture || undefined} 
-                  sx={{ width:40, height:40 }}
+                  sx={{ width: 40, height: 40 }}
                 >
                   {!other?.profile_picture && other?.username?.charAt(0).toUpperCase()}
                 </Avatar>
-                <Box>
-                  <Typography variant="h6">{conv?.product?.title || 'Chat'}</Typography>
-                  <Typography variant="body2" color="text.secondary">
+                <Box sx={{ flexGrow: 1 }}>
+                  <Link to={conv?.product ? `/products/${conv.product.id}` : '#'} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Typography variant="h6">{conv?.product?.title || 'Chat'}</Typography>
+                  </Link>
+                  <Typography variant="caption" color="text.secondary">
                     {other?.username || 'Usuario'}
+                  </Typography>
+                </Box>
+                {/* Indicador de conexión WebSocket */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box 
+                    sx={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      backgroundColor: isConnected ? 'green' : 'red' 
+                    }} 
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {isConnected ? 'En línea' : 'Desconectado'}
                   </Typography>
                 </Box>
               </Box>
@@ -643,326 +774,248 @@ const ChatPage = () => {
             flexDirection: 'column',
           }}>
             {loadingMsgs ? (
-              <CircularProgress size={24} sx={{ alignSelf: 'center', my: 3 }} />
-            ) : messages.length === 0 ? (
-              <Typography 
-                variant="body1" 
-                color="text.secondary" 
-                sx={{ 
-                  alignSelf: 'center', 
-                  mt: 4 
-                }}
-              >
-                No hay mensajes. Comienza la conversación.
-              </Typography>            ) : (
-              <>
-                {messages.map((msg: Message, index: number) => {
-                  const isCurrentUser = msg.sender === user?.id;
-                  
-                  // Verificar si necesitamos mostrar un separador de fecha
-                  const showDateSeparator = index === 0 || !isSameDay(msg.created_at, messages[index - 1].created_at);
-                  
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : !conversationId ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <Typography variant="h6" color="text.secondary">
+                  {isMobile ? 'Selecciona una conversación' : 'Selecciona una conversación para empezar a chatear'}
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ flexGrow: 1 }}>
+                {messages.map((msg, index) => {
+                  const isOwnMessage = msg.sender === user?.id;
+                  const showDateHeader = index === 0 || !isSameDay(msg.created_at, messages[index - 1].created_at);
+                    if (msg.is_deleted) {
+                    return (
+                      <Box key={msg.id} sx={{ mb: 1 }}>
+                        {showDateHeader && (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                            <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
+                              {formatDateHeader(msg.created_at)}
+                            </Typography>
+                          </Box>
+                        )}
+                        <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
+                          <Box sx={{ maxWidth: '70%' }}>
+                            <Box
+                              sx={{
+                                backgroundColor: 'grey.100',
+                                color: 'text.secondary',
+                                p: 1,
+                                borderRadius: 10,
+                                border: '1px solid',
+                                borderColor: 'grey.300',
+                                wordBreak: 'break-word'
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
+                                🗑️ Mensaje eliminado
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            {msg.sender_username} • {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  }
+
                   return (
-                    <React.Fragment key={msg.id}>
-                      {/* Separador de fecha */}
-                      {showDateSeparator && (
-                        <Box 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            my: 3,
-                            mx: 2
-                          }}
-                        >
-                          <Box 
-                            sx={{ 
-                              flexGrow: 1, 
-                              height: '1px', 
-                              backgroundColor: '#e0e0e0' 
-                            }} 
-                          />
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              mx: 2, 
-                              px: 2, 
-                              py: 0.5, 
-                              backgroundColor: '#f5f5f5', 
-                              borderRadius: '12px',
-                              color: '#666',
-                              fontWeight: 'medium',
-                              border: '1px solid #e0e0e0'
-                            }}
-                          >
+                    <Box key={msg.id} sx={{ mb: 1 }}>
+                      {showDateHeader && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                          <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
                             {formatDateHeader(msg.created_at)}
                           </Typography>
-                          <Box 
-                            sx={{ 
-                              flexGrow: 1, 
-                              height: '1px', 
-                              backgroundColor: '#e0e0e0' 
-                            }} 
-                          />
                         </Box>
                       )}
                       
-                      {/* Mensaje */}                      <Box
-                        sx={{
-                          mb: 2,
-                          p: 2,
-                          backgroundColor: msg.is_deleted 
-                            ? '#f5f5f5' 
-                            : (isCurrentUser ? '#e3f2fd' : '#f5f5f5'),
-                          color: msg.is_deleted 
-                            ? '#999' 
-                            : (isCurrentUser ? '#0d47a1' : '#333'),
-                          borderRadius: isCurrentUser ? '20px 20px 0 20px' : '20px 20px 20px 0',
-                          maxWidth: '70%',
-                          alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                          position: 'relative',
-                          paddingRight: msg.is_deleted ? '16px' : (isCurrentUser ? '60px' : '50px'),
-                          paddingTop: msg.is_deleted ? '16px' : (isCurrentUser ? '35px' : '35px'),
-                          fontStyle: msg.is_deleted ? 'italic' : 'normal'
-                        }}
-                      >                      {/* Contenido del mensaje */}
-                      {msg.is_deleted ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
-                            🗑️ Se ha eliminado un mensaje
-                          </Typography>
-                        </Box>
-                      ) : msg.message_type === 'audio' ? (
-                        <>
-                          {/* Renderizar componente de audio */}
-                          <AudioMessage
-                            audioUrl={msg.audio_url || ''}
-                            duration={msg.audio_duration}
-                            isOwnMessage={isCurrentUser}
-                            senderName={msg.sender_username}
-                            timestamp={new Date(msg.created_at).toLocaleTimeString()}                          />
-                          {/* Metadatos como en texto */}
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                              display: 'block',
-                              textAlign: isCurrentUser ? 'right' : 'left',
-                              mt: 1
-                            }}
-                          >
-                            {new Date(msg.created_at).toLocaleTimeString()}
-                            {msg.is_edited && ' (editado)'}
-                          </Typography>
-                        </>
-                      ) : (
-                        <>
-                          <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
-                            {msg.content}
-                          </Typography>                          
-                          {/* Metadatos */}
-                          <Typography 
-                            variant="caption" 
-                            color="text.secondary" 
-                            sx={{ 
-                              display: 'block', 
-                              textAlign: isCurrentUser ? 'right' : 'left',
-                              mt: 1
-                            }}
-                          >
-                            {new Date(msg.created_at).toLocaleTimeString()}
-                            {msg.is_edited && ' (editado)'}
-                          </Typography>
-                        </>
-                      )}{/* Indicador de likes para mensajes propios (superpuesto) */}
-                      {!msg.is_deleted && isCurrentUser && msg.liked && msg.liked_by && msg.liked_by.length > 0 && (
-                        <Box 
-                          sx={{ 
-                            position: 'absolute', 
-                            bottom: -8, 
-                            right: 16, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 0.5,
-                            backgroundColor: '#fff',
-                            borderRadius: '12px',
-                            padding: '2px 6px',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                            border: '1px solid #e0e0e0'
-                          }}
-                        >
-                          <Tooltip 
-                            title={
-                              msg.liked_by_users && msg.liked_by_users.length > 0 
-                                ? <>
-                                    
-                                    <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
-                                      {msg.liked_by_users.map(user => (
-                                        <li key={user.id}>
-                                          <Typography variant="caption">{user.username}</Typography>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </>
-                                : `${msg.liked_by.length} persona${msg.liked_by.length > 1 ? 's' : ''} ${msg.liked_by.length > 1 ? 'han' : 'ha'} dado like a este mensaje`
-                            }
-                            arrow
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <ThumbUpIcon fontSize="small" sx={{ color: '#1976d2', fontSize: '0.8rem' }} />
-                              <Typography variant="caption" sx={{ color: '#1976d2', fontSize: '0.75rem' }}>
-                                {msg.liked_by.length}
+                      <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
+                        <Box sx={{ maxWidth: '70%', position: 'relative' }} className="group">
+                          {msg.message_type === 'audio' ? (
+                            <AudioMessage
+                              audioUrl={msg.audio_url || ''}
+                              duration={msg.audio_duration || 0}
+                              isOwnMessage={isOwnMessage}
+                            />
+                          ) : (
+                            <Box
+                              sx={{
+                                backgroundColor: isOwnMessage ? 'primary.main' : 'grey.200',
+                                color: isOwnMessage ? 'white' : 'text.primary',
+                                p: 1.5,
+                                borderRadius: 2,
+                                position: 'relative',
+                                wordBreak: 'break-word'
+                              }}
+                            >
+                              <Typography variant="body2">
+                                {msg.content}
                               </Typography>
+                              {msg.is_edited && (
+                                <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                                  (editado)
+                                </Typography>
+                              )}
                             </Box>
-                          </Tooltip>
-                        </Box>
-                      )}                      {/* Botón de like para mensajes de otros usuarios */}
-                      {!msg.is_deleted && !isCurrentUser && (
-                        <>
-                          <Tooltip title="Me gusta">
+                          )}                          {/* Menú contextual para mensajes propios (no mostrar para audios) */}
+                          {isOwnMessage && msg.message_type !== 'audio' && (
                             <IconButton
                               size="small"
-                              onClick={() => handleLikeMessage(msg.id)}
-                              sx={{
-                                position: 'absolute',
-                                top: 8,
-                                right: 8,
-                                backgroundColor: 'transparent',
-                                '&:hover': { backgroundColor: 'transparent' }
-                              }}
-                            >
-                              {msg.liked ? 
-                                <ThumbUpIcon fontSize="small" color="primary" /> : 
-                                <ThumbUpOutlinedIcon fontSize="small" />
-                              }
-                            </IconButton>
-                          </Tooltip>
-                          
-                          {/* Indicador de likes superpuesto para mensajes de otros */}
-                          {msg.liked && msg.liked_by_users && msg.liked_by_users.filter(u => u.id !== user?.id).length > 0 && (
-                            <Box 
                               sx={{ 
                                 position: 'absolute', 
-                                bottom: -8, 
-                                right: 16, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: 0.5,
-                                backgroundColor: '#fff',
-                                borderRadius: '12px',
-                                padding: '2px 6px',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                border: '1px solid #e0e0e0'
-                              }}
-                            >
-                              <Tooltip 
-                                title={
-                                  <>
-                                    <Typography variant="caption" component="div">
-                                      {msg.liked_by_users.filter(u => u.id !== user?.id).length > 1 
-                                        ? 'Otras personas que han dado like:' 
-                                        : 'Otra persona que ha dado like:'}
-                                    </Typography>
-                                    <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
-                                      {msg.liked_by_users
-                                        .filter(u => u.id !== user?.id)
-                                        .map(user => (
-                                          <li key={user.id}>
-                                            <Typography variant="caption">{user.username}</Typography>
-                                          </li>
-                                        ))}
-                                    </ul>
-                                  </>
+                                top: -15, 
+                                right: -15, 
+                                opacity: 1, // Siempre visible
+                                backgroundColor: '#eeeeee',
+                                border: '1px solid #e0e0e0',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                '&:hover': { 
+                                  backgroundColor: 'grey.100',
+                                  transform: 'scale(1.05)'
                                 }
-                                arrow
-                                placement="left"
-                              >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <ThumbUpIcon fontSize="small" sx={{ color: '#1976d2', fontSize: '0.8rem' }} />
-                                  <Typography variant="caption" sx={{ color: '#1976d2', fontSize: '0.75rem' }}>
-                                    {msg.liked_by_users.filter(u => u.id !== user?.id).length}
-                                  </Typography>
-                                </Box>
-                              </Tooltip>
+                              }}
+                              onClick={(e) => handleMenuOpen(e, msg.id)}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                            {/* Información de likes - mostrar para todos los mensajes */}
+                          {msg.liked_by && msg.liked_by.length > 0 && (
+                            <Box sx={{ 
+                              position: 'absolute', 
+                              bottom: -12, 
+                              right: isOwnMessage ? -12 : -12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              mr: 1 // Margen para separar del contenido
+                            }}>
+                              {/* Para mensajes propios: solo mostrar info de likes */}
+                              {isOwnMessage ? (
+                                <Tooltip title={`Le gustó a: ${msg.liked_by_users?.map(u => u.username).join(', ') || ''}`}>
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    backgroundColor: 'background.paper',
+                                    borderRadius: '50%',
+                                    width: 32,
+                                    height: 32,
+                                    justifyContent: 'center',
+                                    border: '1px solid #e0e0e0',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                  }}>
+                                    <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
+                                    {msg.liked_by.length > 1 && (
+                                      <Typography variant="caption" sx={{ ml: 0.3, fontSize: '0.6rem', fontWeight: 'bold' }}>
+                                        {msg.liked_by.length}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Tooltip>
+                              ) : (
+                                /* Para mensajes de otros: botón de like funcional */
+                                <>
+                                  <Tooltip title={msg.liked_by_users?.map(u => u.username).join(', ') || ''}>
+                                    <IconButton
+                                      size="small"
+                                      sx={{ 
+                                        backgroundColor: 'background.paper',
+                                        width: 32,
+                                        height: 32,
+                                        border: '1px solid #e0e0e0',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { 
+                                          backgroundColor: 'grey.100',
+                                          transform: 'scale(1.05)'
+                                        }
+                                      }}
+                                      onClick={() => handleLikeMessage(msg.id)}
+                                    >
+                                      {msg.liked_by?.includes(user?.id || 0) ? (
+                                        <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
+                                      ) : (
+                                        <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                                      )}
+                                    </IconButton>
+                                  </Tooltip>
+                                  {msg.liked_by.length > 1 && (
+                                    <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.6rem', fontWeight: 'bold' }}>
+                                      {msg.liked_by.length}
+                                    </Typography>
+                                  )}
+                                </>
+                              )}
                             </Box>
                           )}
-                        </>
-                      )}
-                        {/* Botones de acción solo para mensajes propios */}
-                      {!msg.is_deleted && isCurrentUser && (
-                        <IconButton
-                          size="small"
-                          sx={{ 
-                            position: 'absolute', 
-                            top: 8, 
-                            right: 8,
-                            backgroundColor: 'transparent',
-                            '&:hover': { backgroundColor: 'transparent' }
-                          }}
-                          onClick={(e) => handleMenuOpen(e, msg.id)}
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      )}
+                          
+                          {/* Botón de like para mensajes de otros usuarios (cuando no hay likes aún) */}
+                          {!isOwnMessage && (!msg.liked_by || msg.liked_by.length === 0) && (
+                            <Box sx={{ 
+                              position: 'absolute', 
+                              bottom: -12, 
+                              right: -12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              mr: 1 // Margen para separar del contenido
+                            }}>
+                              <IconButton
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: 'background.paper',
+                                  width: 32,
+                                  height: 32,
+                                  border: '1px solid #e0e0e0',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                  '&:hover': { 
+                                    backgroundColor: 'grey.100',
+                                    transform: 'scale(1.05)'
+                                  }
+                                }}
+                                onClick={() => handleLikeMessage(msg.id)}
+                              >
+                                <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          {msg.sender_username} • {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </Typography>
+                      </Box>
                     </Box>
-                    </React.Fragment>
                   );
                 })}
+                
+                {/* Indicador de escritura */}
+                {typingUsers.length > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      {typingUsers.join(', ')} está{typingUsers.length > 1 ? 'n' : ''} escribiendo...
+                    </Typography>
+                  </Box>
+                )}
+                
                 <div ref={messagesEndRef} />
-                  {/* Menú contextual para acciones en mensajes */}                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={handleMenuClose}
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'right',
-                  }}
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  PaperProps={{
-                    sx: {
-                      borderRadius: '25px'
-                    }
-                  }}
-                >
-                  {(() => {
-                    const selectedMessage = messages.find(msg => msg.id === selectedMessageId);
-                    const isTextMessage = selectedMessage?.message_type !== 'audio';
-                    
-                    return (
-                      <>
-                        {/* Solo mostrar opción de editar para mensajes de texto */}
-                        {isTextMessage && (
-                          <MenuItem onClick={handleEditStart}>
-                            <EditIcon fontSize="small" sx={{ mr: 1 }} />
-                            Editar mensaje
-                          </MenuItem>
-                        )}
-                        <MenuItem onClick={handleDeleteMessage}>
-                          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-                          Eliminar mensaje
-                        </MenuItem>
-                      </>
-                    );
-                  })()}
-                </Menu>
-              </>
+              </Box>
             )}
           </Box>          {/* Input de mensaje */}
           {conversationId && (
-            <Box 
-              sx={{ 
-                borderTop: 1, 
-                borderColor: 'divider', 
-                width: '100%',
-                padding: 0,
-                pb:0,
-                mb:0
-              }}
-            >
-              <MessageInput
+            <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>              <MessageInput
                 message={message}
                 setMessage={setMessage}
                 onSendMessage={handleSend}
@@ -975,21 +1028,31 @@ const ChatPage = () => {
         </Box>
       </Box>
 
-      {/* Diálogo de confirmación para eliminar mensaje */}
+      {/* Menú contextual */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEditStart}>
+          <EditIcon sx={{ mr: 1 }} fontSize="small" />
+          Editar
+        </MenuItem>
+        <MenuItem onClick={handleDeleteMessage}>
+          <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
+          Eliminar
+        </MenuItem>
+      </Menu>
+
+      {/* Diálogo de confirmación de eliminación */}
       <Dialog
         open={deleteDialogOpen}
         onClose={cancelDeleteMessage}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >        <DialogTitle 
-          id="alert-dialog-title"
-          sx={{ borderRadius: '25px 25px 0 0' }}
-        >
-          {"¿Eliminar mensaje?"}
-        </DialogTitle>
+      >
+        <DialogTitle>Confirmar eliminación</DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            Este mensaje se eliminará para todos. Los demás participantes verán "Se ha eliminado un mensaje".
+          <DialogContentText>
+            ¿Estás seguro de que quieres eliminar este mensaje? Esta acción no se puede deshacer.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

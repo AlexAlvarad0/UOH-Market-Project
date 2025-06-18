@@ -182,117 +182,6 @@ def detect_cannabis(image_path, sensitivity=SENSITIVITY['cannabis']):
     
     return False
 
-def detect_powder_substances(image_path, sensitivity=SENSITIVITY['powder']):
-    """
-    Detector avanzado para sustancias en polvo (cocaína, etc.)
-    """
-    try:
-        # Asegurar que la imagen se cargue correctamente
-        img = ensure_image_readable(image_path)
-        if img is None:
-            return False
-            
-        # Convertir a escala de grises
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        
-        # Suavizar la imagen
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        
-        # Aplicar umbral adaptativo
-        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                      cv2.THRESH_BINARY, 11, 2)
-        
-        # Dilatación seguida de erosión para cerrar pequeños huecos
-        kernel = np.ones((3, 3), np.uint8)
-        closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-        
-        # Calcular porcentaje de píxeles blancos (áreas de polvo)
-        white_ratio = np.sum(closed > 200) / (img.shape[0] * img.shape[1])
-        
-        # Detectar líneas específicas (común en disposición de drogas en polvo)
-        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=50, minLineLength=50, maxLineGap=10)
-        
-        horizontal_lines = 0
-        horizontal_line_lengths = []
-        
-        if lines is not None:
-            for line in lines:
-                x1, y1, x2, y2 = line[0]
-                length = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-                angle = np.abs(np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi)
-                
-                # Contar líneas horizontales (±20 grados)
-                if angle < 20 or angle > 160:
-                    horizontal_lines += 1
-                    horizontal_line_lengths.append(length)
-        
-        # Características de textura para polvo
-        texture_score = 0
-        
-        # LBP (Local Binary Pattern)
-        try:
-            from skimage.feature import local_binary_pattern
-            radius = 3
-            n_points = 8 * radius
-            lbp = local_binary_pattern(gray, n_points, radius, method='uniform')
-            
-            # Histograma LBP
-            hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, n_points + 3), 
-                                  range=(0, n_points + 2))
-            hist = hist.astype("float")
-            hist /= (hist.sum() + 1e-7)
-            
-            # Entropía de textura (baja para superficies homogéneas como polvo)
-            texture_entropy = -np.sum(hist * np.log2(hist + 1e-7))
-            
-            # Superficies de polvo tienen entropía baja-media
-            if texture_entropy < 4.0:
-                texture_score += (4.0 - texture_entropy) / 4.0
-                
-        except Exception as tex_err:
-            logger.error(f"Error en análisis de textura: {str(tex_err)}")
-            
-        # Analizar disposición típica de drogas en polvo
-        line_pattern_score = 0
-        if horizontal_lines >= 2:
-            # Las líneas de polvo suelen ser paralelas y de longitud similar
-            if len(horizontal_line_lengths) >= 2:
-                # Calcular la desviación estándar de longitudes (baja para líneas similares)
-                line_std = np.std(horizontal_line_lengths)
-                line_mean = np.mean(horizontal_line_lengths)
-                line_cv = line_std / line_mean if line_mean > 0 else 0
-                
-                # Coeficiente de variación bajo indica líneas de longitud similar
-                if line_cv < 0.3:
-                    line_pattern_score += 0.5
-                    
-                # Si hay varias líneas horizontales largas y similares
-                if line_mean > min(img.shape[0], img.shape[1]) * 0.15 and horizontal_lines >= 3:
-                    line_pattern_score += 0.5
-        
-        # Registrar valores para depuración
-        logger.info(f"Análisis polvo - Blanco: {white_ratio:.2f}, Líneas H: {horizontal_lines}, "
-                   f"Textura: {texture_score:.2f}, Patrón líneas: {line_pattern_score:.2f}")
-        
-        # Sistema de puntuación ponderado
-        score = 0
-        score += min(white_ratio * 1.5, 1.0)  # Máximo 1.0 por áreas blancas
-        score += min(horizontal_lines * 0.15, 0.9)  # Máximo 0.9 por líneas horizontales
-        score += texture_score * 0.8  # Máximo 0.8 por textura homogénea
-        score += line_pattern_score  # Máximo 1.0 por patrones de líneas
-        
-        # Umbral ajustable
-        threshold = 1.4 * sensitivity
-            
-        if score >= threshold:
-            logger.warning(f"Sustancia en polvo detectada en {image_path} (puntuación: {score:.2f})")
-            return True
-            
-    except Exception as e:
-        logger.error(f"Error en detección de polvo: {str(e)}")
-    
-    return False
 
 def detect_pills(image_path, sensitivity=SENSITIVITY['pills']):
     """
@@ -422,7 +311,7 @@ def detect_pills(image_path, sensitivity=SENSITIVITY['pills']):
         logger.info(f"Análisis píldoras - Puntuación: {pill_score:.2f}")
         
         # Umbral ajustable
-        threshold = 1.2 * sensitivity
+        threshold = 1.1* sensitivity
         
         if pill_score >= threshold:
             logger.warning(f"Píldoras detectadas en {image_path} (puntuación: {pill_score:.2f})")
@@ -577,6 +466,71 @@ def analyze_image_content(image_path):
         logger.error(f"Error analizando imagen {image_path}: {str(e)}")
         # En caso de error, permitimos la imagen para evitar falsos positivos
         return {"is_appropriate": True, "labels": [], "reason": f"Error: {str(e)}"}
+
+def validate_image_filenames(image_filenames):
+    """
+    Valida que los nombres de archivos de las imágenes no contengan términos inapropiados.
+    :param image_filenames: Lista de nombres de archivos de imágenes.
+    :return: Diccionario con el resultado de la validación.
+    """
+    try:
+        logger.info(f"Validando nombres de archivos de imágenes: {image_filenames}")
+        
+        # Lista de términos inapropiados para nombres de archivos
+        inappropriate_filename_keywords = [
+            # Drogas y sustancias
+            "droga", "drogas", "marihuana", "cannabis", "weed", "hierba", "mota", "porro",
+            "cocaina", "coca", "crack", "lsd", "extasis", "heroina", "metanfetamina",
+            "anfetamina", "mdma", "molly", "speed", "ice", "cristal", "fentanilo",
+            "hachis", "hash", "kush", "thc", "cbd", "oxi", "oxicodona", "percocet",
+            "vicodin", "morfina", "codeina", "hongos", "peyote", "mescalina", "xanax",
+            "valium", "diazepam", "benzo", "lean", "dope", "high", "trip", "acid",
+            "joint", "bong", "pipe", "grinder",
+            
+            # Alcohol y bebidas
+            "alcohol", "cerveza", "beer", "whisky", "whiskey", "vodka", "ron", "rum",
+            "tequila", "gin", "brandy", "cognac", "licor", "vino", "wine", "champagne",
+            "sangria", "mojito", "margarita", "cocktail", "coctel", "shots", "chupito",
+            "borracho", "borracha", "ebrio", "ebria", "drunk", "alcoholico", "alcoholica",
+            "fiesta", "party", "bar", "pub", "discoteca", "club",
+            
+            # Armas
+            "arma", "armas", "pistola", "revolver", "fusil", "escopeta", "rifle",
+            "municion", "balas", "explosivo", "granada", "cuchillo", "navaja", 
+            "ametralladora", "silenciador", "glock", "beretta", "colt", "uzi",
+            "ak47", "ar15", "calibre", "magnum", "dinamita", "polvora", "machete",
+            "puñal", "daga", "katana",
+            
+            # Contenido para adultos
+            "desnudo", "desnuda", "porn", "porno", "sex", "sexual", "xxx", "erotico",
+            "erotica", "escort", "prostituta", "prostituto", "camgirl", "onlyfans",
+            "fetiche", "bdsm",
+            
+            # Contenido ilegal
+            "robo", "robado", "robada", "falso", "falsa", "hack", "fraude", "estafa",
+            "scam", "phishing", "clonado", "clonada", "pirata", "counterfeit"
+        ]
+        
+        # Verificar cada nombre de archivo
+        for filename in image_filenames:
+            # Remover la extensión y convertir a minúsculas para la comparación
+            filename_lower = os.path.splitext(filename)[0].lower()
+            
+            # Verificar si el nombre contiene términos inapropiados
+            for keyword in inappropriate_filename_keywords:
+                if keyword in filename_lower:
+                    logger.warning(f"Nombre de archivo inapropiado detectado: '{filename}' contiene '{keyword}'")
+                    return {
+                        "approved": False, 
+                        "reason": f"Nombre de archivo inapropiado: '{filename}' contiene términos no permitidos"
+                    }
+        
+        logger.info("Validación de nombres de archivos completada: Todos los nombres son apropiados")
+        return {"approved": True}
+        
+    except Exception as e:
+        logger.error(f"Error validando nombres de archivos: {str(e)}")
+        return {"approved": False, "reason": f"Error validando nombres de archivos: {str(e)}"}
 
 def moderate_content(title, description, image_paths):
     """

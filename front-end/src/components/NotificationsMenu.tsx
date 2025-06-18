@@ -84,17 +84,27 @@ const NotificationsMenu: React.FC = () => {
   const [topGradientOpacity, setTopGradientOpacity] = useState<number>(0);
   const [bottomGradientOpacity, setBottomGradientOpacity] = useState<number>(1);
   const [animatingItems, setAnimatingItems] = useState<number[]>([]);
-
   useEffect(() => {
     if (!isOpen || !isAuthenticated) return;
     const fetchNotifications = async () => {
       setLoading(true);
       try {
+        console.log('Iniciando fetch de notificaciones...');
+        console.log('Usuario autenticado:', isAuthenticated);
+        console.log('Token en localStorage:', localStorage.getItem('authToken') ? 'Token presente' : 'Token ausente');
+        
         const response = await notificationsService.getAll();
+        console.log('Respuesta del fetch de notificaciones:', response);
+        
         if (response.success && response.data) {
           const data = response.data.results || response.data;
+          console.log('Datos de notificaciones procesados:', data);
+          console.log('Cantidad de notificaciones:', data.length);
+          
           setNotifications(data);
-          setUnreadCount(data.filter((n: Notification) => !n.is_read).length);
+          const unreadCount = data.filter((n: Notification) => !n.is_read).length;
+          console.log('Conteo de notificaciones no leídas:', unreadCount);
+          setUnreadCount(unreadCount);
         } else {
           console.error('Error al cargar notificaciones:', response.error);
         }
@@ -130,12 +140,15 @@ const NotificationsMenu: React.FC = () => {
     setIsOpen(false);
     setAnchorEl(null);
   };
-
   const handleMarkAllAsRead = async () => {
     try {
+      console.log('Iniciando marcado de todas las notificaciones como leídas...');
       const response = await notificationsService.markAllAsRead();
       
+      console.log('Respuesta del servicio markAllAsRead:', response);
+      
       if (response.success) {
+        console.log('Actualizando estado local de las notificaciones...');
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => ({
             ...notification,
@@ -143,17 +156,23 @@ const NotificationsMenu: React.FC = () => {
           }))
         );
         setUnreadCount(0);
+        console.log('Estado local actualizado correctamente');
+      } else {
+        console.error('El servicio reportó error:', response.error);
       }
     } catch (err) {
       console.error('Error al marcar notificaciones como leídas:', err);
     }
   };
-
   const markAsRead = async (notificationId: number) => {
     try {
+      console.log(`Iniciando marcado de notificación ${notificationId} como leída...`);
       const response = await notificationsService.markAsRead(notificationId);
       
+      console.log(`Respuesta del servicio markAsRead para ${notificationId}:`, response);
+      
       if (response.success) {
+        console.log(`Actualizando estado local para notificación ${notificationId}...`);
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => 
             notification.id === notificationId 
@@ -162,6 +181,9 @@ const NotificationsMenu: React.FC = () => {
           )
         );
         setUnreadCount(prevCount => Math.max(0, prevCount - 1));
+        console.log(`Estado local actualizado correctamente para notificación ${notificationId}`);
+      } else {
+        console.error(`El servicio reportó error para notificación ${notificationId}:`, response.error);
       }
     } catch (err) {
       console.error(`Error al marcar notificación ${notificationId} como leída:`, err);

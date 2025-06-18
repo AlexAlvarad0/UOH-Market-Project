@@ -17,6 +17,8 @@ import * as SliderPrimitive from '@radix-ui/react-slider';
 import { styled } from '@mui/material/styles';
 import { formatPrice } from '../utils/formatPrice';
 import { Product } from '../types/products';
+import CategoryIcon from '../components/CategoryIcon';
+import ScrollToTopButton from '../components/buttons/ScrollToTopButton';
 
 const SliderRoot = styled(SliderPrimitive.Root)(() => ({
   position: 'relative',
@@ -355,7 +357,7 @@ const HomePage = () => {
     const category = categories.find(cat => cat.id.toString() === categoryId);
     return category ? category.name : '';
   };
-
+  
   const getConditionName = (condition: string) => {
     const conditionMap: { [key: string]: string } = {
       'new': 'Nuevo',
@@ -386,14 +388,38 @@ const HomePage = () => {
         mt: { xs: 0, sm: 1 },
       }}
     >
-      <BreadcrumbNav items={[]} />
-
-      <Box sx={{ 
+      <BreadcrumbNav items={[]} />      <Box sx={{ 
         width: '100%',
         mt: 0,
         mb: 4
       }}>
-        <OffersCarousel />
+        <OffersCarousel 
+          isVisible={(() => {
+            // El carrusel se muestra solo cuando no hay filtros activos
+            const hasActiveFilters = 
+              filters.search !== '' || 
+              filters.category !== '' || 
+              filters.condition !== '' ||
+              filters.min_price > 0 ||
+              filters.ordering !== '-created_at';
+            
+            const isCarouselVisible = !hasActiveFilters;
+            
+            console.log('Carousel visibility check:', {
+              search: filters.search,
+              category: filters.category,
+              condition: filters.condition,
+              min_price: filters.min_price,
+              max_price: filters.max_price,
+              maxPrice,
+              ordering: filters.ordering,
+              hasActiveFilters,
+              isVisible: isCarouselVisible
+            });
+            
+            return isCarouselVisible;
+          })()} 
+        />
       </Box>
 
       <Typography 
@@ -463,7 +489,11 @@ const HomePage = () => {
               onDelete={() => removeFilter('search')}
               color="primary"
               variant="outlined"
-              size="small"
+              size="medium"
+              sx={{
+                transform: { xs: 'scale(1)', md: 'scale(1.25)' },
+                transformOrigin: 'left center'
+              }}
             />
           )}
           
@@ -473,7 +503,11 @@ const HomePage = () => {
               onDelete={() => removeFilter('category')}
               color="primary"
               variant="outlined"
-              size="small"
+              size="medium"
+              sx={{
+                transform: { xs: 'scale(1)', md: 'scale(1.2)' },
+                transformOrigin: 'left center'
+              }}
             />
           )}
           
@@ -483,7 +517,11 @@ const HomePage = () => {
               onDelete={() => removeFilter('condition')}
               color="primary"
               variant="outlined"
-              size="small"
+              size="medium"
+              sx={{
+                transform: { xs: 'scale(1)', md: 'scale(1.2)' },
+                transformOrigin: 'left center'
+              }}
             />
           )}
           
@@ -493,7 +531,11 @@ const HomePage = () => {
               onDelete={() => removeFilter('price')}
               color="primary"
               variant="outlined"
-              size="small"
+              size="medium"
+              sx={{
+                transform: { xs: 'scale(1)', md: 'scale(1.2)' },
+                transformOrigin: 'left center'
+              }}
             />
           )}
           
@@ -503,7 +545,11 @@ const HomePage = () => {
               onDelete={() => removeFilter('ordering')}
               color="primary"
               variant="outlined"
-              size="small"
+              size="medium"
+              sx={{
+                transform: { xs: 'scale(1)', md: 'scale(1.2)' },
+                transformOrigin: 'left center'
+              }}
             />
           )}
         </Box>
@@ -589,7 +635,10 @@ const HomePage = () => {
                 {Array.isArray(categories) ? (
                   categories.map((cat) => (
                     <MenuItem key={cat.id} value={cat.id}>
-                      {cat.name}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CategoryIcon name={cat.name} fontSize="small" sx={{ mr: 1 }} />
+                        {cat.name}
+                      </Box>
                     </MenuItem>
                   ))
                 ) : (
@@ -768,6 +817,8 @@ const HomePage = () => {
             <Pagination 
               count={totalPages} 
               page={page} 
+              shape='rounded'
+              variant='outlined'
               onChange={handlePageChange} 
               color="primary" 
               size="medium"
@@ -776,11 +827,13 @@ const HomePage = () => {
             />
           </Box>
         </>
-      ) : (
-        <Alert severity="info" sx={{ my: 2 }}>
+      ) : (        <Alert severity="info" sx={{ my: 2 }}>
           No se encontraron productos que coincidan con los filtros seleccionados.
         </Alert>
       )}
+
+      {/* Botón Scroll to Top */}
+      <ScrollToTopButton showAfter={400} />
     </Container>
   );
 };

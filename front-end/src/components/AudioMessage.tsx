@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, IconButton, Typography, LinearProgress, Tooltip, CircularProgress } from '@mui/material';
+import { Box, IconButton, Typography, LinearProgress, CircularProgress } from '@mui/material';
 import { 
   PlayArrow as PlayIcon, 
   Pause as PauseIcon,
-  Download as DownloadIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
 
@@ -11,24 +10,18 @@ interface AudioMessageProps {
   audioUrl: string;
   duration?: number;
   isOwnMessage?: boolean;
-  senderName?: string;
-  timestamp?: string;
 }
 
 const AudioMessage: React.FC<AudioMessageProps> = ({ 
   audioUrl, 
   duration = 0, 
-  isOwnMessage = false,
-  senderName,
-  timestamp 
+  isOwnMessage = false
 }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);  const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(duration);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);  useEffect(() => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);useEffect(() => {
     if (!audioUrl) {
       setHasError(true);
       setIsLoading(false);
@@ -119,7 +112,6 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
         });
     }
   };
-
   const handleProgressClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || audioDuration === 0 || hasError) return;
 
@@ -130,30 +122,6 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
 
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
-  };
-
-  const handleDownload = async () => {
-    if (isDownloading) return;
-    
-    setIsDownloading(true);
-    try {
-      const response = await fetch(audioUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `audio_message_${Date.now()}.webm`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading audio:', error);
-    } finally {
-      setIsDownloading(false);
-    }
   };
 
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
@@ -167,7 +135,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
           alignItems: 'center',
           gap: 1,
           padding: '0 12px',
-          backgroundColor: isOwnMessage ? 'primary.light' : '#ffffff',
+          backgroundColor: isOwnMessage ? '#004f9e' : '#ffffff',
           borderRadius: '20px',
           height: '40px',
           width: '100%',
@@ -241,36 +209,8 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
               }}
             >
               {hasError ? 'Error al cargar audio' : `${formatTime(currentTime)} / ${formatTime(audioDuration)}`}
-            </Typography>
-          </Box>
+            </Typography>          </Box>
         </Box>
-
-        {/* Botón de descarga */}
-        <Tooltip title={isDownloading ? "Descargando..." : "Descargar audio"} arrow>
-          <IconButton
-            onClick={handleDownload}
-            disabled={isDownloading || hasError}
-            size="small"
-            sx={{
-              p: 0.25,
-              color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'text.secondary',
-              '&:hover': {
-                color: isOwnMessage ? 'white' : 'primary.main',
-              },
-            }}
-          >
-            {isDownloading ? (
-              <CircularProgress 
-                size={16} 
-                sx={{ 
-                  color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'text.secondary' 
-                }} 
-              />
-            ) : (
-              <DownloadIcon sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
       </Box>
     </Box>
   );

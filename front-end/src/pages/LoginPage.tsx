@@ -17,8 +17,8 @@ import CheckIcon from '@mui/icons-material/Check';
 // Utilidad para validar requisitos de contraseña
 const passwordRequirements = [
   {
-    label: 'Al menos 8 caracteres',
-    test: (pw: string) => pw.length >= 8,
+    label: 'Al menos 10 caracteres',
+    test: (pw: string) => pw.length >= 10,
   },
   {
     label: 'Al menos 1 mayúscula',
@@ -79,9 +79,8 @@ const LoginPage = () => {
       username: Yup.string().required('Nombre de usuario es requerido'),
       email: Yup.string().email('Correo inválido').required('Correo es requerido'),
       firstName: Yup.string().required('Nombre es requerido'),
-      lastName: Yup.string().required('Apellido es requerido'),
-      password: Yup.string()
-        .min(8, 'La contraseña debe tener al menos 8 caracteres')
+      lastName: Yup.string().required('Apellido es requerido'),      password: Yup.string()
+        .min(10, 'La contraseña debe tener al menos 10 caracteres')
         .matches(/[A-Z]/, 'Debe contener al menos una mayúscula')
         .matches(/[a-z]/, 'Debe contener al menos una minúscula')
         .matches(/[0-9]/, 'Debe contener al menos un número')
@@ -99,13 +98,51 @@ const LoginPage = () => {
           values.password,
           values.firstName,
           values.lastName
-        );
-        if (response.success) {
+        );        if (response.success) {
           triggerToast('¡Registro exitoso!', 'success');
           resetForm();
           togglePanel();
         } else {
-          triggerToast('Error en el registro: ' + response.error, 'error');
+          console.error('Respuesta de error desde el servidor:', response.error);
+          
+          if (response.error && typeof response.error === 'object') {
+            const errorFields = response.error;
+            
+            // Verificar si hay errores específicos de campos
+            if (errorFields.email || errorFields.username || errorFields.password || errorFields.firstName || errorFields.lastName) {
+              const formikErrors: {
+                email?: string,
+                username?: string,
+                password?: string,
+                firstName?: string,
+                lastName?: string,
+                confirmPassword?: string
+              } = {};
+              
+              if (errorFields.email && Array.isArray(errorFields.email)) {
+                formikErrors.email = errorFields.email[0];
+                triggerToast(errorFields.email[0], 'error');
+              } else if (errorFields.username && Array.isArray(errorFields.username)) {
+                formikErrors.username = errorFields.username[0];
+                triggerToast(errorFields.username[0], 'error');
+              } else if (errorFields.password && Array.isArray(errorFields.password)) {
+                formikErrors.password = errorFields.password[0];
+                triggerToast(errorFields.password[0], 'error');
+              } else if (errorFields.firstName && Array.isArray(errorFields.firstName)) {
+                formikErrors.firstName = errorFields.firstName[0];
+                triggerToast(errorFields.firstName[0], 'error');
+              } else if (errorFields.lastName && Array.isArray(errorFields.lastName)) {
+                formikErrors.lastName = errorFields.lastName[0];
+                triggerToast(errorFields.lastName[0], 'error');
+              }
+              
+              registerFormik.setErrors(formikErrors);
+            } else {
+              triggerToast('Error en el registro. Por favor, verifica los datos proporcionados.', 'error');
+            }
+          } else {
+            triggerToast(response.error || 'Error al registrarse. Por favor, intenta nuevamente.', 'error');
+          }
         }
       } catch (error: unknown) {
         let errorMsg = 'Error en el registro: ';

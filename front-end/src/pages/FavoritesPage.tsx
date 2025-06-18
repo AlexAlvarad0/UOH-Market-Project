@@ -8,10 +8,9 @@ import BreadcrumbNav from '../components/BreadcrumbNav';
 import api from '../services/api';
 import { formatPrice } from '../utils/formatPrice';
 
-const FavoritesPage = () => {
-  interface FavoriteItem {
+const FavoritesPage = () => {  interface FavoriteItem {
     id: string;
-    product: string;
+    product: string; // Es un string con el ID del producto
     product_detail?: {
       id?: number;
       title?: string;
@@ -83,6 +82,8 @@ const FavoritesPage = () => {
     const numericProductId = Number(productId);
     
     console.log('Eliminando favorito con ID:', numericProductId);
+    console.log('ProductId original (string):', productId);
+    console.log('Lista actual de favoritos:', favorites);
     
     // Agregar el producto a la lista de "removiendo" para mostrar estado de carga
     setRemovingFavorites(prev => new Set(prev).add(productId));

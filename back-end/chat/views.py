@@ -172,12 +172,15 @@ class MessageViewSet(viewsets.ModelViewSet):
         user = request.user
         if message.sender == user:
             return Response({'detail': 'No se puede dar like a tu propio mensaje.'}, status=status.HTTP_400_BAD_REQUEST)
+
         if user in message.liked_by.all():
             message.liked_by.remove(user)
             liked = False
         else:
             message.liked_by.add(user)
-            liked = True            # Crear notificación si el usuario está dando like
+            liked = True
+            
+            # Crear notificación solo cuando se da like (no cuando se quita)
             from notifications.models import Notification
             Notification.objects.create(
                 user=message.sender,
@@ -200,31 +203,25 @@ class MessageViewSet(viewsets.ModelViewSet):
             'liked_by': [u.id for u in message.liked_by.all()],
             'liked': message.liked,
             'liked_by_users': liked_by_users
-        })
+        })    
     def destroy(self, request, *args, **kwargs):
         """Marcar mensaje como eliminado en lugar de eliminarlos completamente."""
-        print(f"Backend destroy - llamada recibida para mensaje ID: {kwargs.get('pk')}")
         instance = self.get_object()
-        print(f"Backend destroy - mensaje encontrado: {instance.id}, sender: {instance.sender.username}")
         
         # Verificar que sea el remitente del mensaje
         if instance.sender != request.user:
-            print(f"Backend destroy - usuario {request.user.username} no tiene permiso para eliminar mensaje de {instance.sender.username}")
             return Response(
                 {"detail": "No tienes permiso para eliminar este mensaje."},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         # Marcar como eliminado en lugar de eliminar
-        print(f"Backend destroy - marcando mensaje {instance.id} como eliminado")
         instance.is_deleted = True
         instance.save()
-        print(f"Backend destroy - mensaje {instance.id} marcado como eliminado exitosamente")
         
         # Actualizar timestamp de la conversación
         instance.conversation.updated_at = timezone.now()
         instance.conversation.save()
         
         serializer = self.get_serializer(instance)
-        print(f"Backend destroy - retornando respuesta exitosa")
         return Response(serializer.data)

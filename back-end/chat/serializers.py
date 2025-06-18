@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework import serializers
 from .models import Conversation, Message
 from accounts.serializers import UserSerializer
 from products.serializers import ProductSerializer
@@ -78,5 +79,11 @@ class ConversationSerializer(serializers.ModelSerializer):
         return None
 
     def get_unread_count(self, obj):
-        user = self.context['request'].user
+        # Verificar si el contexto existe y tiene la clave 'request'
+        if not hasattr(self, 'context') or not self.context or 'request' not in self.context:
+            return 0
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            return 0
+        user = request.user
         return obj.messages.filter(is_read=False).exclude(sender=user).count()

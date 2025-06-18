@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'channels',  # Para WebSockets
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -134,7 +135,10 @@ CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # URL del frontend
+    "http://localhost:5173",  # URL del frontend (Vite)
+    "http://localhost:3000",  # URL alternativa del frontend
+    "http://127.0.0.1:5173",  # URL del frontend usando 127.0.0.1
+    "http://127.0.0.1:3000",  # URL alternativa usando 127.0.0.1
 ]
 
 CORS_ALLOW_METHODS = [

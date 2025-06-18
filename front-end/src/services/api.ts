@@ -194,15 +194,57 @@ class ApiService {
   }  // Método para eliminar un producto de favoritos
   async removeFromFavorites(productId: number) {
     try {
-      console.log(`Eliminando producto ${productId} de favoritos`);
+      console.log(`Intentando eliminar producto ${productId} de favoritos`);
       
-      // Usar el endpoint simplificado del backend que funciona directamente con product_id
+      // Primero intentamos encontrar el ID del favorito
+      const favorites = await this.favorites.getAll();
+      if (!favorites.success) {
+        throw new Error('No se pudieron obtener los favoritos');
+      }
+
+      console.log('Favoritos obtenidos para eliminación:', favorites.data);      // Definir interface simplificada basada en la estructura real
+      interface FavoriteItem {
+        id: string;
+        product: string; // Siempre es un string (ID del producto)
+        product_detail?: {
+          id?: number;
+          title?: string;
+          price?: number;
+          images?: { image: string }[];
+        };
+      }
+
+      // Obtener el array de favoritos - puede estar en data directamente o en data.results
+      let favoritesArray: FavoriteItem[] = [];
+      
+      if (Array.isArray(favorites.data)) {
+        favoritesArray = favorites.data as FavoriteItem[];
+      } else if (favorites.data?.results && Array.isArray(favorites.data.results)) {
+        favoritesArray = favorites.data.results as FavoriteItem[];
+      }
+
+      console.log('Array de favoritos procesado:', favoritesArray);      // Buscar el favorito correcto - product siempre es string
+      const favoriteToDelete = favoritesArray.find((f: FavoriteItem) => {
+        console.log(`Comparando favorito ${f.id}: product="${f.product}" con productId="${productId}"`);
+        // Convertir tanto el product como el productId a string para comparar
+        return f.product.toString() === productId.toString();
+      });
+
+      if (!favoriteToDelete) {
+        console.error(`No se encontró favorito para producto ${productId}. Favoritos disponibles:`, 
+          favoritesArray.map(f => ({ id: f.id, product: f.product })));
+        throw new Error('Favorito no encontrado');
+      }
+
+      console.log('Favorito encontrado para eliminar:', favoriteToDelete);
+
+      // Eliminamos el favorito usando su ID
       const response = await axios.delete(
-        `${API_URL}/favorites/${productId}/remove/`,
+        `${API_URL}/favorites/${favoriteToDelete.id}/`,
         { headers: this.getHeaders() }
       );
       
-      console.log('Favorito eliminado exitosamente');
+      console.log('Favorito eliminado exitosamente:', response.data);
       return { success: true, data: response.data };
     } catch (error: unknown) {
       console.error('Error al eliminar de favoritos:', error);
@@ -249,16 +291,12 @@ class ApiService {
   favorites = {
     getAll: async () => {
       try {
-        console.log('Solicitando lista de favoritos...');
         const response = await axios.get(`${API_URL}/favorites/`, {
           headers: this.getHeaders()
         });
 
-        console.log('Respuesta de favoritos recibida:', response.data);
-
         // Verificar si la respuesta tiene la estructura esperada
         if (!response.data) {
-          console.warn('La respuesta de favoritos está vacía');
           return { success: true, data: [] };
         }
 
@@ -642,17 +680,48 @@ class ApiService {
         { product_id: productId, seller_id: sellerId },
         { headers: this.getHeaders() }
       );
-      return { success: true, data: response.data };    } catch (error: unknown) {
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response) {
         return { success: false, error: error.response.data || 'Error al crear conversación' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al crear conversación' };
     }
+  }  /**
+   * Obtener conversación existente para un producto y vendedor
+   */
+  async getExistingConversationForProduct(productId: number) {
+    try {
+      const convsRes = await this.getConversations();
+      if (!convsRes.success) {
+        return { success: false, error: convsRes.error };
+      }
+      const conversationsData = convsRes.data;
+      // Manejar array directo o paginado en 'results'
+      const dataWithResults = conversationsData as { results?: unknown[] };
+      const conversations = Array.isArray(conversationsData)
+        ? (conversationsData as unknown[])
+        : Array.isArray(dataWithResults.results)
+          ? dataWithResults.results
+          : [];
+      type ConvStub = { product?: { id: number } };
+      const conversation = (conversations as unknown as ConvStub[]).find(
+        (c) => c.product?.id === productId
+      );
+      return {
+        success: true,
+        hasConversationWithMessages: !!conversation,
+        data: conversation || null
+      };
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error comprobando conversación existente'
+      };
+    }
   }
-
   async getMessages(conversationId: number) {
     try {
-      console.log(`Obteniendo mensajes para conversación ${conversationId}`);
       // Usar la URL de 'messages' endpoint en la conversación específica
       const response = await axios.get(`${API_URL}/conversations/${conversationId}/messages/`, {
         headers: this.getHeaders()
@@ -660,7 +729,6 @@ class ApiService {
       
       // Al obtener los mensajes, el backend los marca como leídos automáticamente
       // gracias a la acción definida en ConversationViewSet
-      console.log(`Recibidos ${response.data?.length || 0} mensajes`);
       
       return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al cargar mensajes:', error);
@@ -753,7 +821,6 @@ class ApiService {
       return { success: false, error: error instanceof Error ? error.message : 'Error al eliminar mensaje' };
     }
   }
-
   async likeMessage(messageId: number) {
     try {
       const response = await axios.post(
@@ -767,6 +834,54 @@ class ApiService {
         return { success: false, error: error.response.data || 'Error al dar like al mensaje' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al dar like al mensaje' };
+    }
+  }
+  // Método para obtener ofertas semanales
+  async getWeeklyOffers() {
+    try {
+      const response = await axios.get(`${API_URL}/products/weekly_offers/`, {
+        headers: this.getHeaders()
+      });
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error al obtener ofertas semanales:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cargar ofertas' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cargar ofertas' };
+    }
+  }
+
+  // Método temporal para debug
+  async getDebugProducts() {
+    try {
+      const response = await axios.get(`${API_URL}/products/debug_products/`, {
+        headers: this.getHeaders()
+      });
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error al obtener productos debug:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cargar productos debug' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cargar productos debug' };
+    }
+  }
+
+  /**
+   * Incrementa el contador de visualizaciones de un producto
+   */
+  async incrementView(productId: number) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/products/${productId}/increment_view/`,
+        {},
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error incrementando vista:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Error increment view' };
     }
   }
 }
@@ -831,9 +946,7 @@ export const auth = {
         error: 'Error al conectar con el servidor'
       };
     }
-  },
-
-  async verifyEmail(email: string, code: string) {
+  },  async verifyEmail(email: string, code: string) {
     try {
       const response = await axios.post(`${API_URL}/auth/verify-email/`, { email, code });
       return { success: true, data: response.data };    } catch (error: unknown) {

@@ -425,7 +425,7 @@ footer a {
   position: absolute;
   top: 70%;
   left: 0;
-  width: 260px;
+  width: 280px;
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -453,7 +453,7 @@ footer a {
 
 @media (max-width: 600px) {
   .password-reqs-floating {
-    width: 110%;
+    width: 120%;
     left: 0;
     transform: none;
     font-size: 12px;
@@ -465,7 +465,7 @@ footer a {
 /* Media query para pantallas pequeñas */
 @media (max-width: 768px) {
   .password-reqs-floating {
-    width: 110%;
+    width: 120%;
     left: 0;
     transform: none;
     top: 85%;

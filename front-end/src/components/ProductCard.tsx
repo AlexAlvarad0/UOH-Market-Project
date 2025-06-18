@@ -3,7 +3,8 @@ import { Card, Typography, Box } from '@mui/material';
 import { Product } from '../types/products';
 import { Link } from 'react-router-dom';
 import '../styles/ProductCard.css';
-import { formatPrice } from '../utils/formatPrice';
+import PriceDisplay from './PriceDisplay';
+import { useAuth } from '../hooks/useAuth.hooks';
 
 interface ProductCardProps {
   product: Product;
@@ -11,6 +12,9 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) => {
+  const { isAuthenticated, user } = useAuth();
+  // Determine ownership: product.seller is an ID number
+  const isOwner = isAuthenticated && user && user.id === product.seller;
   const [imageError, setImageError] = useState(false);
   
   // Encontrar la imagen primaria o la primera
@@ -137,16 +141,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
               <Typography variant="body2">Sin imagen</Typography>
             </Box>
           )}
-          <div className="favorite-button" onClick={handleFavoriteChange}>
-            <label className="ui-bookmark">
-              <input type="checkbox" checked={isFavorite} onChange={() => {}} />
-              <div className="bookmark">
-                <svg viewBox="0 0 16 16" style={{marginTop: 4}} className="bi bi-heart-fill" height={25} width={25}>
-                  <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314" fillRule="evenodd" />
-                </svg>
-              </div>
-            </label>
-          </div>
+          {/* Ocultar botón favorito si el producto es mío */}
+          {!isOwner && (
+            <div className="favorite-button" onClick={handleFavoriteChange}>
+              <label className="ui-bookmark">
+                <input type="checkbox" checked={isFavorite} onChange={() => {}} />
+                <div className="bookmark">
+                  <svg viewBox="0 0 16 16" style={{marginTop: 4}} className="bi bi-heart-fill" height={25} width={25}>
+                    <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314" fillRule="evenodd" />
+                  </svg>
+                </div>
+              </label>
+            </div>
+          )}
         </div>
       </Link>
       <Link to={`/products/${product.id}`} style={{ 
@@ -194,18 +201,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) =
           >
             {product.description}
           </Typography>
-          
-          <Typography 
-            variant="h6" 
-            className="product-price" 
-            sx={{ 
-              color: '#1976d2',
-              fontWeight: 'bold',
-              fontSize: '1.2rem'
-            }}
-          >
-            {formatPrice(product.price)}
-          </Typography>
+            <PriceDisplay
+            currentPrice={product.price}
+            originalPrice={product.original_price}
+            variant="h6"
+            color="#1976d2"
+          />
         </div>
       </Link>
     </Card>

@@ -11,7 +11,6 @@ class NotificationSerializer(serializers.ModelSerializer):
     time_ago = SerializerMethodField()
     message_info = SerializerMethodField()
     rating_info = SerializerMethodField()
-    
     class Meta:
         model = Notification
         fields = [
@@ -31,18 +30,22 @@ class NotificationSerializer(serializers.ModelSerializer):
         
         if diff.days == 0 and diff.seconds < 60:
             return 'hace unos segundos'
-        if diff.days == 0 and diff.seconds < 3600:
+        elif diff.days == 0 and diff.seconds < 3600:
             minutes = diff.seconds // 60
             return f'hace {minutes} {"minuto" if minutes == 1 else "minutos"}'
-        
-        return f'hace {timesince(obj.created_at)}'
+        else:
+            return f'hace {timesince(obj.created_at)}'
         
     def get_message_info(self, obj):
         """Retorna información adicional sobre el mensaje relacionado si existe"""
         if obj.related_message:
+            # Verificar si el contenido existe y no es None
+            content = obj.related_message.content or ''
+            content_preview = content[:50] + ('...' if len(content) > 50 else '') if content else '[Mensaje de audio]'
+            
             return {
                 'id': obj.related_message.id,
-                'content': obj.related_message.content[:50] + ('...' if len(obj.related_message.content) > 50 else ''),
+                'content': content_preview,
                 'conversation_id': obj.related_message.conversation.id if obj.related_message.conversation else None
             }
         return None

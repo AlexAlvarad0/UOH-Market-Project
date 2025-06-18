@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Carousel,
   CarouselContent,
@@ -8,14 +9,15 @@ import {
   CarouselApi
 } from "@/components/ui/carousel";
 import { Box, Typography, Button } from '@mui/material';
+import { WeeklyOffer } from '@/types/products';
+import apiService from '@/services/api';
+import { formatPrice } from '@/utils/formatPrice';
 
-const images = [
-  { src: "/imagenoferta1.png", alt: "Oferta 1", title: "Oferta Especial 1", price: "$249.990", normalPrice: "$399.990" },
-  { src: "/imagenoferta2.png", alt: "Oferta 2", title: "Oferta Especial 2", price: "$479.990", normalPrice: "$549.990" },
-  { src: "/imagenoferta3.png", alt: "Oferta 3", title: "Oferta Especial 3", price: "$829.990", normalPrice: "$999.990" },
-  { src: "/imagenoferta4.png", alt: "Oferta 4", title: "Oferta Especial 4", price: "$329.990", normalPrice: "$459.990" },
-  { src: "/imagenoferta5.png", alt: "Oferta 5", title: "Oferta Especial 5", price: "$599.990", normalPrice: "$749.990" },
-];
+interface OffersCarouselProps {
+  isVisible?: boolean;
+}
+
+const API_BASE_URL = 'http://localhost:8000';
 
 const arrowButtonStyle = {
   minWidth: 0,
@@ -48,12 +50,45 @@ const arrowIconStyle: React.CSSProperties = {
   lineHeight: 1
 };
 
-const OffersCarousel = () => {
+const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  const [offers, setOffers] = useState<WeeklyOffer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching weekly offers...');
+          // Debug: obtener información de productos
+        const debugResponse = await apiService.getDebugProducts();
+        console.log('Debug products response:', debugResponse);
+        if (debugResponse.success && debugResponse.data) {
+          console.log('Debug products full data:', JSON.stringify(debugResponse.data, null, 2));
+        }
+        
+        const response = await apiService.getWeeklyOffers();
+        console.log('Weekly offers response:', response);
+        if (response.success && response.data) {
+          console.log('Offers data:', response.data);
+          setOffers(response.data);
+        } else {
+          console.log('No offers found or error:', response.error);
+        }
+      } catch (error) {
+        console.error('Error fetching weekly offers:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isVisible) {
+      fetchOffers();
+    }
+  }, [isVisible]);
 
   useEffect(() => {
-    if (!api) return;
+    if (!api || offers.length === 0) return;
 
     const handleSelect = () => {
       setCurrent(api.selectedScrollSnap());
@@ -63,7 +98,7 @@ const OffersCarousel = () => {
 
     // Autoplay: cada 10 segundos, avanza o vuelve al inicio
     const autoplayInterval = setInterval(() => {
-      if (api.selectedScrollSnap() === images.length - 1) {
+      if (api.selectedScrollSnap() === offers.length - 1) {
         api.scrollTo(0);
       } else {
         api.scrollNext();
@@ -74,7 +109,23 @@ const OffersCarousel = () => {
       api.off("select", handleSelect);
       clearInterval(autoplayInterval);
     };
-  }, [api]);
+  }, [api, offers.length]);
+  const getProductImage = (offer: WeeklyOffer) => {
+    if (offer.images && offer.images.length > 0) {
+      const primaryImage = offer.images.find(img => img.is_primary) || offer.images[0];
+      return `${API_BASE_URL}${primaryImage.image}`;
+    }
+    return '/src/assets/placeholder-image.png'; // Imagen placeholder si no hay imagen
+  };
+
+  const handleViewOffer = (offerId: number) => {
+    navigate(`/products/${offerId}`);
+  };
+
+  // No mostrar el carrusel si no es visible, está cargando, o no hay ofertas
+  if (!isVisible || loading || offers.length === 0) {
+    return null;
+  }
 
   return (
     <Box sx={{ 
@@ -98,7 +149,7 @@ const OffersCarousel = () => {
         sx={{ 
           mb: 2, 
           pt: 2, 
-          px: 3, 
+          px: 3,
           fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
@@ -111,10 +162,9 @@ const OffersCarousel = () => {
         <Box component="span" sx={{ color: '#fff', ml: 1 }}>★</Box>
       </Typography>
       
-      <Carousel setApi={setApi}>
-        <CarouselContent>
-          {images.map((image, index) => (
-            <CarouselItem key={index}>
+      <Carousel setApi={setApi}>        <CarouselContent>
+          {offers.map((offer) => (
+            <CarouselItem key={offer.id}>
               <Box sx={{ 
                 display: 'flex',
                 flexDirection: { xs: 'column', md: 'row' },
@@ -135,18 +185,40 @@ const OffersCarousel = () => {
                     borderRadius: 2,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     maxWidth: { xs: '100%', md: '80%' },
-                    mx: 'auto'
+                    mx: 'auto',
+                    cursor: 'pointer'
                   }}
+                  onClick={() => handleViewOffer(offer.id)}
                 >
                   <img 
-                    src={image.src} 
-                    alt={image.alt} 
+                    src={getProductImage(offer)} 
+                    alt={offer.title} 
                     style={{ 
                       maxWidth: '100%', 
                       maxHeight: '100%', 
                       objectFit: 'contain'
-                    }} 
+                    }}                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/src/assets/placeholder-image.png';
+                    }}
                   />
+                  {/* Badge de descuento */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      bgcolor: '#ff4444',
+                      color: '#fff',
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: 2,
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    -{Math.round(offer.discount_percentage)}%
+                  </Box>
                 </Box>
                 
                 <Box sx={{ 
@@ -164,40 +236,45 @@ const OffersCarousel = () => {
                       mb: 2,
                       fontWeight: 600,
                       textAlign: { xs: 'center', md: 'left' },
-                      color: '#fff'
+                      color: '#fff',
+                      fontSize: { xs: '1.5rem', md: '2rem' }
                     }}
                   >
-                    {image.title}
+                    {offer.title}
                   </Typography>
                   
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 3, gap: 2 }}>
                     <Typography 
                       variant="h3" 
                       component="span" 
                       sx={{ 
                         color: '#fff', 
-                        fontWeight: 700 
+                        fontWeight: 700,
+                        fontSize: { xs: '1.8rem', md: '2.5rem' }
                       }}
                     >
-                      {image.price}
+                      {formatPrice(parseFloat(offer.price))}
                     </Typography>
-                    <Typography 
-                      variant="body1" 
-                      component="span" 
-                      sx={{ 
-                        ml: 2, 
-                        textDecoration: 'line-through',
-                        color: 'red'
-                      }}
-                    >
-                      {image.normalPrice}
-                    </Typography>
+                    {offer.original_price && (
+                      <Typography 
+                        variant="body1" 
+                        component="span" 
+                        sx={{ 
+                          textDecoration: 'line-through',
+                          color: '#ff6666',
+                          fontSize: { xs: '1rem', md: '1.2rem' }
+                        }}
+                      >
+                        {formatPrice(offer.original_price)}
+                      </Typography>
+                    )}
                   </Box>
                   
                   <Button 
                     variant="contained" 
                     color="primary" 
                     size="large" 
+                    onClick={() => handleViewOffer(offer.id)}
                     sx={{ 
                       px: 4,
                       py: 1,
@@ -268,7 +345,7 @@ const OffersCarousel = () => {
         gap: 1,
         py: 2
       }}>
-        {images.map((_, index) => (
+        {offers.map((_, index) => (
           <Box
             key={index}
             onClick={() => api?.scrollTo(index)}

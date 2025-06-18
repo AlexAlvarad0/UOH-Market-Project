@@ -24,6 +24,7 @@ interface MessageInputProps {
   setMessage: (message: string) => void;
   onSendMessage: (e: React.FormEvent) => void;
   onSendAudio: (audioFile: File, duration: number) => Promise<void>;
+  onTyping?: () => void;
   editingMessageId: number | null;
   onEditCancel: () => void;
   disabled?: boolean;
@@ -34,6 +35,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   setMessage,
   onSendMessage,
   onSendAudio,
+  onTyping,
   editingMessageId,
   onEditCancel,
   disabled = false
@@ -55,8 +57,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
     resetRecording,
     playRecording,
     stopPlayback,
-    getAudioFile,
-  } = useAudioRecorder();
+    getAudioFile,  } = useAudioRecorder();
+
+  // Manejador para el cambio de texto que también notifica que está escribiendo
+  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+    if (onTyping) {
+      onTyping();
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -339,7 +348,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             placeholder="Mensaje..."
             type="text"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleMessageChange}
             disabled={audioMode}
             style={{
               width: '100%',

@@ -3,5 +3,9 @@ export function formatPrice(value: number | string): string {
   if (isNaN(numberValue)) {
     return '';
   }
+  // Retornar 'Gratis' si el precio es cero
+  if (numberValue === 0) {
+    return 'Gratis';
+  }
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(numberValue);
 }

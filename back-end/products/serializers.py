@@ -26,11 +26,10 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.ReadOnlyField(source='category.name')
     seller_username = serializers.ReadOnlyField(source='seller.username')
     is_favorite = serializers.SerializerMethodField()
-    
     class Meta:
         model = Product
         fields = [
-            'id', 'title', 'description', 'price', 'category', 'category_name',
+            'id', 'title', 'description', 'price', 'original_price', 'category', 'category_name',
             'seller', 'seller_username', 'condition', 'created_at', 'updated_at',
             'is_available', 'views_count', 'images', 'is_favorite', 'status',
             'review_scheduled_at', 'manually_unavailable'
@@ -81,8 +80,13 @@ class FavoriteSerializer(serializers.ModelSerializer):
         # Obtener el usuario de la solicitud
         user = self.context['request'].user
         
-        # Verificar si el producto está en validated_data
+        # Obtener el producto y evitar que el usuario marque sus propios productos
         product = validated_data.get('product')
+        if product.seller == user:
+            logger.warning(f"El usuario {user.id} intentó añadir a favoritos su propio producto {product.id}")
+            raise serializers.ValidationError("No puedes añadir a favoritos tus propios productos.")
+        
+        # Verificar si el producto está en validated_data
         if not product:
             logger.error("No se proporcionó un producto para el favorito")
             raise serializers.ValidationError({"product": "Este campo es requerido."})

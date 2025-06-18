@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Login - Alex Alvarado</title>
+</head>
+<body>
+    <h1>Configurando sesión automática...</h1>
+    <p>Configurando token para Alex Alvarado...</p>
+    <div id="status">⏳ Configurando...</div>
+
+    <script>
+        // Configurar el token automáticamente
+        const validToken = '6f5edde5250c497e2108feda6a38aabb6eb4def3';
+        localStorage.setItem('authToken', validToken);
+        
+        const statusDiv = document.getElementById('status');
+        
+        // Verificar que el token funciona
+        fetch('http://127.0.0.1:8000/api/profile/', {
+            headers: {
+                'Authorization': `Token ${validToken}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        })
+        .then(user => {
+            statusDiv.innerHTML = `✅ Token configurado para ${user.username} (${user.email})<br>🔄 Redirigiendo al chat...`;
+            
+            // Redirigir al chat después de 2 segundos
+            setTimeout(() => {
+                window.location.href = 'http://localhost:5173/chat';
+            }, 2000);
+        })
+        .catch(error => {
+            statusDiv.innerHTML = `❌ Error: ${error.message}`;
+        });
+    </script>
+</body>
+</html>
