@@ -5,21 +5,25 @@ import {
   Chip, Button, Divider, Alert, CircularProgress, 
   Dialog, DialogTitle, DialogContent, DialogContentText, 
   DialogActions, Snackbar, Card, CardContent,
-  IconButton, Avatar, Tabs, Tab, TextField, Modal, Backdrop, Fade
+  IconButton, Avatar, Tabs, Tab, TextField, Modal, Backdrop, Fade,
+  GlobalStyles
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ShareIcon from '@mui/icons-material/Share';
 import CloseIcon from '@mui/icons-material/Close';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { useAuth } from '../hooks/useAuth.hooks';
 import api from '../services/api';
 import { getUserRatingForSeller, Rating } from '../api';
 import EditProductModal from '../components/EditProductModal';
 import BreadcrumbNav from '../components/BreadcrumbNav';
+import Squares from '../../y/Squares/Squares';
 import StarRating from '../components/StarRating';
 import RatingComponent from '../components/RatingComponent';
 import RatingsList from '../components/RatingsList';
+import UserProfileModal from '../components/UserProfileModal';
 import PriceDisplay from '../components/PriceDisplay';
 import EditButton from '../components/buttons/EditButton';
 import DeleteButton from '../components/buttons/DeleteButton';
@@ -36,11 +40,12 @@ interface ProductType {
     id: number;
     name: string;
   };
-  condition: string;
-  seller: {
+  condition: string;  seller: {
     id: number;
     username: string;
     email: string;
+    is_verified_seller: boolean;
+    profile_picture?: string;
     profile?: {
       average_rating: number;
       total_ratings: number;
@@ -86,12 +91,14 @@ const ProductDetailPage = () => {
   // Estados para el modal de imagen ampliada
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
-  
-  // Estados para el diálogo de contacto
+    // Estados para el diálogo de contacto
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('¡Hola! ¿Aún está disponible?');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [existingConversationId, setExistingConversationId] = useState<number | null>(null);
+  
+  // Estados para el modal de perfil del vendedor
+  const [sellerProfileModalOpen, setSellerProfileModalOpen] = useState(false);
   
   // Determinar si el usuario actual es el propietario del producto
   const isOwner = user && product && user.id === product.seller.id;
@@ -155,8 +162,7 @@ const ProductDetailPage = () => {
       
       try {
         setLoading(true);
-        setError(null);
-        const response = await api.getProductById(numericId);
+        setError(null);        const response = await api.getProductById(numericId);
         if (response.success && response.data) {
           const fetched = response.data;
           setProduct(fetched);
@@ -194,12 +200,10 @@ const ProductDetailPage = () => {
       if (product && isAuthenticated && !isOwner) {
         try {
           const token = localStorage.getItem('authToken');
-          if (token) {
-            const rating = await getUserRatingForSeller(product.seller.id, token);
+          if (token) {            const rating = await getUserRatingForSeller(product.seller.id, token);
             setCurrentUserRating(rating);
-          }
-        } catch (error) {
-          console.error('Error al cargar la calificación del usuario:', error);
+          }        } catch {
+          // Error loading user rating
         }
       }
     };
@@ -215,12 +219,9 @@ const ProductDetailPage = () => {
           if (response.success && response.hasConversationWithMessages && response.data) {
             // Castear data a objeto con id
             const conv = response.data as { id: number };
-            setExistingConversationId(conv.id);
-          } else {
+            setExistingConversationId(conv.id);          } else {
             setExistingConversationId(null);
-          }
-        } catch (error) {
-          console.error('Error al verificar conversaciones existentes:', error);
+          }        } catch {
           setExistingConversationId(null);
         }
       }
@@ -263,10 +264,8 @@ const ProductDetailPage = () => {
         setNotification({ 
           message: 'Producto actualizado correctamente', 
           type: 'success' 
-        });
-      }
-    } catch (err) {
-      console.error('Error al recargar producto:', err);
+        });      }    } catch {
+      // Error reloading product data
     } finally {
       setLoading(false);
     }
@@ -296,9 +295,8 @@ const ProductDetailPage = () => {
       setNotification({
         message: newFavoriteState ? 'Producto añadido a favoritos' : 'Producto eliminado de favoritos',
         type: 'success'
-      });
-    } catch (err: unknown) {
-      console.error('Error al actualizar favoritos:', err);
+      });    } catch {
+      // Error updating favorites
       setNotification({
         message: 'Error al actualizar favoritos',
         type: 'error'
@@ -347,10 +345,18 @@ const ProductDetailPage = () => {
     } finally {
       setSendingMessage(false);
     }
-  };
-  const handleCloseContactDialog = () => {
+  };  const handleCloseContactDialog = () => {
     setContactDialogOpen(false);
     setContactMessage('¡Hola! ¿Aún está disponible?'); // Resetear mensaje
+  };
+
+  // Funciones para el modal de perfil del vendedor
+  const handleOpenSellerProfile = () => {
+    setSellerProfileModalOpen(true);
+  };
+
+  const handleCloseSellerProfile = () => {
+    setSellerProfileModalOpen(false);
   };
 
   // Funciones para el modal de imagen
@@ -416,13 +422,14 @@ const ProductDetailPage = () => {
   };
 
   const handleShareProduct = () => {
-    if (navigator.share) {
-      navigator.share({
+    if (navigator.share) {      navigator.share({
         title: product?.title || 'Producto',
         text: `Mira este producto: ${product?.title}`,
         url: window.location.href,
       })
-      .catch((error) => console.log('Error al compartir:', error));
+      .catch(() => {
+        // Error sharing
+      });
     } else {
       navigator.clipboard.writeText(window.location.href);
       setNotification({
@@ -467,12 +474,54 @@ const ProductDetailPage = () => {
       </Container>
     );
   }  return (
-    <Container maxWidth="xl" sx={{ 
+    <>
+      <GlobalStyles
+        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important',
+        }}
+      >
+        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+      
+      <Container maxWidth="xl" sx={{ 
         py: { xs: 0, sm: 1 },
-        px: { xs: 0, sm: 1, md: 3 },
+        px: { xs: 2, sm: 3, md: 4 },
         mt: { xs: 0, sm: 1 },
-        width: '100%'
-      }}>      <Box sx={{ px: { xs: 1, sm: 1, md: 0 } }}>
+        width: '100%',
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: 'transparent !important',
+        minHeight: '100vh',
+      }}><Box sx={{ px: { xs: 1, sm: 1, md: 0 } }}>
         <BreadcrumbNav 
           items={[
             { name: 'Productos', href: '/', current: false },
@@ -748,23 +797,34 @@ const ProductDetailPage = () => {
               display: 'flex',
               flexDirection: { xs: 'column', sm: 'row' },
               gap: 2
-            }}>              <Button 
+            }}>
+              <Button 
                 variant="contained" 
                 onClick={handleContactSeller}
-                sx={{ py: 1.5, flex: 1 }}
+                sx={{ 
+                  py: 1.5, 
+                  flex: 1,
+                  backgroundColor: 'rgba(25, 118, 210, 0.9)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 1)',
+                  }
+                }}
               >
                 {existingConversationId ? 'Ir a la conversación' : 'Contactar Vendedor'}
               </Button>
               <Button
-                variant="outlined"
-                color="secondary"
+                variant="contained"
                 onClick={handleAddToFavorites}
                 sx={{
                   py: 1.5,
                   flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1
+                  gap: 1,
+                  backgroundColor: 'rgba(25, 118, 210, 0.9)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 1)',
+                  }
                 }}
               >
                 <div className="ui-bookmark">
@@ -778,12 +838,18 @@ const ProductDetailPage = () => {
                 <Typography variant="body2">
                   {isFavorite ? 'En Favoritos' : 'Favoritos'}
                 </Typography>
-              </Button>
-              <Button 
-                variant="outlined" 
+              </Button>              <Button 
+                variant="contained" 
                 onClick={handleShareProduct}
                 startIcon={<ShareIcon />}
-                sx={{ py: 1.5, flex: 1 }}
+                sx={{ 
+                  py: 1.5, 
+                  flex: 1,
+                  backgroundColor: 'rgba(25, 118, 210, 0.9)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 1)',
+                  }
+                }}
               >
                 Compartir
               </Button>
@@ -795,18 +861,51 @@ const ProductDetailPage = () => {
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Información del vendedor
-              </Typography>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Avatar 
-                  sx={{ width: 50, height: 50, mr: 2 }}
+              </Typography>              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>                <Avatar 
+                  src={(() => {
+                    const profilePic = product.seller.profile_picture;
+                    return profilePic || undefined;
+                  })()}
+                  sx={{ 
+                    width: 50, 
+                    height: 50, 
+                    mr: 2,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      transition: 'transform 0.2s ease-in-out'
+                    }
+                  }}                  onClick={handleOpenSellerProfile}
+                  onError={() => {
+                    // Avatar error handled silently
+                  }}
                 >
-                  {product.seller.username.charAt(0).toUpperCase()}
-                </Avatar>
-                <Box>
-                  <Typography variant="subtitle1">
-                    {product.seller.username}
-                  </Typography>
+                  {!product.seller.profile_picture && product.seller.username.charAt(0).toUpperCase()}
+                </Avatar><Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography 
+                      variant="subtitle1"
+                      onClick={handleOpenSellerProfile}
+                      sx={{
+                        cursor: 'pointer',
+                        color: 'primary.main',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                        }
+                      }}
+                    >
+                      {product.seller.username}
+                    </Typography>
+                    {product.seller.is_verified_seller && (
+                      <VerifiedIcon 
+                        sx={{ 
+                          color: '#1976d2',
+                          fontSize: '1.2rem'
+                        }} 
+                        titleAccess="Vendedor verificado - Email institucional UOH"
+                      />
+                    )}
+                  </Box>
                   <Typography variant="body2" color="text.secondary">
                     Miembro desde {new Date().getFullYear()}
                   </Typography>
@@ -820,13 +919,17 @@ const ProductDetailPage = () => {
                       />
                     </Box>
                   )}
-                </Box>              </Box>
-
-              {/* Información básica del vendedor */}
+                </Box>              </Box>              {/* Información básica del vendedor */}
               <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  • <strong>Verificado</strong> por nuestro equipo
-                </Typography>
+                {product.seller.is_verified_seller ? (
+                  <Typography variant="body2" sx={{ mb: 1, color: 'success.main' }}>
+                    • <strong>Vendedor verificado</strong> - Email institucional UOH
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                    • Vendedor no verificado
+                  </Typography>
+                )}
                 <Typography variant="body2">
                   • <strong>{product.seller.profile?.total_ratings || 0}</strong> calificaciones
                 </Typography>
@@ -865,9 +968,8 @@ const ProductDetailPage = () => {
                       if (token) {
                         const rating = await getUserRatingForSeller(product.seller.id, token);
                         setCurrentUserRating(rating);
-                      }
-                    } catch (error) {
-                      console.error('Error al recargar la calificación del usuario:', error);
+                      }                    } catch {
+                      // Error handling for rating reload
                     }
                   }}
                 />              )}</CardContent>
@@ -1115,7 +1217,8 @@ const ProductDetailPage = () => {
               justifyContent: 'center'
             }}
           >
-            <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>              {/* Botón cerrar */}
+            <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Botón cerrar */}
               <IconButton
                 onClick={(e) => handleCloseImageModal(e)}
                 disableRipple
@@ -1145,7 +1248,9 @@ const ProductDetailPage = () => {
                     objectPosition: 'center'
                   }}
                 />
-              )}              {/* Controles de navegación - solo si hay más de una imagen */}
+              )}
+
+              {/* Controles de navegación - solo si hay más de una imagen */}
               {product?.images && product.images.length > 1 && (
                 <>
                   {/* Flecha anterior */}
@@ -1259,7 +1364,18 @@ const ProductDetailPage = () => {
           </Box>
         </Fade>
       </Modal>
+
+      {/* Modal de perfil del vendedor */}
+      {product && (
+        <UserProfileModal
+          open={sellerProfileModalOpen}
+          onClose={handleCloseSellerProfile}
+          userId={product.seller.id}
+          username={product.seller.username}
+        />
+      )}
     </Container>
+    </>
   );
 };
 

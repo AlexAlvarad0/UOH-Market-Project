@@ -125,25 +125,22 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
   };
 
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
-
   return (
-    <Box>
-      {/* burbuja de audio */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          padding: '0 12px',
-          backgroundColor: isOwnMessage ? '#004f9e' : '#ffffff',
-          borderRadius: '20px',
-          height: '40px',
-          width: '100%',
-          margin: '10px 10px 0',
-          border: '1px solid #d0d0d0',
-          position: 'relative',
-        }}
-      >
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        padding: 1.5, // Mismo padding que los mensajes de texto
+        backgroundColor: isOwnMessage ? 'primary.main' : 'grey.200',
+        color: isOwnMessage ? 'white' : 'text.primary',
+        borderRadius: 2, // Mismo border radius que los mensajes de texto (cuadrado con esquinas redondeadas)
+        minHeight: '48px',
+        width: 'auto',
+        position: 'relative',
+        wordBreak: 'break-word' // Misma propiedad que los mensajes de texto
+      }}
+    >
         {/* Botón de reproducir/pausar */}
         <IconButton
           onClick={handlePlayPause}
@@ -209,11 +206,9 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
               }}
             >
               {hasError ? 'Error al cargar audio' : `${formatTime(currentTime)} / ${formatTime(audioDuration)}`}
-            </Typography>          </Box>
-        </Box>
+            </Typography>          </Box>        </Box>
       </Box>
-    </Box>
-  );
-};
+    );
+  };
 
 export default AudioMessage;

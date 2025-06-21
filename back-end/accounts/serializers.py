@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from .models import Profile, Rating
+from datetime import datetime
 
 User = get_user_model()
 
@@ -9,8 +10,8 @@ User = get_user_model()
 class UserSerializerBasic(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
-        read_only_fields = ['email']
+        fields = ['id', 'username', 'email', 'is_verified_seller']
+        read_only_fields = ['email', 'is_verified_seller']
 
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
@@ -65,13 +66,29 @@ class ProfileSerializer(serializers.ModelSerializer):
     profile_picture = serializers.ImageField(allow_null=True, required=False)
     average_rating = serializers.ReadOnlyField()
     total_ratings = serializers.ReadOnlyField()
+    birth_date = serializers.SerializerMethodField()
+
+    def get_birth_date(self, obj):
+        """Serializar la fecha sin conversiones de zona horaria"""
+        if obj.birth_date:
+            # Retornar la fecha en formato string YYYY-MM-DD sin conversiones
+            return obj.birth_date.strftime('%Y-%m-%d')
+        return None
 
     class Meta:
         model = Profile
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture', 'average_rating', 'total_ratings')
-
+    
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
+        
+        # Manejar birth_date por separado ya que es un SerializerMethodField
+        birth_date_str = self.initial_data.get('birth_date')
+        
+        # Debug: Imprimir la fecha que llega
+        if birth_date_str:
+            print(f"DEBUG: Fecha recibida en serializer: {birth_date_str}")
+            print(f"DEBUG: Tipo de dato: {type(birth_date_str)}")
 
         # Actualizar campos del usuario
         if 'username' in user_data:
@@ -81,12 +98,28 @@ class ProfileSerializer(serializers.ModelSerializer):
         if 'last_name' in user_data:
             instance.user.last_name = user_data['last_name']
         instance.user.save()
-         
-        # Actualizar campos del perfil
+        
+        # Actualizar campos del perfil (excluyendo birth_date que se maneja por separado)
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+            if attr != 'birth_date':  # Excluir birth_date ya que se maneja por separado
+                setattr(instance, attr, value)
+        
+        # Manejar birth_date por separado
+        if birth_date_str:
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
+                instance.birth_date = date_obj
+                print(f"DEBUG: Fecha convertida y asignada: {date_obj}")
+            except ValueError as e:
+                print(f"DEBUG: Error convirtiendo fecha: {e}")
          
         instance.save()
+        
+        # Debug: Verificar qué se guardó
+        if hasattr(instance, 'birth_date') and instance.birth_date:
+            print(f"DEBUG: Fecha final guardada en BD: {instance.birth_date}")
+        
         return instance
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -121,11 +154,21 @@ class RatingListSerializer(serializers.ModelSerializer):
         
     def get_rater(self, obj):
         if obj.rater:
+            profile_picture = None
+            if hasattr(obj.rater, 'profile') and obj.rater.profile.profile_picture:
+                # Construir URL completa
+                request = self.context.get('request')
+                if request:
+                    profile_picture = request.build_absolute_uri(obj.rater.profile.profile_picture.url)
+                else:
+                    profile_picture = obj.rater.profile.profile_picture.url
+                
             return {
                 'id': obj.rater.id,
                 'username': obj.rater.username,
                 'first_name': obj.rater.first_name,
-                'last_name': obj.rater.last_name
+                'last_name': obj.rater.last_name,
+                'profile_picture': profile_picture
             }
         return None
 
@@ -134,8 +177,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'is_email_verified', 'profile']
-        read_only_fields = ['is_email_verified']
+        fields = ['id', 'username', 'email', 'is_email_verified', 'is_verified_seller', 'profile']
+        read_only_fields = ['is_email_verified', 'is_verified_seller']
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -169,3 +212,34 @@ class LoginSerializer(serializers.Serializer):
         raise serializers.ValidationError({
             'non_field_errors': ['Debe proporcionar email y contraseña']
         })
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        value = value.lower().strip()
+        if not User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("No existe una cuenta con este correo electrónico.")
+        return value
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.UUIDField(required=True)
+    new_password = serializers.CharField(required=True, validators=[validate_password])
+    confirm_password = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({
+                "confirm_password": "Las contraseñas no coinciden."
+            })
+        return attrs
+
+    def validate_token(self, value):
+        try:
+            from .models import PasswordResetToken
+            reset_token = PasswordResetToken.objects.get(token=value)
+            if not reset_token.is_valid():
+                raise serializers.ValidationError("Este token ha expirado o ya fue utilizado.")
+            return value
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError("Token inválido.")

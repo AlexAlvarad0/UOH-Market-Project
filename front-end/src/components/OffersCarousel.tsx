@@ -24,17 +24,17 @@ const arrowButtonStyle = {
   width: { xs: '30px', sm: '35px', md: '45px' },
   height: { xs: '30px', sm: '35px', md: '45px' },
   borderRadius: '50%',
-  border: '1px solid #fff',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
   boxShadow: 'none',
   color: '#fff',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   zIndex: 2,
-  background: 'rgba(80, 80, 80, 0.6)',
+  background: 'rgba(255, 255, 255, 0.1)',
   padding: { xs: 6, sm: 8, md: 10 },
   '&:hover': {
-    background: 'rgba(100, 100, 100, 0.8)',
+    background: 'rgba(255, 255, 255, 0.2)',
     color: '#fff'
   }
 };
@@ -56,27 +56,20 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
   const [offers, setOffers] = useState<WeeklyOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();  useEffect(() => {
-    const fetchOffers = async () => {
-      try {
+    const fetchOffers = async () => {      try {
         setLoading(true);
-        console.log('Fetching weekly offers...');
-          // Debug: obtener información de productos
+        
+        // Debug: obtener información de productos
         const debugResponse = await apiService.getDebugProducts();
-        console.log('Debug products response:', debugResponse);
-        if (debugResponse.success && debugResponse.data) {
-          console.log('Debug products full data:', JSON.stringify(debugResponse.data, null, 2));
-        }
         
         const response = await apiService.getWeeklyOffers();
-        console.log('Weekly offers response:', response);
         if (response.success && response.data) {
-          console.log('Offers data:', response.data);
           setOffers(response.data);
         } else {
-          console.log('No offers found or error:', response.error);
+          // No offers found
         }
       } catch (error) {
-        console.error('Error fetching weekly offers:', error);
+        // Error fetching offers
       } finally {
         setLoading(false);
       }
@@ -138,15 +131,14 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
       mt: 4, 
       mb: 6,
       overflow: 'hidden',
-      bgcolor: '#222',
+      bgcolor: '#102c54',
       borderRadius: 2,
       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
       minHeight: { xs: 400, sm: 500, md: 500 }
     }}>
       <Typography 
         variant="h5" 
-        component="div" 
-        sx={{ 
+        component="div"        sx={{ 
           mb: 2, 
           pt: 2, 
           px: 3,
@@ -157,9 +149,9 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
           color: '#fff'
         }}
       >
-        <Box component="span" sx={{ color: '#fff', mr: 1 }}>★</Box>
+        <Box component="span" sx={{ color: '#ffd700', mr: 1 }}>★</Box>
         Ofertas de la Semana
-        <Box component="span" sx={{ color: '#fff', ml: 1 }}>★</Box>
+        <Box component="span" sx={{ color: '#ffd700', ml: 1 }}>★</Box>
       </Typography>
       
       <Carousel setApi={setApi}>        <CarouselContent>
@@ -246,8 +238,7 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
                   <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 3, gap: 2 }}>
                     <Typography 
                       variant="h3" 
-                      component="span" 
-                      sx={{ 
+                      component="span"                      sx={{ 
                         color: '#fff', 
                         fontWeight: 700,
                         fontSize: { xs: '1.8rem', md: '2.5rem' }
@@ -274,19 +265,20 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
                     variant="contained" 
                     color="primary" 
                     size="large" 
-                    onClick={() => handleViewOffer(offer.id)}
-                    sx={{ 
+                    onClick={() => handleViewOffer(offer.id)}                    sx={{ 
                       px: 4,
                       py: 1,
                       borderRadius: 2,
                       textTransform: 'none',
                       fontSize: '1rem',
                       fontWeight: 600,
-                      bgcolor: '#004f9e',
-                      color: '#fff',
-                      boxShadow: 'none',
+                      bgcolor: '#fff',
+                      color: '#333',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      border: '1px solid rgba(0,0,0,0.1)',
                       '&:hover': {
-                        bgcolor: '#003366'
+                        bgcolor: '#f5f5f5',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                       }
                     }}
                   >

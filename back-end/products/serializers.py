@@ -26,6 +26,8 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.ReadOnlyField(source='category.name')
     seller_username = serializers.ReadOnlyField(source='seller.username')
     is_favorite = serializers.SerializerMethodField()
+    seller = serializers.SerializerMethodField()
+    
     class Meta:
         model = Product
         fields = [
@@ -34,10 +36,49 @@ class ProductSerializer(serializers.ModelSerializer):
             'is_available', 'views_count', 'images', 'is_favorite', 'status',
             'review_scheduled_at', 'manually_unavailable'
         ]
-        read_only_fields = [
-            'seller', 'views_count', 'created_at', 'updated_at', 
+        read_only_fields = [            'views_count', 'created_at', 'updated_at', 
             'review_scheduled_at', 'manually_unavailable'
         ]
+    
+    def get_seller(self, obj):
+        """Retornar información expandida del vendedor incluyendo foto de perfil"""
+        seller = obj.seller
+        profile_picture = None
+        profile_data = {}
+        
+        if hasattr(seller, 'profile') and seller.profile:
+            if seller.profile.profile_picture:
+                request = self.context.get('request')
+                if request:
+                    profile_picture = request.build_absolute_uri(seller.profile.profile_picture.url)
+                else:
+                    profile_picture = seller.profile.profile_picture.url
+            
+            # Calcular calificaciones promedio para el vendedor
+            from accounts.models import Rating
+            from django.db import models
+            ratings = Rating.objects.filter(rated_user=seller)
+            average_rating = 0
+            total_ratings = ratings.count()
+            
+            if total_ratings > 0:
+                average_rating = ratings.aggregate(avg_rating=models.Avg('rating'))['avg_rating'] or 0
+            
+            profile_data = {
+                'average_rating': round(average_rating, 2),
+                'total_ratings': total_ratings
+            }
+        
+        result = {
+            'id': seller.id,
+            'username': seller.username,
+            'email': seller.email,
+            'is_verified_seller': seller.is_verified_seller,
+            'profile_picture': profile_picture,
+            'profile': profile_data
+        }
+        
+        return result
     
     def get_is_favorite(self, obj):
         request = self.context.get('request')
@@ -52,17 +93,13 @@ class ProductSerializer(serializers.ModelSerializer):
         return product
 
 class ProductDetailSerializer(ProductSerializer):
-    seller = UserSerializer(read_only=True)
-    is_favorite = serializers.SerializerMethodField()
+    # Heredamos el campo seller como SerializerMethodField del ProductSerializer
+    # No lo sobrescribimos para mantener la funcionalidad de la foto de perfil
     
     class Meta(ProductSerializer.Meta):
         fields = ProductSerializer.Meta.fields + ['is_favorite']
     
-    def get_is_favorite(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return Favorite.objects.filter(user=request.user, product=obj).exists()
-        return False
+    # Heredamos get_is_favorite del ProductSerializer, no necesitamos redefinirlo
 
 class FavoriteSerializer(serializers.ModelSerializer):
     # Si quieres incluir detalles del producto en respuestas GET

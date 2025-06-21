@@ -9,15 +9,11 @@ const CreateProductPage: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
   const handleSubmit = async (formData: FormData) => {
     try {
-      console.log("Enviando formulario de creación de producto:");
-      
       const response = await api.createProduct(formData);
       
       if (response.success) {
-        console.log('Producto creado correctamente:', response.data);
         setSuccess(true);
         
         // Redirigir al detalle del producto después de 2 segundos
@@ -25,11 +21,9 @@ const CreateProductPage: React.FC = () => {
           navigate(`/products/${response.data.id}`);
         }, 2000);
       } else {
-        console.error('Error al crear producto:', response.error);
         setError('Error al crear el producto. Por favor, inténtelo de nuevo.');
       }
     } catch (error) {
-      console.error('Error al crear producto:', error);
       setError('Error al crear el producto. Por favor, inténtelo de nuevo.');
     }
   };

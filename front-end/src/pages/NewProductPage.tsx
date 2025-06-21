@@ -3,7 +3,8 @@ import {
   Container, Typography, Paper, Box, Alert, Grid, 
   Card, CardContent, Divider, TextField, MenuItem, 
   IconButton, Button, CircularProgress, Chip,
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  GlobalStyles
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
@@ -17,10 +18,11 @@ import { useAuth } from '../hooks/useAuth.hooks';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 import { formatPrice } from '../utils/formatPrice';
 import CategoryIcon from '../components/CategoryIcon';
+import Squares from '../../y/Squares/Squares';
 
 const NewProductPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
@@ -28,6 +30,20 @@ const NewProductPage: React.FC = () => {
   // Estado para el diálogo de error
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Verificación temprana: redireccionar si no está autenticado o no es vendedor verificado
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/product/new' } });
+      return;
+    }
+    
+    if (!user?.is_verified_seller) {
+      setErrorMessage('Solo los usuarios con email institucional UOH (@pregrado.uoh.cl o @uoh.cl) pueden vender productos.');
+      setErrorDialogOpen(true);
+      return;
+    }
+  }, [isAuthenticated, user, navigate]);
   
   // Estado del formulario
   const [title, setTitle] = useState('');
@@ -218,12 +234,53 @@ const NewProductPage: React.FC = () => {
       setCurrentPreviewIndex(0);
     }
   }, [imagePreviews.length, currentPreviewIndex]);
-
   return (
-    <Container maxWidth="xl" sx={{ 
+    <>
+      <GlobalStyles
+        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important',
+        }}
+      >
+        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+      
+      <Container maxWidth="xl" sx={{ 
         py: { xs: 0, sm: 1 },
-        px: { xs: 0, sm: 1, md: 3 },
+        px: { xs: 2, sm: 3, md: 4 },
         mt: { xs: 0, sm: 1 },
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: 'transparent !important',
+        minHeight: '100vh',
       }}>
       <BreadcrumbNav 
         items={[
@@ -663,28 +720,55 @@ const NewProductPage: React.FC = () => {
             </Card>
           </Paper>
         </Box>
-      </Box>
-
-      {/* Diálogo de error */}
+      </Box>      {/* Diálogo de error */}
       <Dialog
         open={errorDialogOpen}
-        onClose={() => setErrorDialogOpen(false)}
+        onClose={() => {
+          setErrorDialogOpen(false);
+          // Si el error es de verificación de vendedor, redirigir al inicio
+          if (errorMessage.includes('Solo los usuarios con email institucional UOH')) {
+            navigate('/');
+          }
+        }}
         aria-labelledby="error-dialog-title"
         aria-describedby="error-dialog-description"
       >
-        <DialogTitle id="error-dialog-title">Error</DialogTitle>
+        <DialogTitle id="error-dialog-title">
+          {errorMessage.includes('Solo los usuarios con email institucional UOH') 
+            ? 'Acceso restringido' 
+            : 'Error'
+          }
+        </DialogTitle>
         <DialogContent>
           <DialogContentText id="error-dialog-description">
             {errorMessage}
           </DialogContentText>
+          {errorMessage.includes('Solo los usuarios con email institucional UOH') && (
+            <DialogContentText sx={{ mt: 2, color: 'text.secondary' }}>
+              Para poder vender productos necesitas tener un email institucional de la Universidad de O'Higgins. 
+              Contacta con el administrador si tienes un email institucional válido.
+            </DialogContentText>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setErrorDialogOpen(false)} autoFocus>
-            Cerrar
+          <Button 
+            onClick={() => {
+              setErrorDialogOpen(false);
+              if (errorMessage.includes('Solo los usuarios con email institucional UOH')) {
+                navigate('/');
+              }
+            }} 
+            autoFocus
+            variant={errorMessage.includes('Solo los usuarios con email institucional UOH') ? 'contained' : 'text'}
+          >
+            {errorMessage.includes('Solo los usuarios con email institucional UOH') 
+              ? 'Volver al inicio' 
+              : 'Cerrar'
+            }
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogActions>      </Dialog>
     </Container>
+    </>
   );
 };
 

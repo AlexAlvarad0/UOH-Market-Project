@@ -58,8 +58,6 @@ class WebSocketService {
         return;
     }
     this.token = token;
-    // Solo log en desarrollo
-    // console.log('🔑 Token de autenticación configurado');
   }// Conectar al WebSocket de chat
   connectToChat(conversationId: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -77,31 +75,18 @@ class WebSocketService {
           reject(new Error('Token no configurado'));
           return;
         }
-          this.currentConversationId = conversationId;
-        const wsUrl = `ws://127.0.0.1:8000/ws/chat/${conversationId}/?token=${this.token}`;
-
-        // Solo log en desarrollo
-        // console.log('Intentando conectar al chat WebSocket:', wsUrl);
+          this.currentConversationId = conversationId;        const wsUrl = `ws://127.0.0.1:8000/ws/chat/${conversationId}/?token=${this.token}`;
         this.chatSocket = new WebSocket(wsUrl);this.chatSocket.onopen = () => {
-          console.log('✅ Chat WebSocket conectado a conversación:', conversationId);
           this.reconnectAttempts = 0;
           resolve();
         };        this.chatSocket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            // Solo log para mensajes importantes, no todos
-            if (data.type === 'error') {
-              console.log('📨 WebSocket message:', data);
-            }
             this.handleChatMessage(data);
           } catch (error) {
             console.error('❌ Error parsing WebSocket message:', error);
           }
         };        this.chatSocket.onclose = (event) => {
-          // Solo log si es un cierre inesperado
-          if (event.code !== 1000) {
-            console.log('🔌 Chat WebSocket cerrado inesperadamente:', event.code, event.reason);
-          }
           // Solo reconectar si no fue cerrado intencionalmente (código 1000 = normal closure)
           if (event.code !== 1000 && this.shouldReconnect) {
             this.handleChatReconnect();
@@ -131,14 +116,11 @@ class WebSocketService {
           console.error('❌ Token no configurado para notificaciones');
           reject(new Error('Token no configurado'));
           return;
-        }
-        
+        }        
         const wsUrl = `ws://127.0.0.1:8000/ws/notifications/?token=${this.token}`;
-        console.log('Intentando conectar al WebSocket de notificaciones:', wsUrl);
         this.notificationSocket = new WebSocket(wsUrl);
 
         this.notificationSocket.onopen = () => {
-          console.log('Conectado al WebSocket de notificaciones');
           resolve();
         };
 
@@ -149,10 +131,7 @@ class WebSocketService {
           } catch (error) {
             console.error('Error parsing notification message:', error);
           }
-        };
-
-        this.notificationSocket.onclose = (event) => {
-          console.log('Notification WebSocket cerrado:', event.code, event.reason);
+        };        this.notificationSocket.onclose = () => {
           this.handleNotificationReconnect();
         };
 
@@ -173,9 +152,8 @@ class WebSocketService {
         content,
         message_type: messageType
       };
-      this.chatSocket.send(JSON.stringify(message));
-    } else {
-      console.error('❌ Chat WebSocket no está conectado');
+      this.chatSocket.send(JSON.stringify(message));    } else {
+      // Chat WebSocket no está conectado - silenciar error
     }
   }
 
@@ -302,39 +280,30 @@ class WebSocketService {
     if (handlers) {
       handlers.forEach(handler => handler(data));
     }
-  }
-  // Manejar reconexión del chat
+  }  // Manejar reconexión del chat
   private handleChatReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts && this.currentConversationId) {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
       
-      // Solo log para el primer intento
-      if (this.reconnectAttempts === 1) {
-        console.log(`🔄 Intentando reconectar al chat...`);
-      }
-      
       setTimeout(() => {
         if (this.currentConversationId) {
-          this.connectToChat(this.currentConversationId).catch(error => {
-            console.error('Error en reconexión del chat:', error);
+          this.connectToChat(this.currentConversationId).catch(() => {
+            // Silenciar errores de reconexión
           });
         }
       }, delay);
     }
   }
-
   // Manejar reconexión de notificaciones
   private handleNotificationReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
       
-      console.log(`Intentando reconectar a notificaciones en ${delay}ms (intento ${this.reconnectAttempts})`);
-      
       setTimeout(() => {
-        this.connectToNotifications().catch(error => {
-          console.error('Error en reconexión de notificaciones:', error);
+        this.connectToNotifications().catch(() => {
+          // Silenciar errores de reconexión
         });
       }, delay);
     }
@@ -345,16 +314,12 @@ class WebSocketService {
     // Manejar cuando la página se va a cerrar
     window.addEventListener('beforeunload', () => {
       this.disconnect();
-    });
-
-    // Manejar cambios de visibilidad de la página
+    });    // Manejar cambios de visibilidad de la página
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         // Página oculta - reducir actividad
-        console.log('Página oculta - reduciendo actividad WebSocket');
       } else {
         // Página visible - reactivar
-        console.log('Página visible - reactivando WebSocket');
         this.checkConnections();
       }
     });

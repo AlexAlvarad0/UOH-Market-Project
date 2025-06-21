@@ -94,13 +94,13 @@ class Favorite(models.Model):
 def product_post_save(sender, instance, created, **kwargs):
     """
     Signal para programar la moderación automática cuando se crea un producto.
-    El producto se mantiene en estado 'pending' durante al menos 2 minutos antes de ser revisado.
+    El producto se mantiene en estado 'pending' durante al menos 30 segundos antes de ser revisado.
     """
     if created and instance.status == 'pending':
         logger.info(f"Producto #{instance.id} creado: {instance.title}")
         
-        # Programar la revisión para 2 minutos después de la creación
-        review_time = timezone.now() + datetime.timedelta(minutes=2)
+        # Programar la revisión para 30 segundos después de la creación
+        review_time = timezone.now() + datetime.timedelta(seconds=30)
         
         # Actualizar el tiempo de revisión programado
         # Usar update() para evitar que se active de nuevo este signal

@@ -34,9 +34,7 @@ export const registerSimple = async (username: string, email: string, password: 
       password,
       password2: password // Muchas APIs de Django requieren confirmación de contraseña
     });
-    return true;
-  } catch (error) {
-    console.error('Error en el registro:', error);
+    return true;  } catch {
     return false;
   }
 };
@@ -82,7 +80,7 @@ export interface CreateRatingData {
 export const createRating = async (ratingData: CreateRatingData, token: string) => {
   try {
     const response = await axios.post(
-      `${API_URL}/api/auth/ratings/create/`,
+      `${API_URL}/api/ratings/create/`,
       ratingData,
       {
         headers: {
@@ -105,7 +103,7 @@ export const createRating = async (ratingData: CreateRatingData, token: string) 
  */
 export const getUserRatings = async (userId: number, page: number = 1) => {
   try {
-    const response = await axios.get(`${API_URL}/api/auth/ratings/user/${userId}/?page=${page}`);
+    const response = await axios.get(`${API_URL}/api/ratings/user/${userId}/?page=${page}`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -121,7 +119,7 @@ export const getUserRatings = async (userId: number, page: number = 1) => {
 export const getUserRatingForSeller = async (sellerId: number, token: string) => {
   try {
     const response = await axios.get(
-      `${API_URL}/api/auth/ratings/user/${sellerId}/my-rating/`,
+      `${API_URL}/api/ratings/user/${sellerId}/my-rating/`,
       {
         headers: {
           'Authorization': `Token ${token}`,
@@ -151,7 +149,7 @@ export const getUserRatingForSeller = async (sellerId: number, token: string) =>
 export const updateRating = async (sellerId: number, ratingData: Omit<CreateRatingData, 'rated_user'>, token: string) => {
   try {
     const response = await axios.put(
-      `${API_URL}/api/auth/ratings/user/${sellerId}/my-rating/`,
+      `${API_URL}/api/ratings/user/${sellerId}/my-rating/`,
       ratingData,
       {
         headers: {

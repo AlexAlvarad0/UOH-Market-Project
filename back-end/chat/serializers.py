@@ -11,14 +11,40 @@ class MessageSerializer(serializers.ModelSerializer):
     edited_at = serializers.ReadOnlyField()
     liked_by_users = serializers.SerializerMethodField()
     audio_url = serializers.SerializerMethodField()
-    
+    reply_to_message = serializers.SerializerMethodField()
     class Meta:
         model = Message
         fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'message_type', 'audio_file', 
-                 'audio_url', 'audio_duration', 'created_at', 'edited_at', 'is_edited', 'is_read', 'is_deleted', 
-                 'liked', 'liked_by', 'liked_by_users']
+                 'audio_url', 'audio_duration', 'reply_to', 'reply_to_message', 'created_at', 'edited_at', 
+                 'is_edited', 'is_read', 'is_deleted', 'liked', 'liked_by', 'liked_by_users']
         read_only_fields = ['sender', 'created_at', 'edited_at', 'is_edited', 'is_read', 'is_deleted', 
-                           'liked', 'liked_by', 'liked_by_users', 'audio_url']
+                           'liked', 'liked_by', 'liked_by_users', 'audio_url', 'reply_to_message']
+    
+    def get_reply_to_message(self, obj):
+        """Devuelve información básica del mensaje al que se está respondiendo"""
+        if obj.reply_to:
+            # Manejar tanto mensajes de texto como de audio
+            content_text = obj.reply_to.content
+            if content_text is None:
+                # Es un mensaje de audio
+                if obj.reply_to.message_type == 'audio':
+                    content_text = f"Audio ({obj.reply_to.audio_duration}s)"
+                else:
+                    content_text = "Mensaje vacío"
+            
+            # Truncar contenido si es muy largo
+            display_content = content_text[:100] + '...' if len(content_text) > 100 else content_text
+            
+            return {
+                'id': obj.reply_to.id,
+                'sender_username': obj.reply_to.sender.username,
+                'content': display_content,
+                'message_type': obj.reply_to.message_type,
+                'audio_duration': obj.reply_to.audio_duration,
+                'created_at': obj.reply_to.created_at,
+                'is_deleted': obj.reply_to.is_deleted
+            }        
+    
     def get_audio_url(self, obj):
         """Devuelve la URL completa del archivo de audio si existe"""
         if obj.audio_file:

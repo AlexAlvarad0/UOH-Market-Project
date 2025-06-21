@@ -109,13 +109,13 @@ class MessageViewSet(viewsets.ModelViewSet):
             instance.is_edited = True
             instance.edited_at = timezone.now()
             instance.save()
-            
-            # Actualizar timestamp de la conversación
+              # Actualizar timestamp de la conversación
             instance.conversation.updated_at = instance.edited_at
             instance.conversation.save()
             
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+    
     def create(self, request, *args, **kwargs):
         # Buscar 'conversation' en lugar de 'conversation_id'
         conversation_id = request.data.get('conversation')
@@ -148,14 +148,38 @@ class MessageViewSet(viewsets.ModelViewSet):
                 content = request.data.get('content')
                 if not content:
                     return Response({'detail': 'El contenido del mensaje es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+                  # Obtener el mensaje al que se está respondiendo (si existe)
+                reply_to_id = request.data.get('reply_to')
+                reply_to_message = None
+                
+                print(f"🔗 Creating message with reply_to: {reply_to_id}")  # Debug log
+                
+                if reply_to_id:
+                    try:
+                        reply_to_message = Message.objects.get(id=reply_to_id, conversation=conversation)
+                        # Manejar tanto mensajes de texto como de audio
+                        content_preview = ""
+                        if reply_to_message.content:
+                            content_preview = reply_to_message.content[:50]
+                        elif reply_to_message.message_type == 'audio':
+                            content_preview = f"Audio message ({reply_to_message.audio_duration}s)"
+                        else:
+                            content_preview = "Empty message"
+                        print(f"✅ Found reply_to message: {reply_to_message.id} - {content_preview}")  # Debug log
+                    except Message.DoesNotExist:
+                        print(f"❌ Reply_to message not found: {reply_to_id}")  # Debug log
+                        return Response({'detail': 'El mensaje al que intentas responder no existe.'}, status=status.HTTP_400_BAD_REQUEST)
                 
                 message = Message.objects.create(
                     conversation=conversation,
                     sender=request.user,
                     content=content,
                     message_type='text',
+                    reply_to=reply_to_message,
                     liked=False
                 )
+                
+                print(f"📨 Created message {message.id} with reply_to: {message.reply_to.id if message.reply_to else None}")  # Debug log
             
             conversation.updated_at = message.created_at
             conversation.save()

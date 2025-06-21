@@ -23,6 +23,8 @@ class Message(models.Model):
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text')
     audio_file = models.FileField(upload_to='audio_messages/', null=True, blank=True)
     audio_duration = models.PositiveIntegerField(null=True, blank=True, help_text='Duración en segundos')
+    # Campo para respuestas - referencia al mensaje al que se está respondiendo
+    reply_to = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     is_edited = models.BooleanField(default=False)

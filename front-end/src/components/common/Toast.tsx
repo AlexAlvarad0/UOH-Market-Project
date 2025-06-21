@@ -30,10 +30,11 @@ const Toast: React.FC<ToastProps> = ({
       return () => clearTimeout(timer);
     }
   }, [show, duration, onClose]);
-
   return visible ? (
     <div className={`toast toast-${type} ${visible ? 'show' : ''}`}>
-      <div className="toast-message">{message}</div>
+      <div className="toast-message">
+        {typeof message === 'string' ? message : JSON.stringify(message)}
+      </div>
     </div>
   ) : null;
 };

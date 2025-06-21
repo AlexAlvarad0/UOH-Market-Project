@@ -26,11 +26,78 @@ import {
   MoreVert as MoreVertIcon, 
   ThumbUp as ThumbUpIcon, 
   ThumbUpOutlined as ThumbUpOutlinedIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  DoneAll as DoneAllIcon
 } from '@mui/icons-material';
 import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import AudioMessage from '../components/AudioMessage';
 import MessageInput from '../components/MessageInput';
+import SwipeableMessage from '../components/SwipeableMessage';
+
+// Componente memoizado para el indicador de typing
+const TypingIndicator = React.memo(({ typingUsers }: { typingUsers: string[] }) => {
+  if (typingUsers.length === 0) return null;
+  
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1, px: 2 }}>
+      <Box sx={{ 
+        backgroundColor: 'grey.100', 
+        borderRadius: 2, 
+        px: 2, 
+        py: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          {typingUsers.length === 1 
+            ? `${typingUsers[0]} está escribiendo...`
+            : `${typingUsers.slice(0, -1).join(', ')} y ${typingUsers.slice(-1)} están escribiendo...`
+          }
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 0.2 }}>
+          <Box sx={{
+            width: 4,
+            height: 4,
+            borderRadius: '50%',
+            backgroundColor: 'primary.main',
+            animation: 'typing 1.4s infinite ease-in-out'
+          }} />
+          <Box sx={{
+            width: 4,
+            height: 4,
+            borderRadius: '50%',
+            backgroundColor: 'primary.main',
+            animation: 'typing 1.4s infinite ease-in-out',
+            animationDelay: '0.2s'
+          }} />
+          <Box sx={{
+            width: 4,
+            height: 4,
+            borderRadius: '50%',
+            backgroundColor: 'primary.main',
+            animation: 'typing 1.4s infinite ease-in-out',
+            animationDelay: '0.4s'
+          }} />
+        </Box>
+        <style>
+          {`
+            @keyframes typing {
+              0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+              }
+              30% {
+                transform: translateY(-10px);
+                opacity: 1;
+              }
+            }
+          `}
+        </style>
+      </Box>
+    </Box>
+  );
+});
 
 const ChatPage = () => {
   const { conversationId } = useParams();
@@ -38,8 +105,7 @@ const ChatPage = () => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  interface Message {
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));  interface Message {
     id: number;
     sender: number;
     sender_username: string;
@@ -48,6 +114,16 @@ const ChatPage = () => {
     audio_file?: string;
     audio_url?: string;
     audio_duration?: number;
+    reply_to?: number;
+    reply_to_message?: {
+      id: number;
+      sender_username: string;
+      content: string;
+      message_type: 'text' | 'audio';
+      audio_duration?: number;
+      created_at: string;
+      is_deleted: boolean;
+    };
     created_at: string;
     edited_at: string | null;
     is_edited: boolean;
@@ -80,47 +156,55 @@ const ChatPage = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  // Estado para edición de mensajes
+  const messagesEndRef = useRef<HTMLDivElement>(null);  // Estado para edición de mensajes
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   
+  // Estado para respuestas de mensajes
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+  
   // Estado para diálogo de confirmación de eliminación
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    // Estado para indicador de escritura
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);  // Estado para indicador de escritura
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-    // WebSocket hook - solo conectar si tenemos conversationId válido
+
+  // WebSocket hook - solo conectar si tenemos conversationId válido
   const {
     sendMessage: sendWSMessage,
     markAsRead,
     addChatMessageListener,
     addConversationListener,
     isConnected
-  } = useWebSocket(conversationId || null, localStorage.getItem('authToken'));  // Función para actualizar la lista de conversaciones (y sus contadores)
+  } = useWebSocket(conversationId || null, localStorage.getItem('authToken'));
+
+  // Función para actualizar la lista de conversaciones (y sus contadores)
+  // Usar useCallback con dependencias vacías para evitar recreación constante
   const refreshConversations = useCallback(async () => {
-    const res = await api.getConversations();
-    if (res.success) {
-      let convs = [];
-      if (Array.isArray(res.data)) {
-        convs = res.data;
-      } else if (res.data && Array.isArray(res.data.results)) {
-        convs = res.data.results;
-      } else if (res.data) {
-        convs = Object.values(res.data);
-      }
-      
-      // Filtrar conversaciones vacías (sin mensajes)
-      convs = convs.filter((conv: Conversation) => conv.latest_message !== null && conv.latest_message !== undefined);
-      
-      // Ordenar conversaciones por fecha de actualización
-      convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      );
-      
-      setConversations(convs);
+    try {
+      const res = await api.getConversations();
+      if (res.success) {
+        let convs = [];
+        if (Array.isArray(res.data)) {
+          convs = res.data;
+        } else if (res.data && Array.isArray(res.data.results)) {
+          convs = res.data.results;
+        } else if (res.data) {
+          convs = Object.values(res.data);
+        }
+        
+        // Filtrar conversaciones vacías (sin mensajes)
+        convs = convs.filter((conv: Conversation) => conv.latest_message !== null && conv.latest_message !== undefined);
+        
+        // Ordenar conversaciones por fecha de actualización
+        convs.sort((a: { updated_at: string }, b: { updated_at: string }) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
+        
+        setConversations(convs);
+      }    } catch {
+      // Error silenciado para mejor rendimiento
     }
-  }, []);
+  }, []); // Sin dependencias para evitar recreación
   // Cargar conversaciones
   useEffect(() => {
     const fetchConversations = async () => {
@@ -151,97 +235,98 @@ const ChatPage = () => {
       setLoadingConvs(false);
     };
     fetchConversations();
-  }, []);
-
-  // Cargar mensajes de la conversación seleccionada
+  }, []);  // Cargar mensajes de la conversación seleccionada
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
+      setReplyingToMessage(null);
       return;
     }
-    
+
     const fetchMessages = async () => {
       setLoadingMsgs(true);
-      const res = await api.getMessages(Number(conversationId));
-      if (res.success) {
-        setMessages(res.data);
-        // Actualizar la lista de conversaciones para actualizar los contadores
-        refreshConversations();
-      }
-      setLoadingMsgs(false);
+      setReplyingToMessage(null);
       
-      // Scroll al final de los mensajes
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 100);    };
+      try {
+        const res = await api.getMessages(Number(conversationId));
+        if (res.success) {
+          setMessages(res.data);
+        }      } catch {
+        // Error silenciado para mejor rendimiento
+      } finally {
+        setLoadingMsgs(false);
+      }
+        // Scroll al final de los mensajes solo una vez
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto' }); // Scroll inmediato, sin animation
+      }
+    };
     
-    fetchMessages();
-  }, [conversationId, refreshConversations]);
+    fetchMessages();  }, [conversationId]); // Remover refreshConversations de dependencias
 
   // WebSocket listeners para mensajes en tiempo real
   useEffect(() => {
-    if (!conversationId) return;    // Listener para nuevos mensajes
+    if (!conversationId) return;
+
+    // Listener para nuevos mensajes
     const unsubscribeNewMessage = addChatMessageListener('new_message', (data) => {
-      console.log('🔔 Received new_message event:', data);
       const newMessage = data.message;
+      
       setMessages(prev => {
         // Evitar duplicados
         if (prev.some(msg => msg.id === newMessage.id)) {
-          console.log(`⚠️ Message ${newMessage.id} already exists, skipping`);
           return prev;
         }
-        console.log(`📨 Adding new message ${newMessage.id} to state`);
         return [...prev, newMessage];
-      });
+      });      // Auto-scroll solo para mensajes nuevos, sin timeout para mejor rendimiento
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+      }
 
-      // Auto-scroll al final cuando llega un nuevo mensaje
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 100);
-
-      // Actualizar la lista de conversaciones
-      refreshConversations();
+      // Solo refrescar conversaciones ocasionalmente, no en cada mensaje
+      // Se actualiza via listener de conversación
     });// Listener para mensajes editados
     const unsubscribeEditMessage = addChatMessageListener('message_edited', (data) => {
-      console.log('🔔 Received message_edited event:', data);
       const editedMessage = data.message;
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === editedMessage.id) {
-            console.log(`✏️ Updating edited message ${editedMessage.id}`);
-            return editedMessage;
-          }
-          return msg;
-        })
-      );
-    });
-
-    // Listener para mensajes eliminados
+      
+      // Solo procesar la edición si NO fue hecha por el usuario actual
+      // Si fue hecha por el usuario actual, ya se actualizó localmente en handleSend
+      if (editedMessage.sender !== user?.id) {
+        setMessages(prev => 
+          prev.map(msg => {
+            if (msg.id === editedMessage.id) {
+              // Si el mensaje editado tiene datos incompletos, preservar los originales
+              if (!editedMessage.created_at || !editedMessage.sender) {
+                return {
+                  ...msg, // Mantener todos los datos originales
+                  content: editedMessage.content || msg.content, // Solo actualizar contenido
+                  is_edited: true,
+                  edited_at: editedMessage.edited_at || new Date().toISOString()
+                };
+              }
+              return editedMessage;
+            }
+            return msg;
+          })
+        );
+      }
+    });// Listener para mensajes eliminados
     const unsubscribeDeleteMessage = addChatMessageListener('message_deleted', (data) => {
-      console.log('🔔 Received message_deleted event:', data);
       const messageId = data.message_id;
       setMessages(prev => 
         prev.map(msg => {
           if (msg.id === messageId) {
-            console.log(`🗑️ Marking message ${messageId} as deleted`);
             return { ...msg, is_deleted: true };
           }
           return msg;
         })
-      );
-    });    // Listener para likes de mensajes
+      );});    // Listener para likes de mensajes
     const unsubscribeLikes = addChatMessageListener('message_like', (data) => {
-      console.log('🔔 Received message_like event:', data);
       const { message_id, liked_by, liked_by_users, liked } = data;
       
       setMessages(prev => 
         prev.map(msg => {
           if (msg.id === message_id) {
-            console.log(`👍 Updating like for message ${message_id}: liked=${liked}`);
             return {
               ...msg,
               liked: liked,
@@ -252,45 +337,46 @@ const ChatPage = () => {
           return msg;
         })
       );
-    });
-
-    // Listener para indicador de escritura
+    });    // Listener para indicador de escritura
     const unsubscribeTyping = addChatMessageListener('typing', (data) => {
-      const { username, is_typing } = data;
-      setTypingUsers(prev => {
+      const { username, is_typing, user_id } = data;
+      
+      // Solo procesar el evento si NO es del usuario actual
+      if (user_id !== user?.id) {
+        setTypingUsers(prev => {
+          if (is_typing) {
+            return prev.includes(username) ? prev : [...prev, username];
+          } else {
+            return prev.filter(u => u !== username);
+          }
+        });        // Limpiar indicador después de 3 segundos sin timeout anidado
         if (is_typing) {
-          return prev.includes(username) ? prev : [...prev, username];
-        } else {
-          return prev.filter(u => u !== username);
+          setTimeout(() => {
+            setTypingUsers(prev => prev.filter(u => u !== username));
+          }, 3000);
         }
-      });
-
-      // Limpiar indicador después de 3 segundos
-      if (is_typing) {
-        setTimeout(() => {
-          setTypingUsers(prev => prev.filter(u => u !== username));
-        }, 3000);
       }
-    });
-
-    // Listener para mensajes leídos
+    });    // Listener para mensajes leídos
     const unsubscribeRead = addChatMessageListener('message_read', (data) => {
-      const { message_id } = data;
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === message_id ? { ...msg, is_read: true } : msg
-        )
-      );
-    });
-
-    return () => {
+      const { message_id, user_id } = data;
+      
+      // Solo procesar si el mensaje fue leído por otro usuario (no por mí mismo)
+      if (user_id !== user?.id) {
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === message_id ? { ...msg, is_read: true } : msg
+          )
+        );
+      }
+    });    return () => {
       unsubscribeNewMessage();
       unsubscribeEditMessage();
       unsubscribeDeleteMessage();
-      unsubscribeLikes();      unsubscribeTyping();
+      unsubscribeLikes();
+      unsubscribeTyping();
       unsubscribeRead();
     };
-  }, [conversationId, addChatMessageListener, refreshConversations]);
+  }, [conversationId, addChatMessageListener, user?.id]); // Remover refreshConversations
 
   // WebSocket listeners para actualizaciones de conversaciones
   useEffect(() => {
@@ -349,16 +435,13 @@ const ChatPage = () => {
   };  const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedMessageId(null);
-  };
-  // Iniciar edición de un mensaje
+  };  // Iniciar edición de un mensaje
   const handleEditStart = () => {
     if (!selectedMessageId) return;
     
     const messageToEdit = messages.find(msg => msg.id === selectedMessageId);
-    if (messageToEdit) {
-      // No permitir editar mensajes de audio
+    if (messageToEdit) {      // No permitir editar mensajes de audio
       if (messageToEdit.message_type === 'audio') {
-        console.log('No se pueden editar mensajes de audio');
         handleMenuClose();
         return;
       }
@@ -375,57 +458,53 @@ const ChatPage = () => {
     setMessage('');
   };  // Función para mostrar diálogo de confirmación de eliminación
   const handleDeleteMessage = () => {
-    console.log('🗑️ handleDeleteMessage llamada, selectedMessageId:', selectedMessageId);
     setDeleteDialogOpen(true);
     // NO llamar handleMenuClose() aquí para mantener selectedMessageId
     setAnchorEl(null); // Solo cerrar el menú visual
   };// Confirmar eliminación del mensaje
   const confirmDeleteMessage = async () => {
-    console.log('🗑️ confirmDeleteMessage llamada, selectedMessageId:', selectedMessageId);
     if (!selectedMessageId) {
-      console.log('❌ No hay selectedMessageId, saliendo');
       return;
     }
     
-    console.log('📤 Llamando a api.deleteMessage con ID:', selectedMessageId);
     const res = await api.deleteMessage(selectedMessageId);
-    console.log('📥 Respuesta de api.deleteMessage:', res);
     
     if (res.success) {
-      console.log('✅ Eliminación exitosa, actualizando estado local');
       // Actualizar inmediatamente el estado local
       setMessages(prev => 
         prev.map(msg => 
           msg.id === selectedMessageId ? { ...msg, is_deleted: true } : msg
         )
       );
-      
-      // Actualizar conversaciones
+        // Actualizar conversaciones
       refreshConversations();
-    } else {
-      console.error('❌ Error eliminando mensaje:', res.error);
     }
     
     setDeleteDialogOpen(false);
     setSelectedMessageId(null);
   };
-
   // Cancelar eliminación del mensaje
   const cancelDeleteMessage = () => {
     setDeleteDialogOpen(false);
     setSelectedMessageId(null);
-  };  // Modificar handleSend para manejar también la edición
+  };
+
+  // Función para iniciar respuesta a un mensaje
+  const handleReplyToMessage = (message: Message) => {
+    setReplyingToMessage(message);
+    handleMenuClose();
+  };
+
+  // Función para cancelar respuesta
+  const handleCancelReply = () => {
+    setReplyingToMessage(null);
+  };  // Modificar handleSend para manejar también la edición y respuestas
   const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Si estamos editando un mensaje
+    e.preventDefault();    // Si estamos editando un mensaje
     if (editingMessageId) {
-      if (!message.trim()) return;
-      
-      // Usar API REST para editar
+      if (!message.trim()) return;      // Usar API REST para editar
       const res = await api.updateMessage(editingMessageId, message);
-      if (res.success) {
-        // Actualizar inmediatamente el estado local
+      if (res.success) {        // Actualizar inmediatamente el estado local
         setMessages(prev => 
           prev.map(msg => 
             msg.id === editingMessageId ? { 
@@ -437,53 +516,59 @@ const ChatPage = () => {
           )
         );
         
-        // Actualizar conversaciones
-        refreshConversations();
+        // NO refrescar conversaciones aquí para mejor rendimiento
+        // La actualización llegará por WebSocket si es necesario
       }
       
       // Limpiar estado de edición
       setEditingMessageId(null);
       setMessage('');
-    } 
+    }
     // Si estamos enviando un mensaje nuevo
     else {
       if (!message.trim() || !conversationId) return;
       
-      // Usar WebSocket para enviar mensaje
-      sendWSMessage(message, 'text');
-      setMessage('');
-    }
-    
-    // Scroll al final de los mensajes
-    setTimeout(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      // Enviar mensaje con respuesta si hay una seleccionada
+      if (replyingToMessage) {
+        await handleSendReply(message);
+      } else {
+        // Usar WebSocket para enviar mensaje normal
+        sendWSMessage(message, 'text');
       }
-    }, 100);
+      
+      setMessage('');
+      setReplyingToMessage(null);
+    }    // Scroll al final de los mensajes (solo si no estamos editando)
+    if (!editingMessageId && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+    }
+  };
+
+  // Función para enviar respuesta a un mensaje
+  const handleSendReply = async (content: string) => {
+    if (!conversationId || !replyingToMessage) return;
+      try {
+      const res = await api.sendMessage(Number(conversationId), content, replyingToMessage.id);      if (res.success) {
+        // El mensaje llegará por WebSocket, no necesitamos agregarlo manualmente
+        // NO refrescar conversaciones aquí para mejor rendimiento
+      }} catch {
+      // Error handling for reply message
+    }
   };  // Función para enviar mensaje de audio
   const handleSendAudio = async (audioFile: File, duration: number) => {
     if (!conversationId) return;
     
     try {
       const res = await api.sendAudioMessage(Number(conversationId), audioFile, duration);
-      if (res.success) {
-        console.log('✅ Audio message sent successfully:', res.data);
-        
-        // NO agregar el mensaje localmente aquí, ya que llegará por WebSocket
+      if (res.success) {        // NO agregar el mensaje localmente aquí, ya que llegará por WebSocket
         // Esto evita la duplicación del audio
         
-        // Actualizar conversaciones
-        refreshConversations();
-        
-        // Scroll al final
-        setTimeout(() => {
-          if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 100);
-      }
-    } catch (error) {
-      console.error('Error al enviar audio:', error);
+        // NO actualizar conversaciones aquí para mejor rendimiento
+          // Scroll al final con mejor rendimiento
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+        }}    } catch {
+      // Error handling for audio message
     }
   };
   // Función para dar like a un mensaje
@@ -511,10 +596,19 @@ const ChatPage = () => {
   // Función para volver a la lista de conversaciones en móvil
   const handleBackToConversations = () => {
     navigate('/chat');
-  };
-  // Función para formatear la fecha
-  const formatDateHeader = (date: string) => {
+  };  // Funciones memoizadas para formateo de fechas para evitar recálculos
+  const formatDateHeader = useCallback((date: string) => {
+    if (!date) {
+      return 'Fecha desconocida';
+    }
+    
     const messageDate = new Date(date);
+    
+    // Verificar si la fecha es válida
+    if (isNaN(messageDate.getTime())) {
+      return 'Fecha inválida';
+    }
+    
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -534,19 +628,48 @@ const ChatPage = () => {
       return messageDate.toLocaleDateString('es-ES', { 
         day: '2-digit', 
         month: '2-digit', 
-        year: 'numeric' 
+        year: 'numeric'
       });
     }
-  };
+  }, []);
+
+  // Función para formatear la hora de manera segura
+  const formatMessageTime = useCallback((date: string) => {
+    if (!date) {
+      return '--:--';
+    }
+    
+    const messageDate = new Date(date);
+    
+    // Verificar si la fecha es válida
+    if (isNaN(messageDate.getTime())) {
+      return '--:--';
+    }
+    
+    return messageDate.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  }, []);
 
   // Función para verificar si dos mensajes son del mismo día
-  const isSameDay = (date1: string, date2: string) => {
+  const isSameDay = useCallback((date1: string, date2: string) => {
+    if (!date1 || !date2) {
+      return false;
+    }
+    
     const d1 = new Date(date1);
     const d2 = new Date(date2);
+    
+    // Verificar si las fechas son válidas
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+      return false;
+    }
+    
     return d1.getDate() === d2.getDate() && 
            d1.getMonth() === d2.getMonth() && 
            d1.getFullYear() === d2.getFullYear();
-  };
+  }, []);
 
   // Renderizar solo lista de conversaciones en móvil cuando no hay conversación seleccionada
   if (isMobile && !conversationId) {
@@ -764,14 +887,15 @@ const ChatPage = () => {
                 </Box>
               </Box>
             );
-          })()}
-
-          <Box sx={{ 
+          })()}          <Box sx={{ 
             flexGrow: 1, 
-            p: 2, 
+            p: { xs: 1, md: 2 }, // Menos padding en móvil
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
+            overflowX: 'visible', // Permitir overflow horizontal para iconos
+            // Agregar padding extra para evitar que se corten los elementos
+            py: { xs: 2, md: 3 } // Menos padding vertical en móvil
           }}>
             {loadingMsgs ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -784,64 +908,85 @@ const ChatPage = () => {
                 </Typography>
               </Box>
             ) : (
-              <Box sx={{ flexGrow: 1 }}>
-                {messages.map((msg, index) => {
+              <Box sx={{ flexGrow: 1 }}>                {messages.map((msg, index) => {
                   const isOwnMessage = msg.sender === user?.id;
-                  const showDateHeader = index === 0 || !isSameDay(msg.created_at, messages[index - 1].created_at);
-                    if (msg.is_deleted) {
-                    return (
-                      <Box key={msg.id} sx={{ mb: 1 }}>
+                  const showDateHeader = index === 0 || !isSameDay(msg.created_at, messages[index - 1].created_at);if (msg.is_deleted) {                    return (
+                      <Box key={msg.id} sx={{ 
+                        mb: 1,
+                        // Márgenes iguales - más pequeños en móvil para evitar solapamiento
+                        mx: { xs: '8px', md: '15px' }
+                      }}>
                         {showDateHeader && (
                           <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
                             <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
                               {formatDateHeader(msg.created_at)}
                             </Typography>
                           </Box>
-                        )}
-                        <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
-                          <Box sx={{ maxWidth: '70%' }}>
-                            <Box
-                              sx={{
-                                backgroundColor: 'grey.100',
-                                color: 'text.secondary',
-                                p: 1,
-                                borderRadius: 10,
-                                border: '1px solid',
-                                borderColor: 'grey.300',
-                                wordBreak: 'break-word'
-                              }}
-                            >
-                              <Typography variant="body2" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
-                                🗑️ Mensaje eliminado
+                        )}                        <SwipeableMessage
+                          onReply={() => handleReplyToMessage(msg)}
+                          isOwnMessage={isOwnMessage}
+                          disabled={true} // Los mensajes eliminados no se pueden responder
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
+                            <Box sx={{ maxWidth: '70%' }}>
+                              <Box
+                                sx={{
+                                  backgroundColor: 'grey.100',
+                                  color: 'text.secondary',
+                                  p: 1,
+                                  borderRadius: 10,
+                                  border: '1px solid',
+                                  borderColor: 'grey.300',
+                                  wordBreak: 'break-word'
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
+                                  🗑️ Mensaje eliminado
+                                </Typography>
+                              </Box>
+                            </Box>                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                {msg.sender_username} • {formatMessageTime(msg.created_at)}
                               </Typography>
+                              {/* Indicador de lectura para mensajes propios eliminados */}
+                              {isOwnMessage && msg.is_read && (
+                                <DoneAllIcon sx={{ 
+                                  fontSize: 12, 
+                                  color: '#004f9e',
+                                  ml: 0.5
+                                }} />
+                              )}
                             </Box>
                           </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                            {msg.sender_username} • {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </Typography>
-                        </Box>
+                        </SwipeableMessage>
                       </Box>
                     );
-                  }
-
-                  return (
-                    <Box key={msg.id} sx={{ mb: 1 }}>
+                  }                  return (
+                    // Wrapper de mensaje con overflow visible
+                    <Box key={msg.id} sx={{
+                      mb: 1,
+                      position: 'relative',
+                      overflow: 'visible',
+                      // Márgenes iguales - más pequeños en móvil para evitar solapamiento
+                      mx: { xs: '8px', md: '15px' }
+                    }}>
                       {showDateHeader && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
                           <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
                             {formatDateHeader(msg.created_at)}
                           </Typography>
                         </Box>
-                      )}
-                      
-                      <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
-                        <Box sx={{ maxWidth: '70%', position: 'relative' }} className="group">
-                          {msg.message_type === 'audio' ? (
+                      )}                        <SwipeableMessage
+                          onReply={() => handleReplyToMessage(msg)}
+                          isOwnMessage={isOwnMessage}
+                          disabled={false} // Permitir swipe en todos los mensajes normales
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
+                            <Box sx={{ 
+                              maxWidth: '70%', 
+                              position: 'relative'
+                            }} className="group">                          {msg.message_type === 'audio' ? (
                             <AudioMessage
                               audioUrl={msg.audio_url || ''}
                               duration={msg.audio_duration || 0}
@@ -857,7 +1002,39 @@ const ChatPage = () => {
                                 position: 'relative',
                                 wordBreak: 'break-word'
                               }}
-                            >
+                            >                              {/* Mostrar mensaje de respuesta si existe */}
+                              {msg.reply_to_message && (
+                                <Box
+                                  sx={{
+                                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                                    border: `2px solid ${isOwnMessage ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`,
+                                    borderRadius: 1,
+                                    p: 1,
+                                    mb: 1,
+                                    fontSize: '0.875rem'
+                                  }}
+                                >
+                                    <Typography variant="caption" sx={{ 
+                                      fontWeight: 'bold',
+                                      color: isOwnMessage ? 'rgba(255,255,255,0.9)' : 'text.secondary',
+                                      display: 'block'
+                                    }}>
+                                      {msg.reply_to_message.sender_username}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ 
+                                      color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'text.secondary',
+                                      fontStyle: msg.reply_to_message.is_deleted ? 'italic' : 'normal',
+                                      opacity: msg.reply_to_message.is_deleted ? 0.7 : 1
+                                    }}>
+                                      {msg.reply_to_message.is_deleted 
+                                        ? '🗑️ Mensaje eliminado'
+                                        : msg.reply_to_message.message_type === 'audio' 
+                                          ? `🎵 Audio (${msg.reply_to_message.audio_duration}s)`
+                                          : msg.reply_to_message.content
+                                      }                                    </Typography>
+                                  </Box>
+                              )}
+                              
                               <Typography variant="body2">
                                 {msg.content}
                               </Typography>
@@ -867,14 +1044,14 @@ const ChatPage = () => {
                                 </Typography>
                               )}
                             </Box>
-                          )}                          {/* Menú contextual para mensajes propios (no mostrar para audios) */}
-                          {isOwnMessage && msg.message_type !== 'audio' && (
+                          )}                          {/* Menú contextual para mensajes propios (tanto texto como audio) */}
+                          {isOwnMessage && (
                             <IconButton
                               size="small"
                               sx={{ 
                                 position: 'absolute', 
-                                top: -15, 
-                                right: -15, 
+                                top: -12, // Posición más arriba - mitad afuera del mensaje
+                                right: -12, // Posición más a la derecha - mitad afuera del mensaje
                                 opacity: 1, // Siempre visible
                                 backgroundColor: '#eeeeee',
                                 border: '1px solid #e0e0e0',
@@ -882,11 +1059,15 @@ const ChatPage = () => {
                                 '&:hover': { 
                                   backgroundColor: 'grey.100',
                                   transform: 'scale(1.05)'
-                                }
+                                },
+                                zIndex: 10, // Asegurar que esté por encima de otros elementos
+                                width: 24, // Hacer el botón más pequeño
+                                height: 24,
+                                minWidth: 24
                               }}
                               onClick={(e) => handleMenuOpen(e, msg.id)}
                             >
-                              <MoreVertIcon fontSize="small" />
+                              <MoreVertIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           )}
                             {/* Información de likes - mostrar para todos los mensajes */}
@@ -985,30 +1166,28 @@ const ChatPage = () => {
                                 <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
                               </IconButton>
                             </Box>
-                          )}
-                        </Box>
+                          )}                        </Box>
                       </Box>
                       
                       <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                          {msg.sender_username} • {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            {msg.sender_username} • {formatMessageTime(msg.created_at)}
+                          </Typography>
+                          {/* Indicador de lectura para mensajes propios */}
+                          {isOwnMessage && msg.is_read && (
+                            <DoneAllIcon sx={{ 
+                              fontSize: 12, 
+                              color: '#004f9e',
+                              ml: 0.5
+                            }} />
+                          )}
+                        </Box>
                       </Box>
+                      </SwipeableMessage>
                     </Box>
                   );
-                })}
-                
-                {/* Indicador de escritura */}
-                {typingUsers.length > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                      {typingUsers.join(', ')} está{typingUsers.length > 1 ? 'n' : ''} escribiendo...
-                    </Typography>
-                  </Box>
-                )}
+                })}                  {/* Indicador de escritura usando componente memoizado */}
+                <TypingIndicator typingUsers={typingUsers} />
                 
                 <div ref={messagesEndRef} />
               </Box>
@@ -1020,24 +1199,29 @@ const ChatPage = () => {
                 setMessage={setMessage}
                 onSendMessage={handleSend}
                 onSendAudio={handleSendAudio}
+                onTyping={() => {}} // Función dummy para evitar error por ahora
                 editingMessageId={editingMessageId}
                 onEditCancel={handleEditCancel}
+                replyingToMessage={replyingToMessage}
+                onCancelReply={handleCancelReply}
               />
             </Box>
           )}
         </Box>
-      </Box>
-
-      {/* Menú contextual */}
+      </Box>      {/* Menú contextual */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={handleEditStart}>
-          <EditIcon sx={{ mr: 1 }} fontSize="small" />
-          Editar
-        </MenuItem>
+        {/* Mostrar opción de editar solo para mensajes de texto */}
+        {selectedMessageId && messages.find(msg => msg.id === selectedMessageId)?.message_type !== 'audio' && (
+          <MenuItem onClick={handleEditStart}>
+            <EditIcon sx={{ mr: 1 }} fontSize="small" />
+            Editar
+          </MenuItem>
+        )}
+        {/* Opción de eliminar para todos los tipos de mensaje */}
         <MenuItem onClick={handleDeleteMessage}>
           <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
           Eliminar

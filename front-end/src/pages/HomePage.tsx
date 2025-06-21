@@ -5,6 +5,7 @@ import {
   Pagination, FormControl, InputLabel, Select, MenuItem,
   Dialog, DialogTitle, DialogContent,
   DialogActions, Button as MuiButton, Chip, IconButton,
+  GlobalStyles,
 } from '@mui/material';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
@@ -19,6 +20,9 @@ import { formatPrice } from '../utils/formatPrice';
 import { Product } from '../types/products';
 import CategoryIcon from '../components/CategoryIcon';
 import ScrollToTopButton from '../components/buttons/ScrollToTopButton';
+import Squares from '../../y/Squares/Squares';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const SliderRoot = styled(SliderPrimitive.Root)(() => ({
   position: 'relative',
@@ -110,9 +114,37 @@ const HomePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalPages, setTotalPages] = useState(1);  const [categories, setCategories] = useState<Array<{id: number, name: string}>>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [categories, setCategories] = useState<Array<{id: number, name: string}>>([]);
   const [maxPrice, setMaxPrice] = useState(1000000);
   const [maxPriceInitialized, setMaxPriceInitialized] = useState(false);
+
+  const theme = useTheme();
+  const isXl = useMediaQuery(theme.breakpoints.up('xl'));
+  const isLg = useMediaQuery(theme.breakpoints.up('lg'));
+  const isMd = useMediaQuery(theme.breakpoints.up('md'));
+  const isSm = useMediaQuery(theme.breakpoints.up('sm'));
+  useEffect(() => {
+    const getItemsPerRow = () => {
+      if (isXl) return 5;
+      if (isLg) return 4;
+      if (isMd) return 3;
+      if (isSm) return 2;
+      return 2; // xs
+    };
+    const itemsPerRow = getItemsPerRow();
+    setPageSize(itemsPerRow * 4);
+  }, [isXl, isLg, isMd, isSm]);
+
+  // Función para obtener el número de elementos por fila
+  const getItemsPerRow = () => {
+    if (isXl) return 5;
+    if (isLg) return 4;
+    if (isMd) return 3;
+    if (isSm) return 2;
+    return 2; // xs
+  };
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -150,12 +182,10 @@ const HomePage = () => {
         if (Array.isArray(response.data)) {
           setCategories(response.data);
         } else if (response.data && Array.isArray(response.data.results)) {
-          setCategories(response.data.results);
-        } else {
+          setCategories(response.data.results);        } else {
           setCategories([]);
         }
-      } catch (err) {
-        console.error("Error fetching categories:", err);
+      } catch {
         setCategories([]);
       }
     };
@@ -180,11 +210,9 @@ const HomePage = () => {
               const foundMaxPrice = productData.reduce((acc, prod) => Math.max(acc, prod.price), 0);
               setMaxPrice(foundMaxPrice);
               setTempPriceRange([0, foundMaxPrice]);
-              setFilters(prev => ({ ...prev, max_price: foundMaxPrice }));
-            }
-          }
-        } catch (err) {
-          console.error("Error initializing max price:", err);
+              setFilters(prev => ({ ...prev, max_price: foundMaxPrice }));            }          }
+        } catch {
+          // Error initializing max price
         } finally {
           setMaxPriceInitialized(true);
         }
@@ -194,40 +222,34 @@ const HomePage = () => {
     fetchCategories();
     initializeMaxPrice();
   }, [maxPriceInitialized]);
-
   useEffect(() => {
     const getProducts = async () => {
       try {
         setLoading(true);
         setError(null);
-        console.log('Fetching products with filters:', { page, ...filters });
         
         const response = await api.getProducts({
           page,
+          page_size: pageSize,
           search: filters.search,
           category: filters.category,
           min_price: filters.min_price,
           max_price: filters.max_price,
           condition: filters.condition,
-          ordering: filters.ordering
-        });
+          ordering: filters.ordering        });
         
-        console.log('Products response:', response);
-          if (response.success && response.data) {
+        if (response.success && response.data) {
           const productData = response.data.results || response.data;
           const totalCount = response.data.count || productData.length;
           
           setProducts(Array.isArray(productData) ? productData : []);
-          setTotalPages(Math.ceil(totalCount / 12));
+          setTotalPages(Math.ceil(totalCount / pageSize));
           // Removed: const foundMaxPrice = productData.reduce((acc, prod) => Math.max(acc, prod.price), 0);
           // Removed: setMaxPrice(foundMaxPrice);
         } else {
-          setError("No se pudieron cargar los productos.");
-          setProducts([]);
+          setError("No se pudieron cargar los productos.");          setProducts([]);
           setTotalPages(1);
-        }
-      } catch (err) {
-        console.error("Error fetching products:", err);
+        }      } catch {
         setError("No se pudieron cargar los productos. Por favor, inténtelo de nuevo más tarde.");
         setProducts([]);
         setTotalPages(1);
@@ -236,8 +258,10 @@ const HomePage = () => {
       }
     };
 
-    getProducts();
-  }, [page, filters]);
+    if (pageSize > 0) {
+      getProducts();
+    }
+  }, [page, filters, pageSize]);
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
@@ -268,9 +292,8 @@ const HomePage = () => {
             ? { ...product, is_favorite: !product.is_favorite } 
             : product
         )
-      );
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
+      );    } catch {
+      // Error handling for favorite toggle
     }
   };
   const handleOpenFilterDialog = () => {
@@ -377,17 +400,56 @@ const HomePage = () => {
       '-views_count': 'Más vistos'
     };
     return orderingMap[ordering] || ordering;
-  };
-
-  return (
-    <Container 
-      maxWidth="xl" 
-      sx={{ 
-        py: { xs: 0, sm: 1 },
-        px: { xs: 0, sm: 1, md: 3 },
-        mt: { xs: 0, sm: 1 },
-      }}
-    >
+  };  return (
+    <>
+      <GlobalStyles        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important', // Fondo blanco base
+        }}
+      >        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+        <Container 
+        maxWidth="xl" 
+        sx={{ 
+          py: { xs: 0, sm: 1 },
+          px: { xs: 2, sm: 3, md: 4 },
+          mt: { xs: 0, sm: 1 },          
+          position: 'relative',
+          zIndex: 10,
+          backgroundColor: 'transparent !important',
+          minHeight: '100vh',
+          borderRadius: '8px',
+          boxShadow: 'none',
+        }}
+      >
       <BreadcrumbNav items={[]} />      <Box sx={{ 
         width: '100%',
         mt: 0,
@@ -401,21 +463,8 @@ const HomePage = () => {
               filters.category !== '' || 
               filters.condition !== '' ||
               filters.min_price > 0 ||
-              filters.ordering !== '-created_at';
-            
+              filters.ordering !== '-created_at';            
             const isCarouselVisible = !hasActiveFilters;
-            
-            console.log('Carousel visibility check:', {
-              search: filters.search,
-              category: filters.category,
-              condition: filters.condition,
-              min_price: filters.min_price,
-              max_price: filters.max_price,
-              maxPrice,
-              ordering: filters.ordering,
-              hasActiveFilters,
-              isVisible: isCarouselVisible
-            });
             
             return isCarouselVisible;
           })()} 
@@ -798,12 +847,11 @@ const HomePage = () => {
           <CircularProgress />
         </Box>
       ) : products.length > 0 ? (
-        <>
-          <ProductList 
+        <>          <ProductList 
             products={products} 
             onFavoriteClick={handleFavoriteClick}
             isLoading={loading}
-            itemsPerRow={5}
+            itemsPerRow={getItemsPerRow()}
             uniformSize={true}
             cardHeight={400}
             imageHeight={220}
@@ -830,11 +878,10 @@ const HomePage = () => {
       ) : (        <Alert severity="info" sx={{ my: 2 }}>
           No se encontraron productos que coincidan con los filtros seleccionados.
         </Alert>
-      )}
-
-      {/* Botón Scroll to Top */}
+      )}      {/* Botón Scroll to Top */}
       <ScrollToTopButton showAfter={400} />
     </Container>
+    </>
   );
 };
 

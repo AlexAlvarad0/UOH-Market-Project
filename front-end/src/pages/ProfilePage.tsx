@@ -1,5 +1,5 @@
-import React, { useEffect, useState, ErrorInfo } from 'react';
-import { Box, Typography, Avatar, Tab, Tabs, Container, Alert, CircularProgress, Button, Dialog, DialogActions, DialogContent, DialogTitle, Card, Rating as MuiRating } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, Avatar, Tab, Tabs, Container, Alert, CircularProgress, Button, Dialog, DialogActions, DialogContent, DialogTitle, Card, Rating as MuiRating, GlobalStyles } from '@mui/material';
 import { List } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.hooks';
@@ -7,6 +7,14 @@ import api from '../services/api';
 import { getUserRatings, Rating } from '../api';
 import ProfileEditForm from './ProfileEditForm';
 import EditButton from '../components/EditButton';
+import ContactsIcon from '@mui/icons-material/Contacts';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import CakeIcon from '@mui/icons-material/Cake';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import StarIcon from '@mui/icons-material/Star';
+import Squares from '../../y/Squares/Squares';
 
 // Define interfaces para los tipos de datos
 type UserWithProfile = {
@@ -14,6 +22,7 @@ type UserWithProfile = {
   username?: string;
   email: string;
   name?: string;
+  is_verified_seller?: boolean;  // Agregar ? para hacerlo opcional
   profile?: {
     location?: string;
   };
@@ -71,10 +80,8 @@ class MyErrorBoundary extends React.Component<ErrorBoundaryProps> {
 
   static getDerivedStateFromError() {
     return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, info);
+  }  componentDidCatch() {
+    // Error boundary caught an error
   }
 
   render() {
@@ -86,7 +93,7 @@ class MyErrorBoundary extends React.Component<ErrorBoundaryProps> {
 }
 
 const ProfilePage = () => {
-  const { isAuthenticated, user, loading: authLoading, updateUser } = useAuth();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
   const [userProducts, setUserProducts] = useState<Product[]>([]);
@@ -105,41 +112,14 @@ const ProfilePage = () => {
       const profileRes = await api.getUserProfile();
       if (profileRes.success) {
         setProfileData(profileRes.data);
-      }
-    } catch (error) {
-      console.error('Error refreshing profile:', error);
+      }    } catch {
+      // Error refreshing profile
     }
-  };
-  // Función para manejar cuando se guarda el perfil exitosamente
+  };  // Función para manejar cuando se guarda el perfil exitosamente
   const handleProfileSaved = async () => {
-    setEditModalOpen(false); // Cerrar el modal
-    
+    setEditModalOpen(false); // Cerrar el modal    
     // Refrescar los datos del perfil local
     await refreshProfileData();
-    
-    // También actualizar el contexto global del usuario para que el header se actualice
-    try {
-      const profileRes = await api.getUserProfile();
-      if (profileRes.success && user) {
-        // Crear el objeto de usuario actualizado manteniendo la estructura actual
-        const updatedUser = {
-          ...user,
-          profile_picture: profileRes.data.profile_picture,
-          profile: {
-            ...user.profile,
-            first_name: profileRes.data.first_name,
-            last_name: profileRes.data.last_name,
-            bio: profileRes.data.bio,
-            location: profileRes.data.location,
-          }
-        };
-        
-        // Actualizar el contexto global
-        updateUser(updatedUser);
-      }
-    } catch (error) {
-      console.error('Error updating global user context:', error);
-    }
   };
 
   useEffect(() => {
@@ -152,17 +132,14 @@ const ProfilePage = () => {
     const fetchUserData = async () => {      // Fetch profile
       try {
         const profileRes = await api.getUserProfile();
-        if (profileRes.success) setProfileData(profileRes.data);
-      } catch (error) {
-        console.error('Error fetching profile:', error);
+        if (profileRes.success) setProfileData(profileRes.data);      } catch {
+        // Error fetching profile
       }
 
       setLoading(true);
       setError('');
 
-      try {
-        // Fetch user's products
-        console.log('Fetching user products...');
+      try {        // Fetch user's products
         const productsResponse = await api.getUserProducts();
         
         // Añadir mejor manejo de la respuesta
@@ -172,23 +149,17 @@ const ProfilePage = () => {
           if (Array.isArray(productsResponse.data)) {
             productsList = productsResponse.data;
           } else if (productsResponse.data && Array.isArray(productsResponse.data.results)) {
-            productsList = productsResponse.data.results;
-          } else if (productsResponse.data) {
+            productsList = productsResponse.data.results;          } else if (productsResponse.data) {
             // Si no es un array ni tiene .results, intentar extraer datos
-            console.log('Formato de respuesta no estándar:', productsResponse.data);
             productsList = Object.values(productsResponse.data);
           }
           
-          console.log('User products processed:', productsList);
           setUserProducts(productsList.filter(item => item)); // Filtrar null/undefined
         } else {
-          console.error('Failed to fetch user products:', productsResponse);
           setUserProducts([]);
         }        // Fetch user's favorites
-        console.log('Fetching favorites...');
         try {
           const favoritesResponse = await api.favorites.getAll();
-          console.log('Favorites response:', favoritesResponse);
           
           if (favoritesResponse.success) {
             // Procesar datos paginados - extrayendo el array 'results' si existe
@@ -196,34 +167,24 @@ const ProfilePage = () => {
             
             if (Array.isArray(favoritesResponse.data)) {
               // Si la respuesta ya es un array de favoritos
-              favoritesData = favoritesResponse.data;
-            } else if (favoritesResponse.data && favoritesResponse.data.results) {
+              favoritesData = favoritesResponse.data;            } else if (favoritesResponse.data && favoritesResponse.data.results) {
               // Si la respuesta es una estructura paginada con 'results'
-              console.log('Procesando datos paginados:', favoritesResponse.data);
               favoritesData = favoritesResponse.data.results;
             } else {
               // Si la respuesta tiene otro formato
-              console.error('Formato de respuesta no reconocido:', favoritesResponse.data);
               favoritesData = [];
             }
             
-            console.log('Favoritos procesados para mostrar:', favoritesData);
             setFavorites(favoritesData);
           } else {
-            console.error('Error en respuesta de favoritos:', favoritesResponse.error);
             setFavorites([]);
           }
-        } catch (favoriteErr) {
-          console.error('Error in favorites fetch:', favoriteErr);
+        } catch {
           setFavorites([]);
-        }
-
-        // Fetch user's ratings
-        console.log('Fetching user ratings...');
+        }        // Fetch user's ratings
         try {
           if (user?.id) {
             const ratingsResponse = await getUserRatings(user.id);
-            console.log('Ratings response:', ratingsResponse);
             
             if (ratingsResponse && Array.isArray(ratingsResponse.results)) {
               setRatings(ratingsResponse.results);
@@ -233,12 +194,10 @@ const ProfilePage = () => {
               setRatings([]);
             }
           }
-        } catch (ratingsErr) {
-          console.error('Error in ratings fetch:', ratingsErr);
+        } catch {
           setRatings([]);
         }
-      } catch (err) {
-        console.error('Error fetching user data:', err);
+      } catch {
         setError('Error al cargar los datos del usuario.');
       } finally {
         setLoading(false);
@@ -270,10 +229,51 @@ const ProfilePage = () => {
         <CircularProgress />
       </Container>
     );
-  }
-  return (
+  }  return (
     <MyErrorBoundary>
-      <Container>        {/* Header */}
+      <GlobalStyles
+        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important',
+        }}
+      >
+        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+      
+      <Container sx={{ 
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: 'transparent !important',
+        minHeight: '100vh',
+      }}>{/* Header */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
             
@@ -322,18 +322,27 @@ const ProfilePage = () => {
                   <EditButton onClick={handleOpenEditModal} />
                 </Box>
               </Box>              {/* Información del usuario */}
-              <Box sx={{ flex: 1, width: '100%' }}>
-                {/* Nombre y botón de editar en la misma línea */}
+              <Box sx={{ flex: 1, width: '100%' }}>                {/* Nombre y botón de editar en la misma línea */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-                    {profileData?.first_name || profileData?.last_name
-                      ? `${profileData.first_name || ''} ${profileData.last_name || ''}`
-                      : (user as UserWithProfile).username || user.email}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
+                      {profileData?.first_name || profileData?.last_name
+                        ? `${profileData.first_name || ''} ${profileData.last_name || ''}`
+                        : (user as UserWithProfile).username || user.email}
+                    </Typography>                    {(user as UserWithProfile).is_verified_seller && (
+                      <VerifiedIcon 
+                        sx={{ 
+                          color: '#1976d2',
+                          fontSize: { xs: '1.5rem', md: '2rem' }
+                        }} 
+                        titleAccess="Vendedor verificado - Email institucional UOH"
+                      />
+                    )}
+                  </Box>
                   <Box sx={{ display: { xs: 'none', md: 'block' } }}>
                     <EditButton onClick={handleOpenEditModal} />
                   </Box>
-                </Box>                <Typography variant="body1" color="textSecondary">
+                </Box><Typography variant="body1" color="textSecondary">
                   {profileData?.email || user.email}
                 </Typography>
                   {/* Rating info */}
@@ -351,9 +360,35 @@ const ProfilePage = () => {
                     </Typography>
                   )}
                 </Box>
-                
-                {/* Information Cards */}
-                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {/* Information Cards */}
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>                  {/* Verification Status Card */}
+                  <Box 
+                    sx={{ 
+                      p: 1.5, 
+                      border: '1px solid #e0e0e0', 
+                      borderRadius: 2, 
+                      backgroundColor: (user as UserWithProfile).is_verified_seller ? '#e8f5e8' : '#fff3e0',
+                      borderLeft: `4px solid ${(user as UserWithProfile).is_verified_seller ? '#4caf50' : '#ff9800'}`
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <VerifiedIcon sx={{ 
+                        mr: 1, 
+                        fontSize: 16, 
+                        color: (user as UserWithProfile).is_verified_seller ? '#4caf50' : '#ff9800' 
+                      }} />
+                      <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold' }}>
+                        Estado de verificación
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2">
+                      {(user as UserWithProfile).is_verified_seller 
+                        ? 'Vendedor verificado - Email institucional UOH'
+                        : 'No verificado - Solo email institucional UOH puede vender'
+                      }
+                    </Typography>
+                  </Box>
+                  
                   {profileData?.bio && (
                     <Box 
                       sx={{ 
@@ -364,14 +399,16 @@ const ProfilePage = () => {
                         borderLeft: '4px solid #1976d2'
                       }}
                     >
-                      <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'block' }}>
-                        Biografía
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                        <ContactsIcon sx={{ mr: 1, fontSize: 16, color: '#1976d2' }} />
+                        <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold' }}>
+                          Biografía
+                        </Typography>
+                      </Box>
                       <Typography variant="body2">{profileData.bio}</Typography>
                     </Box>
                   )}
-                  
-                  {profileData?.location && (
+                    {profileData?.location && (
                     <Box 
                       sx={{ 
                         p: 1.5, 
@@ -381,14 +418,16 @@ const ProfilePage = () => {
                         borderLeft: '4px solid #4caf50'
                       }}
                     >
-                      <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'block' }}>
-                        Ubicación
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                        <LocationOnIcon sx={{ mr: 1, fontSize: 16, color: '#4caf50' }} />
+                        <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold' }}>
+                          Ubicación
+                        </Typography>
+                      </Box>
                       <Typography variant="body2">{profileData.location}</Typography>
                     </Box>
                   )}
-                  
-                  {profileData?.birth_date && (
+                    {profileData?.birth_date && (
                     <Box 
                       sx={{ 
                         p: 1.5, 
@@ -398,10 +437,19 @@ const ProfilePage = () => {
                         borderLeft: '4px solid #ff9800'
                       }}
                     >
-                      <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'block' }}>
-                        Fecha de Nacimiento
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                        <CakeIcon sx={{ mr: 1, fontSize: 16, color: '#ff9800' }} />
+                        <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold' }}>
+                          Fecha de Nacimiento
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2">
+                        {(() => {
+                          const [year, month, day] = profileData.birth_date.split('-');
+                          return `${day}/${month}/${year}`;
+                        })()}
                       </Typography>
-                      <Typography variant="body2">{new Date(profileData.birth_date).toLocaleDateString('es-ES')}</Typography>                    </Box>
+                    </Box>
                   )}
                 </Box>
               </Box>
@@ -416,15 +464,69 @@ const ProfilePage = () => {
                 Cerrar
               </Button>
             </DialogActions>
-          </Dialog>
+          </Dialog>          {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-          {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
-          <Tabs value={tab} onChange={(_e, newValue) => setTab(newValue)}>
-            <Tab label="Mis Productos" />
-            <Tab label="Favoritos" />
-            <Tab label="Calificaciones" />
-          </Tabs>
+          <Box sx={{ 
+            borderBottom: 1, 
+            borderColor: 'divider',
+            mb: 3,
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px 8px 0 0',
+            overflow: 'hidden'
+          }}>
+            <Tabs 
+              value={tab} 
+              onChange={(_e, newValue) => setTab(newValue)}
+              variant="fullWidth"
+              sx={{
+                '& .MuiTab-root': {
+                  minWidth: 'auto',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  color: '#6b7280',
+                  py: { xs: 1.5, sm: 2 },
+                  px: { xs: 0.5, sm: 1 },
+                  minHeight: { xs: '56px', sm: '64px' },
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: { xs: 0.5, sm: 1 },
+                  '&.Mui-selected': {
+                    color: '#004f9e',
+                    backgroundColor: '#ffffff',
+                    borderBottom: '3px solid #004f9e',
+                  },                  '& .MuiTab-iconWrapper': {
+                    marginBottom: { xs: '2px', sm: 0 },
+                    marginRight: { xs: 0, sm: '6px' },
+                    fontSize: { xs: '1.2rem', sm: '1.3rem' },
+                    '& svg': {
+                      fontSize: { xs: '1.2rem', sm: '1.3rem' },
+                    }
+                  }
+                },
+                '& .MuiTabs-indicator': {
+                  display: 'none',
+                },
+                '& .MuiTabs-flexContainer': {
+                  backgroundColor: '#f8f9fa',
+                }
+              }}
+            >              <Tab 
+                label="Productos" 
+                icon={<InventoryIcon sx={{ color: '#AA7444' }} />}
+                iconPosition="start"
+              />
+              <Tab 
+                label="Favoritos" 
+                icon={<FavoriteIcon sx={{ color: '#e53e3e' }} />}
+                iconPosition="start"
+              />
+              <Tab 
+                label="Calificaciones" 
+                icon={<StarIcon sx={{ color: '#fbbf24' }} />}
+                iconPosition="start"
+              />
+            </Tabs>
+          </Box>
 
           <Box sx={{ mt: 3 }}>
             {tab === 0 ? (
@@ -456,13 +558,9 @@ const ProfilePage = () => {
             ) : tab === 1 ? (
               favorites.length > 0 ? (
                 <List
-                  dataSource={favorites}
-                  renderItem={(item: Favorite) => {
-                    console.log('Renderizando favorito:', item);
-                    
+                  dataSource={favorites}                  renderItem={(item: Favorite) => {
                     // Verificar si tenemos datos de producto válidos
                     if (!item) {
-                      console.warn('Item de favorito no válido:', item);
                       return null;
                     }
                     

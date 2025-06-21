@@ -8,7 +8,7 @@ import os
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Revisa productos en estado pendiente que han esperado al menos 2 minutos'
+    help = 'Revisa productos en estado pendiente que han esperado al menos 30 segundos'
 
     def handle(self, *args, **options):
         now = timezone.now()

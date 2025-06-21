@@ -18,8 +18,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   async getAll() {
     try {
       const headers = this.getHeaders();
-      console.log('Headers para getAll notifications:', headers);
-      console.log('URL de request:', `${API_URL}/api/notifications/`);
+      console.log('Headers para getAll notifications:', headers);      console.log('URL de request:', `${API_URL}/api/notifications/`);
       
       const response = await axios.get(`${API_URL}/api/notifications/`, {
         headers

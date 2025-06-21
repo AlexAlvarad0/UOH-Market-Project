@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 class ProductReviewMiddleware:
     """
     Middleware que revisa automáticamente los productos pendientes
-    que han estado en revisión por al menos 2 minutos.
+    que han estado en revisión por al menos 1 minuto.
     """
     
     def __init__(self, get_response):

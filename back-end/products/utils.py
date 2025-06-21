@@ -8,6 +8,8 @@ from io import BytesIO
 import base64
 from skimage import feature
 from django.conf import settings
+from .completely_free_moderator import analyze_image_with_completely_free_services
+from .enhanced_drug_detector import analyze_image_with_enhanced_drug_detection
 
 logger = logging.getLogger(__name__)
 
@@ -377,7 +379,7 @@ def check_image_metadata(image_path):
 def analyze_image_content(image_path):
     """
     Analiza el contenido de una imagen para detectar elementos inapropiados
-    utilizando técnicas avanzadas de visión por computadora.
+    utilizando SOLO el sistema de IA avanzado (OpenCV + Machine Learning).
     
     Args:
         image_path: Ruta al archivo de imagen
@@ -386,13 +388,104 @@ def analyze_image_content(image_path):
         dict: Resultado del análisis con claves 'is_appropriate' y 'labels'
     """
     try:
-        logger.info(f"Analizando imagen: {image_path}")
+        logger.info(f"Analizando imagen con IA avanzada: {image_path}")
         
         # Verificar si la imagen existe
         if not os.path.exists(image_path):
             logger.warning(f"Imagen no encontrada: {image_path}")
-            return {"is_appropriate": True, "labels": [], "reason": ""}
+            return {"is_appropriate": True, "labels": [], "reason": "Imagen no encontrada"}
         
+        # Verificar configuración para usar IA
+        use_ai_moderation = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
+        
+        if not use_ai_moderation:
+            logger.info("Moderación por IA deshabilitada, aprobando imagen por defecto")
+            return {
+                "is_appropriate": True, 
+                "labels": ["moderation_disabled"], 
+                "reason": "Moderación por IA deshabilitada"
+            }
+          # Usar SOLO el sistema de IA avanzado + detector específico de drogas
+        logger.info("Usando sistema de IA avanzado + detector específico de drogas - SIN fallback")
+        
+        # 1. Análisis general con IA avanzada
+        general_result = analyze_image_with_completely_free_services(image_path)
+        
+        # 2. Análisis específico de drogas y sustancias
+        drug_result = analyze_image_with_enhanced_drug_detection(image_path)
+        
+        # 3. Combinar resultados (si cualquiera detecta problema, rechazar)
+        logger.info(f"Análisis general: {general_result.get('confidence', 0):.3f}")
+        logger.info(f"Análisis de drogas: {drug_result.get('confidence', 0):.3f}")
+        
+        # El resultado más restrictivo gana
+        general_inappropriate = not general_result.get('is_appropriate', True)
+        drug_inappropriate = not drug_result.get('is_appropriate', True)
+        
+        if drug_inappropriate or general_inappropriate:
+            # Si cualquiera detecta contenido inapropiado, rechazar
+            primary_result = drug_result if drug_inappropriate else general_result
+            secondary_result = general_result if drug_inappropriate else drug_result
+            
+            combined_confidence = max(
+                primary_result.get('confidence', 0),
+                secondary_result.get('confidence', 0)
+            )
+            
+            reasons = []
+            if drug_inappropriate:
+                reasons.append(f"Drogas/Sustancias: {drug_result.get('reason', '')}")
+            if general_inappropriate:
+                reasons.append(f"General: {general_result.get('reason', '')}")
+            
+            logger.warning(f"Contenido inapropiado detectado: {'; '.join(reasons)}")
+            return {
+                "is_appropriate": False,
+                "labels": ["ai_detected_inappropriate", "multi_system_detection"],
+                "reason": f"IA detectó contenido inapropiado - {'; '.join(reasons)} (confianza: {combined_confidence:.2f})",
+                "general_analysis": general_result,
+                "drug_analysis": drug_result,
+                "combined_confidence": combined_confidence,
+                "detection_method": "enhanced_multi_system"
+            }
+        else:
+            # Ambos sistemas aprobaron
+            combined_confidence = max(
+                general_result.get('confidence', 0),
+                drug_result.get('confidence', 0)
+            )
+            
+            logger.info(f"Imagen aprobada por ambos sistemas")
+            return {                "is_appropriate": True,
+                "labels": ["ai_approved", "multi_system_approved"],
+                "reason": f"IA aprobó el contenido - General: {general_result.get('confidence', 0):.2f}, Drogas: {drug_result.get('confidence', 0):.2f}",
+                "general_analysis": general_result,
+                "drug_analysis": drug_result,
+                "combined_confidence": combined_confidence,
+                "detection_method": "enhanced_multi_system"
+            }
+        
+    except Exception as e:
+        logger.error(f"Error analizando imagen {image_path}: {str(e)}")
+        # En caso de error crítico, aprobar para evitar bloqueos
+        return {
+            "is_appropriate": True, 
+            "labels": ["error_approved"], 
+            "reason": f"Error en análisis, aprobado por defecto: {str(e)}"
+        }
+
+def _analyze_image_content_local(image_path):
+    """
+    Análisis de imagen usando métodos locales (código original)
+    Esta función actúa como fallback cuando la API de IA no está disponible.
+    
+    Args:
+        image_path: Ruta al archivo de imagen
+        
+    Returns:
+        dict: Resultado del análisis con claves 'is_appropriate' y 'labels'
+    """
+    try:
         # Primero verificar el nombre del archivo
         filename = os.path.basename(image_path).lower()
         
@@ -426,7 +519,7 @@ def analyze_image_content(image_path):
                 return {
                     "is_appropriate": False, 
                     "labels": ["drugs"], 
-                    "reason": f"Nombre de archivo sospechoso ({keyword})"
+                    "reason": f"Nombre de archivo sospechoso ({keyword}) - análisis local"
                 }
         
         # Verificar metadatos de la imagen
@@ -434,7 +527,7 @@ def analyze_image_content(image_path):
             return {
                 "is_appropriate": False,
                 "labels": ["suspicious_metadata"],
-                "reason": "La imagen contiene metadatos sospechosos relacionados con drogas"
+                "reason": "La imagen contiene metadatos sospechosos relacionados con drogas - análisis local"
             }
         
         # Aplicar detectores específicos con sensibilidad ajustada
@@ -442,30 +535,23 @@ def analyze_image_content(image_path):
             return {
                 "is_appropriate": False, 
                 "labels": ["cannabis"], 
-                "reason": "La imagen contiene lo que parece ser cannabis/marihuana"
+                "reason": "La imagen contiene lo que parece ser cannabis/marihuana - análisis local"
             }
-            
-        if detect_powder_substances(image_path, SENSITIVITY['powder']):
-            return {
-                "is_appropriate": False, 
-                "labels": ["white_powder_substance"], 
-                "reason": "La imagen contiene lo que parece ser sustancias en polvo"
-            }
-            
+                        
         if detect_pills(image_path, SENSITIVITY['pills']):
             return {
                 "is_appropriate": False, 
                 "labels": ["pills"], 
-                "reason": "La imagen contiene lo que parecen ser pastillas o píldoras"
+                "reason": "La imagen contiene lo que parecen ser pastillas o píldoras - análisis local"
             }
         
-        logger.info("Imagen analizada: No se encontró contenido sospechoso")
-        return {"is_appropriate": True, "labels": [], "reason": ""}
+        logger.info("Imagen analizada (método local): No se encontró contenido sospechoso")
+        return {"is_appropriate": True, "labels": ["local_approved"], "reason": "Aprobado por análisis local"}
         
     except Exception as e:
-        logger.error(f"Error analizando imagen {image_path}: {str(e)}")
+        logger.error(f"Error en análisis local de imagen {image_path}: {str(e)}")
         # En caso de error, permitimos la imagen para evitar falsos positivos
-        return {"is_appropriate": True, "labels": [], "reason": f"Error: {str(e)}"}
+        return {"is_appropriate": True, "labels": [], "reason": f"Error en análisis local: {str(e)}"}
 
 def validate_image_filenames(image_filenames):
     """

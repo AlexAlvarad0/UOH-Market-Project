@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status, permissions, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.core.cache import cache
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,10 +11,7 @@ from decimal import Decimal
 from .models import Category, Product, Favorite
 from .serializers import CategorySerializer, ProductSerializer, ProductDetailSerializer, FavoriteSerializer
 from .filters import ProductFilter
-import logging
-
-# Configurar el logger
-logger = logging.getLogger(__name__)
+from .pagination import CustomPageNumberPagination
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -23,7 +20,6 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all().order_by('name')  # Add default ordering
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
-    
     # Deshabilitar paginación para categorías
     pagination_class = None
 
@@ -32,20 +28,18 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
             # Verificar si hay categorías
             categories = self.get_queryset()
             count = categories.count()
-            logger.info(f"Categories count: {count}")
             
             if count == 0:
-                logger.warning("No categories found in database!")
+                return Response(
+                    {'error': 'No categories found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
                 
             # Continuar con el comportamiento normal
             response = super().list(request, *args, **kwargs)
             
-            # Registrar la respuesta para depuración
-            logger.info(f"Categories response data: {response.data}")
-            
             return response
         except Exception as e:
-            logger.exception(f"Error listing categories: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -60,6 +54,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['price', 'created_at', 'views_count']
     ordering = ['-created_at']
+    pagination_class = CustomPageNumberPagination
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -67,11 +62,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         return ProductSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'weekly_offers', 'debug_products']:
             permission_classes = [permissions.AllowAny]
         else:
             permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]    
+        return [permission() for permission in permission_classes]
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
@@ -125,17 +120,14 @@ class ProductViewSet(viewsets.ModelViewSet):
                     'updated_at': product.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'is_recent': product.created_at >= seven_days_ago,
                     'discount_calc': discount_calc,
-                    'has_different_prices': product.original_price != product.price if product.original_price else False
-                })
+                    'has_different_prices': product.original_price != product.price if product.original_price else False                })
             
             return Response({
                 'seven_days_ago': seven_days_ago.strftime('%Y-%m-%d %H:%M:%S'),
                 'current_time': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'products': debug_data
-            })
+                'products': debug_data            })
             
         except Exception as e:
-            logger.exception(f"Error in debug_products: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
@@ -147,15 +139,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         try:
             # Fecha de hace 7 días para ofertas semanales
             seven_days_ago = timezone.now() - timedelta(days=7)
-            logger.info(f"Searching for products created after: {seven_days_ago}")
             
             # Filtrar todos los productos con descuento (original_price > price)
             queryset = Product.objects.filter(
                 status='available',
                 original_price__gt=models.F('price')
-            )
-            
-            logger.info(f"Found {queryset.count()} products matching basic criteria")
+            ).select_related('seller', 'category')  # Optimizar consultas
             
             # Lista para almacenar productos con su porcentaje de descuento
             offers_with_discount = []
@@ -166,11 +155,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                     original = Decimal(str(product.original_price))
                     current = Decimal(str(product.price))
                     
-                    logger.info(f"Product {product.id} ({product.title}): original=${original}, current=${current}, created={product.created_at}")
-                    
                     if original > current:  # Solo si hay descuento
                         discount_percentage = ((original - current) / original) * 100
-                        logger.info(f"Product {product.id} discount: {discount_percentage}%")
                         
                         # Solo incluir si el descuento es >= 35%
                         if discount_percentage >= 35:
@@ -178,11 +164,6 @@ class ProductViewSet(viewsets.ModelViewSet):
                                 'product': product,
                                 'discount_percentage': round(discount_percentage, 1)
                             })
-                            logger.info(f"Product {product.id} added to offers (discount: {discount_percentage}%)")
-                        else:
-                            logger.info(f"Product {product.id} discount too low: {discount_percentage}%")
-                    else:
-                        logger.info(f"Product {product.id} has no discount or price increased")
             
             # Ordenar por porcentaje de descuento (mayor descuento primero)
             offers_with_discount.sort(key=lambda x: x['discount_percentage'], reverse=True)
@@ -197,11 +178,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 product_data['discount_percentage'] = offer['discount_percentage']
                 offers_data.append(product_data)
             
-            logger.info(f"Found {len(offers_data)} weekly offers")
             return Response(offers_data)
             
         except Exception as e:
-            logger.exception(f"Error getting weekly offers: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -209,14 +188,26 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         try:
-            # Logs de depuración
-            logger.info(f"Recibidos datos del producto: {request.data}")
-            logger.info(f"Archivos recibidos: {request.FILES}")
+            # Verificación automática para usuarios UOH (failsafe)
+            is_uoh_email = request.user.email.endswith('@pregrado.uoh.cl') or request.user.email.endswith('@uoh.cl')
+            
+            if is_uoh_email and not request.user.is_verified_seller:
+                # Auto-corregir el estado del usuario UOH
+                request.user.is_verified_seller = True
+                request.user.save()
+            
+            # Verificar si el usuario puede vender productos
+            if not request.user.is_verified_seller:
+                return Response(
+                    {"error": "Solo usuarios con correos institucionales (@uoh.cl o @pregrado.uoh.cl) pueden vender productos."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
             serializer = self.get_serializer(data=request.data)
             if not serializer.is_valid():
-                logger.error(f"Errores de validación: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)            # Guardar el producto con estado inicial "En revisión" y establecer precio original
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Guardar el producto con estado inicial "En revisión" y establecer precio original
             product = serializer.save(status='pending', original_price=serializer.validated_data['price'])
 
             # Procesar múltiples imágenes
@@ -242,12 +233,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                             is_primary=is_primary
                         )
                         image.save()
-
-                        logger.info(f"Imagen {index} guardada: {image.image.url} (primaria: {is_primary})")
-                    except Exception as img_err:
-                        logger.error(f"Error al guardar imagen {key}: {str(img_err)}")
-            else:
-                logger.warning(f"No se proporcionaron imágenes para el producto {product.id}")
+                    except Exception:
+                        pass
 
             # Verificar si el producto pasó la moderación (atributo agregado por el signal)
             if hasattr(product, '_moderation_passed') and not product._moderation_passed:
@@ -264,7 +251,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             headers = self.get_success_headers(serializer.data)
             return Response(updated_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         except Exception as e:
-            logger.exception(f"Error al crear producto: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request, *args, **kwargs):
@@ -295,10 +281,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             if page is not None:
                 serializer = self.get_serializer(page, many=True)
                 return self.get_paginated_response(serializer.data)
+            
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
         except Exception as e:
-            logger.exception(f"Error listing products: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -314,21 +300,17 @@ class ProductViewSet(viewsets.ModelViewSet):
                     {"detail": "No tienes permiso para eliminar este producto."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
-            # Primero eliminar las imágenes asociadas de manera segura
+              # Primero eliminar las imágenes asociadas de manera segura
             try:
                 from .models import ProductImage
                 ProductImage.objects.filter(product=instance).delete()
-                logger.info(f"Imágenes para producto {instance.id} eliminadas")
-            except Exception as img_err:
-                logger.warning(f"Error al eliminar imágenes: {str(img_err)}")
-            
-            # Eliminar los favoritos asociados de manera segura
+            except Exception:
+                pass
+              # Eliminar los favoritos asociados de manera segura
             try:
                 Favorite.objects.filter(product=instance).delete()
-                logger.info(f"Favoritos para producto {instance.id} eliminados")
-            except Exception as fav_err:
-                logger.warning(f"Error al eliminar favoritos: {str(fav_err)}")
+            except Exception:
+                pass  # Ignorar errores al eliminar favoritos
             
             # Usar eliminación directa para evitar problemas con el colector de relaciones
             # Esto evita que Django busque relaciones con tablas inexistentes
@@ -343,11 +325,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             cursor.execute("DELETE FROM products_product WHERE id = %s", [product_id])
             connection.commit()
             
-            logger.info(f"Producto {product_id} eliminado correctamente")
             
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            logger.exception(f"Error deleting product: {str(e)}")
             return Response(
                 {"detail": f"Error al eliminar el producto: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -366,12 +346,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 )
                 
             # Debugging
-            logger.debug(f"Update request data: {request.data}")
-            logger.debug(f"Update request FILES: {request.FILES}")
               # Actualizar el producto con serializer parcial
             serializer = self.get_serializer(instance, data=request.data, partial=True)
             if not serializer.is_valid():
-                logger.error(f"Update validation errors: {serializer.errors}")
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             # Verificar si el precio ha cambiado para manejar el precio original
@@ -380,7 +357,6 @@ class ProductViewSet(viewsets.ModelViewSet):
                 # Si el precio ha cambiado y no hay precio original guardado, guardar el precio actual como original
                 if instance.original_price is None:
                     serializer.validated_data['original_price'] = instance.price
-                    logger.info(f"Setting original price for product {instance.id}: {instance.price} -> {new_price}")
             
             # Guardar los cambios del producto
             self.perform_update(serializer)
@@ -392,30 +368,23 @@ class ProductViewSet(viewsets.ModelViewSet):
             if images_to_remove:
                 try:
                     # Eliminar las imágenes especificadas
-                    removed_count = ProductImage.objects.filter(
+                    removed_count =                    ProductImage.objects.filter(
                         product=instance, 
                         id__in=images_to_remove
                     ).delete()[0]
-                    logger.info(f"Removed {removed_count} images for product {instance.id}")
                 except Exception as e:
-                    logger.error(f"Error removing images: {str(e)}")            # Agregar nuevas imágenes si existen
+                    pass  # Ignorar errores al eliminar imágenes
+                    
             new_images = []
-            logger.info(f"All FILES keys in request: {list(request.FILES.keys())}")
             for key in request.FILES:
-                logger.info(f"Processing key: '{key}'")
                 if key.startswith('new_images['):
-                    logger.info(f"Found new image with key: '{key}'")
                     new_images.append(request.FILES[key])
-                else:
-                    logger.info(f"Key '{key}' does not start with 'new_images['")
             
             # También mantener compatibilidad con el campo 'image' individual
             single_image = request.FILES.get('image')
             if single_image:
-                logger.info(f"Found single image: {single_image.name}")
                 new_images.append(single_image)
             
-            logger.info(f"Total new images found: {len(new_images)}")
             
             if new_images:
                 try:
@@ -426,7 +395,6 @@ class ProductViewSet(viewsets.ModelViewSet):
                     
                     # Verificar que no exceda el límite de 10 imágenes
                     if existing_images_count + len(new_images) > 10:
-                        logger.warning(f"Product {instance.id} would have {existing_images_count + len(new_images)} images, exceeding limit")
                         return Response(
                             {"detail": f"No puedes tener más de 10 imágenes por producto. Actualmente tienes {existing_images_count} imágenes."},
                             status=status.HTTP_400_BAD_REQUEST
@@ -450,19 +418,81 @@ class ProductViewSet(viewsets.ModelViewSet):
                         )
                         image.save()
                         
-                        logger.info(f"New image saved for product {instance.id}: {image_file.name}")
-                        logger.info(f"Image ID: {image.id}, URL: {image.image.url}, is_primary: {is_primary}")
                         
                         # Verificar que la imagen realmente se guardó
                         total_images = ProductImage.objects.filter(product=instance).count()
-                        logger.info(f"Total images for product {instance.id} after save: {total_images}")
-                        
-                        # Después de crear la primera imagen primaria, las siguientes no lo serán
+                          # Después de crear la primera imagen primaria, las siguientes no lo serán
                         if is_primary:
                             has_primary = True
+                    
+                    # ¡NUEVA FUNCIONALIDAD! Moderar imágenes nuevas con IA
+                    
+                    # Analizar cada imagen nueva con el sistema de IA
+                    inappropriate_images = []
+                    for i, image_file in enumerate(new_images):
+                        try:
+                            # Obtener la imagen recién creada para moderar
+                            image_instance = ProductImage.objects.filter(product=instance).order_by('-id')[i]
+                            image_path = image_instance.image.path
                             
+                            # Usar el sistema de IA mejorado para moderar
+                            from .utils import analyze_image_content
+                            moderation_result = analyze_image_content(image_path)
+                            
+                            
+                            if not moderation_result.get('is_appropriate', True):
+                                inappropriate_images.append({
+                                    'image_name': image_file.name,
+                                    'reason': moderation_result.get('reason', 'Contenido detectado como inapropiado'),
+                                    'confidence': moderation_result.get('confidence', 0)
+                                })
+                        
+                        except Exception as mod_err:
+                            # En caso de error, por seguridad, marcar como sospechosa
+                            inappropriate_images.append({
+                                'image_name': image_file.name,
+                                'reason': f'Error en análisis de seguridad: {str(mod_err)}',
+                                'confidence': 1.0
+                            })
+                    
+                    # Si se detectaron imágenes inapropiadas, cambiar estado a pendiente y notificar
+                    if inappropriate_images:
+                        # Cambiar estado del producto a pendiente para revisión
+                        instance.status = 'pending'
+                        instance.save()
+                        
+                        # Programar revisión en 30 segundos
+                        from django.utils import timezone
+                        import datetime
+                        review_time = timezone.now() + datetime.timedelta(seconds=30)
+                        Product.objects.filter(pk=instance.pk).update(review_scheduled_at=review_time)
+                        
+                        
+                        # Crear mensaje detallado para el usuario
+                        image_names = [img['image_name'] for img in inappropriate_images]
+                        error_details = []
+                        for img in inappropriate_images:
+                            error_details.append(f"• {img['image_name']}: {img['reason']}")
+                        
+                        error_message = (
+                            f"⚠️ No podemos actualizar tu producto en este momento.\n\n"
+                            f"Nuestro sistema de seguridad ha detectado contenido que podría ser inapropiado "
+                            f"en las siguientes imágenes:\n\n"
+                            + "\n".join(error_details) +
+                            f"\n\n📋 Tu producto ha sido puesto en revisión y será analizado en los próximos 30 segundos. "
+                            f"Si el contenido es apropiado, se publicará automáticamente. "
+                            f"Si no, puedes editarlo y volver a intentarlo."
+                        )
+                        
+                        return Response(
+                            {"detail": error_message},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    else:
+                        # Si no hay imágenes inapropiadas, continuar con la actualización
+                        instance.status = 'available'
+                        instance.save()
                 except Exception as img_err:
-                    logger.error(f"Error saving images during update: {str(img_err)}")
                     return Response(
                         {"detail": f"Error al guardar las imágenes: {str(img_err)}"},
                         status=status.HTTP_400_BAD_REQUEST
@@ -474,7 +504,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response(updated_serializer.data)
             
         except Exception as e:
-            logger.exception(f"Error updating product: {str(e)}")
             return Response(
                 {"detail": f"Error al actualizar el producto: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -516,8 +545,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 message = "Producto marcado como Disponible."
                 
             product.save(update_fields=['status', 'manually_unavailable'])
-            
-            # Devolver el producto actualizado
+              # Devolver el producto actualizado
             serializer = self.get_serializer(product)
             return Response({
                 "message": message,
@@ -525,11 +553,146 @@ class ProductViewSet(viewsets.ModelViewSet):
             })
             
         except Exception as e:
-            logger.exception(f"Error cambiando disponibilidad del producto: {str(e)}")
             return Response(
                 {"detail": f"Error al cambiar la disponibilidad: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+# Funciones independientes para debug (fuera de los ViewSets)
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def debug_user_verification(request):
+    """
+    Endpoint temporal para verificar y corregir el estado de verificación del usuario
+    """
+    try:
+        user = request.user
+        original_status = user.is_verified_seller
+        
+        # Verificar si el email es UOH y actualizar si es necesario
+        is_uoh_email = user.email.endswith('@pregrado.uoh.cl') or user.email.endswith('@uoh.cl')
+        
+        if is_uoh_email and not user.is_verified_seller:
+            # Actualizar el estado
+            user.is_verified_seller = True
+            user.save()
+        
+        return Response({
+            'user_email': user.email,
+            'is_uoh_email': is_uoh_email,
+            'original_is_verified_seller': original_status,
+            'current_is_verified_seller': user.is_verified_seller,
+            'was_updated': original_status != user.is_verified_seller,
+            'can_create_products': user.is_verified_seller
+        })
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def debug_check_user(request):
+    """
+    Endpoint público para verificar el estado de un usuario por email
+    """
+    try:
+        email = request.query_params.get('email')
+        if not email:
+            return Response({
+                'error': 'Se requiere el parámetro email'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        from accounts.models import User
+        try:
+            user = User.objects.get(email=email)
+            
+            # Verificar si el email es UOH y actualizar si es necesario
+            is_uoh_email = user.email.endswith('@pregrado.uoh.cl') or user.email.endswith('@uoh.cl')
+            original_status = user.is_verified_seller
+            
+            if is_uoh_email and not user.is_verified_seller:
+                # Auto-corregir el estado del usuario UOH
+                user.is_verified_seller = True
+                user.save()
+            
+            return Response({
+                'user_email': user.email,
+                'user_id': user.id,
+                'is_uoh_email': is_uoh_email,
+                'original_is_verified_seller': original_status,
+                'current_is_verified_seller': user.is_verified_seller,
+                'was_updated': original_status != user.is_verified_seller,
+                'can_create_products': user.is_verified_seller,
+                'is_active': user.is_active,
+                'date_joined': user.date_joined.isoformat() if user.date_joined else None
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'error': f'Usuario con email {email} no encontrado'
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def debug_create_test(request):
+        """
+        Endpoint temporal para probar la creación de productos sin autenticación estricta
+        """
+        try:
+            email = request.data.get('test_user_email')
+            if not email:
+                return Response({
+                    'error': 'Se requiere test_user_email en el body'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            from accounts.models import User
+            try:
+                user = User.objects.get(email=email)
+                
+                # Simular el request.user
+                request.user = user
+                
+                # Log detallado del usuario para debug
+                
+                # Verificación automática para usuarios UOH (failsafe)
+                is_uoh_email = user.email.endswith('@pregrado.uoh.cl') or user.email.endswith('@uoh.cl')
+                
+                if is_uoh_email and not user.is_verified_seller:
+                    # Auto-corregir el estado del usuario UOH
+                    user.is_verified_seller = True
+                    user.save()
+                
+                # Verificar si el usuario puede vender productos
+                if not user.is_verified_seller:
+                    return Response({
+                        "error": "Solo usuarios con correos institucionales (@uoh.cl o @pregrado.uoh.cl) pueden vender productos.",
+                        "debug_info": {
+                            "user_email": user.email,
+                            "is_verified_seller": user.is_verified_seller,
+                            "is_uoh_email": is_uoh_email
+                        }
+                    }, status=status.HTTP_403_FORBIDDEN)
+                
+                return Response({
+                    "success": "Usuario puede crear productos",
+                    "debug_info": {
+                        "user_email": user.email,
+                        "is_verified_seller": user.is_verified_seller,
+                        "is_uoh_email": is_uoh_email,
+                        "can_create_products": True
+                    }
+                })
+                
+            except User.DoesNotExist:
+                return Response({
+                    'error': f'Usuario con email {email} no encontrado'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class FavoriteViewSet(viewsets.ModelViewSet):
     serializer_class = FavoriteSerializer

@@ -142,28 +142,20 @@ class ApiService {
       return { success: false, error: error instanceof Error ? error.message : 'Error al cargar categorías' };
     }
   }
-
   // Método para añadir un producto a favoritos
   async addToFavorites(productId: number) {
     try {
-      console.log(`Intentando añadir producto ${productId} a favoritos`);
-
       // Verificar que productId sea válido
       if (!productId && productId !== 0) {
         throw new Error('Se requiere un ID de producto válido para añadir a favoritos');
-      }
-
-      // Asegurar que estamos enviando un número para el ID del producto
+      }// Asegurar que estamos enviando un número para el ID del producto
       const data = { product: productId };
-      console.log('Datos enviados a la API:', data);
 
       const response = await axios.post(
         `${API_URL}/favorites/`,
         data,
         { headers: this.getHeaders() }
       );
-
-      console.log('Respuesta de añadir a favoritos:', response.data);
       return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al añadir a favoritos:', error);
 
@@ -326,37 +318,43 @@ class ApiService {
 
   // Add other API methods as needed
 
-  // Método alternativo para validar el token que usa un endpoint existente o simplemente verifica
-  // la sesión actual sin depender de un endpoint específico
+  // Método alternativo para validar el token que usa un endpoint existente o simplemente verifica  // Método para validar el token actual con el servidor
   async validateToken() {
-    // Si hay un token guardado, asumimos que es válido
-    // Esta es una solución temporal hasta que tengamos un endpoint adecuado
-    if (this.token) {
-      // Intentar recuperar datos del usuario del localStorage
-      const savedUserData = localStorage.getItem('userData');
-      if (savedUserData) {
-        try {
-          return {
-            success: true,
-            data: { user: JSON.parse(savedUserData) }
-          };
-        } catch (e) {
-          console.error('Error parsing stored user data', e);
-        }
+    try {
+      if (!this.token) {
+        return {
+          success: false,
+          error: 'No token found'
+        };
+      }      // Llamar al endpoint del usuario actual para validar el token
+      const response = await axios.get(`${API_URL}/accounts/me/`, {
+        headers: this.getHeaders()
+      });
+
+      if (response.data) {
+        return {
+          success: true,
+          data: { user: response.data }
+        };
       }
-      
-      // Si no hay datos de usuario, asumimos que el token es válido
-      // pero no tenemos información de usuario
+
       return {
-        success: true,
-        data: { user: { is_authenticated: true } }
+        success: false,
+        error: 'Invalid token response'
+      };
+    } catch (error: unknown) {
+      console.error('Token validation error:', error);
+      if (axios.isAxiosError(error)) {
+        return {
+          success: false,
+          error: error.response?.data || error.message
+        };
+      }
+      return {
+        success: false,
+        error: 'Token validation failed'
       };
     }
-    
-    return {
-      success: false,
-      error: 'No token found'
-    };
   }
 
   // Método para crear un nuevo producto (elimina la versión duplicada y queda solo esta)
@@ -599,14 +597,13 @@ class ApiService {
       };
     }
   }
-
   // Método para obtener el perfil del usuario autenticado
   async getUserProfile() {
     try {
-      const response = await axios.get(`${API_URL}/profile/`, {
+      const response = await axios.get(`${API_URL}/accounts/profile/`, {
         headers: this.getHeaders()
       });
-      return { success: true, data: response.data };    } catch (error: unknown) {
+      return { success: true, data: response.data };} catch (error: unknown) {
       console.error('Error al obtener el perfil:', error);
       if (axios.isAxiosError(error) && error.response) {
         return { success: false, error: error.response.data || 'Error al cargar el perfil' };
@@ -614,12 +611,11 @@ class ApiService {
       return { success: false, error: error instanceof Error ? error.message : 'Error al cargar el perfil' };
     }
   }
-
   // Método para actualizar el perfil del usuario
   async updateUserProfile(formData: FormData) {
     try {
       const response = await axios.patch(
-        `${API_URL}/profile/`,
+        `${API_URL}/accounts/profile/`,
         formData,
         {
           headers: {
@@ -743,12 +739,21 @@ class ApiService {
         error: error instanceof Error ? error.message : 'Error al cargar mensajes' 
       };
     }
-  }
-  async sendMessage(conversationId: number, content: string) {
+  }  async sendMessage(conversationId: number, content: string, replyToId?: number) {
     try {
+      const requestData: { conversation: number; content: string; reply_to?: number } = { 
+        conversation: conversationId, 
+        content 
+      };
+      
+      // Agregar reply_to si se está respondiendo a un mensaje
+      if (replyToId) {
+        requestData.reply_to = replyToId;
+      }
+
       const response = await axios.post(
         `${API_URL}/messages/`,
-        { conversation: conversationId, content },
+        requestData,
         { headers: this.getHeaders() }
       );
       return { success: true, data: response.data };    
@@ -884,6 +889,24 @@ class ApiService {
       return { success: false, error: error instanceof Error ? error.message : 'Error increment view' };
     }
   }
+
+  // Método para cambiar contraseña
+  async changePassword(oldPassword: string, newPassword1: string, newPassword2: string) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/auth/password/change/`,
+        { old_password: oldPassword, new_password1: newPassword1, new_password2: newPassword2 },
+        { headers: this.getHeaders() }
+      );
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error cambiando contraseña:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al cambiar contraseña' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al cambiar contraseña' };
+    }
+  }
 }
 
 // Instancia principal para uso general
@@ -915,18 +938,48 @@ export const auth = {
         error: 'Error al conectar con el servidor'
       };
     }
-  },
-
-  async register(username: string, email: string, password: string, firstName: string, lastName: string) {
+  },  async googleLogin(token: string) {
     try {
-      // Usar la ruta correcta según el backend de Django
-      const response = await axios.post(`${API_URL}/auth/register/`, {
+      const response = await axios.post(`${API_URL}/auth/login/google/`, {
+        token
+      });
+      
+      // El backend ya devuelve la estructura correcta, solo retornamos response.data
+      return response.data;
+    } catch (error) {
+      console.error('Error en Google login:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return {
+          success: false,
+          error: error.response.data
+        };
+      }
+      return {
+        success: false,
+        error: 'Error al conectar con el servidor'
+      };    }
+  },async register(username: string, email: string, password: string, firstName: string, lastName: string) {
+    try {
+      // Crear el objeto de datos para enviar
+      const dataToSend = {
         username,
         email,
         password,
         password2: password, // Añadir campo password2 que exige el backend
         first_name: firstName,
         last_name: lastName
+      };
+      
+      console.log('=== REGISTRO DEBUG ===');
+      console.log('Datos que se envían al backend para registro:', dataToSend);
+      console.log('password2 incluido:', 'password2' in dataToSend);
+      console.log('password2 valor:', dataToSend.password2);      console.log('URL:', `${API_URL}/accounts/register/`);
+      
+      // Usar la ruta correcta según el backend de Django
+      const response = await axios.post(`${API_URL}/accounts/register/`, dataToSend, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       return {
@@ -948,13 +1001,62 @@ export const auth = {
     }
   },  async verifyEmail(email: string, code: string) {
     try {
-      const response = await axios.post(`${API_URL}/auth/verify-email/`, { email, code });
+      const response = await axios.post(`${API_URL}/accounts/email-verification/verify/`, { email, code });
       return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error verificando email:', error);
       if (axios.isAxiosError(error) && error.response) {
         return { success: false, error: error.response.data || 'Error al verificar correo' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al verificar correo' };
+    }
+  },
+
+  async resendVerificationCode(email: string) {
+    try {
+      const response = await axios.post(`${API_URL}/accounts/email-verification/resend/`, { email });
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error reenviando código de verificación:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al reenviar código' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al reenviar código' };
+    }
+  },
+
+  // Métodos para reseteo de contraseña
+  async requestPasswordReset(email: string) {
+    try {
+      console.log('Enviando solicitud de reseteo a:', `${API_URL}/accounts/password-reset/request/`);
+      const response = await axios.post(`${API_URL}/accounts/password-reset/request/`, {
+        email: email.toLowerCase().trim()
+      });
+      console.log('Respuesta de reseteo exitosa:', response.data);
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error solicitando reseteo de contraseña:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        return { success: false, error: error.response.data || 'Error al solicitar reseteo de contraseña' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al solicitar reseteo de contraseña' };
+    }
+  },
+  async confirmPasswordReset(token: string, newPassword: string, confirmPassword: string) {
+    try {
+      const response = await axios.post(`${API_URL}/accounts/password-reset/confirm/`, {
+        token,
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      });
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      console.error('Error confirmando reseteo de contraseña:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        return { success: false, error: error.response.data || 'Error al resetear contraseña' };
+      }
+      return { success: false, error: error instanceof Error ? error.message : 'Error al resetear contraseña' };
     }
   }
 };

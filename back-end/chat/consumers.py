@@ -6,71 +6,50 @@ from .serializers import MessageSerializer
 from accounts.models import User
 import json
 
-print("🔄 Cargando consumers.py...")
-
-
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        print(f"🔗 ChatConsumer.connect() llamado")
-        
         # Obtener el ID de la conversación de la URL
         try:
             self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
-            print(f"🔢 ID de conversación: {self.conversation_id}")
-        except KeyError as e:
-            print(f"❌ Error obteniendo conversation_id: {e}")
+        except KeyError:
             await self.close()
             return
             
         self.conversation_group_name = f'chat_{self.conversation_id}'
-        print(f"👥 Nombre del grupo: {self.conversation_group_name}")
         
         # Verificar autenticación
         user = self.scope.get("user")
-        print(f"👤 Usuario del scope: {user} (tipo: {type(user)})")
         
         if user == AnonymousUser() or user is None:
-            print("❌ Usuario no autenticado")
             await self.close()
             return
-        
-        print(f"✅ Usuario autenticado: {user.username}")
         
         # Verificar que el usuario pertenece a la conversación
         user_in_conv = await self.user_in_conversation()
-        print(f"🔐 Usuario pertenece a conversación: {user_in_conv}")
         
         if not user_in_conv:
-            print("❌ Usuario no pertenece a la conversación")
             await self.close()
             return
-        
-        # Unirse al grupo de la conversación
+          # Unirse al grupo de la conversación
         await self.channel_layer.group_add(
             self.conversation_group_name,
             self.channel_name
         )
         
-        print(f"✅ Usuario agregado al grupo {self.conversation_group_name}")
         await self.accept()
-        print("✅ Conexión WebSocket aceptada")
 
     async def disconnect(self, close_code):
-        print(f"🔌 ChatConsumer.disconnect() llamado - código: {close_code}")
         # Salir del grupo de la conversación
         if hasattr(self, 'conversation_group_name'):
             await self.channel_layer.group_discard(
                 self.conversation_group_name,
                 self.channel_name
             )
-            print(f"🚪 Usuario removido del grupo {self.conversation_group_name}")
 
     async def receive(self, text_data):
-        print(f"📨 ChatConsumer.receive() llamado con datos: {text_data[:100]}...")
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
-            print(f"📝 Tipo de mensaje: {message_type}")
             
             if message_type == 'chat_message':
                 await self.handle_chat_message(data)
@@ -84,21 +63,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_message_delete(data)
             elif message_type == 'typing':
                 await self.handle_typing(data)
-            else:
-                print(f"❓ Tipo de mensaje no reconocido: {message_type}")
                 
-        except json.JSONDecodeError:
-            print("❌ Error: datos JSON inválidos")
-        except Exception as e:
-            print(f"❌ Error procesando mensaje: {str(e)}")
-    
+        except (json.JSONDecodeError, Exception):
+            pass  # Silenciar errores para mejor rendimiento
     async def handle_chat_message(self, data):
         """Manejar envío de nuevos mensajes"""
         content = data.get('content', '').strip()
         message_type = data.get('message_type', 'text')
         
         if not content and message_type == 'text':
-            print("❌ Contenido vacío para mensaje de texto")
             return
         
         # Crear el mensaje en la base de datos
@@ -106,28 +79,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         if message:
             # Enviar el mensaje a todos los clientes en el grupo
-            await self.channel_layer.group_send(
-                self.conversation_group_name,
+            await self.channel_layer.group_send(                self.conversation_group_name,
                 {
                     'type': 'chat_message_broadcast',
                     'message': message
                 }
             )
-    
     async def handle_message_read(self, data):
         """Manejar marcado de mensajes como leídos"""
         message_id = data.get('message_id')
         if message_id:
-            success = await self.mark_message_read(message_id)
-            if success:
-                await self.channel_layer.group_send(
-                    self.conversation_group_name,
-                    {
-                        'type': 'message_read_broadcast',
-                        'message_id': message_id,
-                        'user_id': self.scope["user"].id
-                    }
-                )
+            result = await self.mark_message_read(message_id)
+            if result and result.get('success'):
+                # Obtener información del mensaje y su emisor
+                message_sender_id = result.get('sender_id')
+                if message_sender_id:
+                    await self.channel_layer.group_send(
+                        self.conversation_group_name,
+                        {
+                            'type': 'message_read_broadcast',
+                            'message_id': message_id,
+                            'reader_user_id': self.scope["user"].id,
+                            'sender_user_id': message_sender_id
+                        }
+                    )
+
     
     async def handle_message_like(self, data):
         """Manejar likes de mensajes"""
@@ -200,14 +176,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             response_data = {
                 'type': 'new_message',
-                'message': message_data
-            }
+                'message': message_data            }
             
             await self.send(text_data=json.dumps(response_data))
             
-        except Exception as e:
-            print(f"❌ Error en chat_message_broadcast: {str(e)}")
-            print(f"📝 Evento recibido: {event}")
+        except Exception:
             # Enviar respuesta de error simplificada
             try:
                 error_response = {
@@ -218,26 +191,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 }
                 await self.send(text_data=json.dumps(error_response))
-            except Exception as inner_e:
-                print(f"❌ Error crítico en fallback: {str(inner_e)}")
-    
+            except Exception:
+                pass  # Silenciar para mejor rendimiento
     async def message_read_broadcast(self, event):
-        """Notificar que un mensaje fue leído"""
-        await self.send(text_data=json.dumps({
-            'type': 'message_read',
-            'message_id': event['message_id'],
-            'user_id': event['user_id']        }))
+        """Notificar que un mensaje fue leído - solo al emisor del mensaje"""
+        sender_user_id = event.get('sender_user_id')
+        reader_user_id = event.get('reader_user_id')
+        
+        # Solo enviar la notificación al emisor del mensaje
+        if sender_user_id and self.scope["user"].id == sender_user_id:
+            await self.send(text_data=json.dumps({
+                'type': 'message_read',
+                'message_id': event['message_id'],
+                'reader_user_id': reader_user_id
+            }))
 
     async def message_like_broadcast(self, event):
         """Notificar cambio de like en mensaje"""
         await self.send(text_data=json.dumps({
             'type': 'message_like',
             'message_id': event['message_id'],
-            'user_id': event['user_id'],
-            'liked': event['liked'],
+            'user_id': event['user_id'],            'liked': event['liked'],
             'liked_by': event['liked_by'],
-            'liked_by_users': event['liked_by_users']
-        }))
+            'liked_by_users': event['liked_by_users']        }))
     
     async def message_edit_broadcast(self, event):
         """Notificar edición de mensaje"""
@@ -249,8 +225,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if isinstance(message_data, dict):
                 # Copiar el diccionario para no modificar el original
                 safe_message = {}
-                
-                # Procesar cada campo del mensaje
+                  # Procesar cada campo del mensaje
                 for key, value in message_data.items():
                     if hasattr(value, 'isoformat'):  # Es un objeto datetime
                         safe_message[key] = value.isoformat()
@@ -269,9 +244,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             await self.send(text_data=json.dumps(response_data))
             
-        except Exception as e:
-            print(f"❌ Error en message_edit_broadcast: {str(e)}")
-            print(f"📝 Evento recibido: {event}")            # Enviar solo información básica en caso de error
+        except Exception:
+            # Enviar respuesta de error simplificada
             try:
                 # Obtener ID de manera segura
                 message_id = 'unknown'
@@ -290,8 +264,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 }
                 await self.send(text_data=json.dumps(basic_response))
-            except Exception as inner_e:
-                print(f"❌ Error crítico en fallback: {str(inner_e)}")
+            except Exception:
+                pass  # Silenciar para mejor rendimiento
     
     async def message_delete_broadcast(self, event):
         """Notificar eliminación de mensaje"""
@@ -356,7 +330,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'liked_by': [user.id for user in message.liked_by.all()],
                 'liked_by_users': [{'id': user.id, 'username': user.username} for user in message.liked_by.all()]
             }
-            
             return message_data
         except Exception as e:
             print(f"❌ Error creando mensaje: {str(e)}")
@@ -370,10 +343,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if message.sender != self.scope["user"]:  # No marcar propios mensajes
                 message.is_read = True
                 message.save()
-                return True
-            return False
+                return {
+                    'success': True,
+                    'sender_id': message.sender.id
+                }
+            return {'success': False}
         except Message.DoesNotExist:
-            return False
+            return {'success': False}
     
     @database_sync_to_async
     def toggle_message_like(self, message_id):

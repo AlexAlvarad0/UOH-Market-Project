@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Typography, CircularProgress, Alert, Container, Card, Box, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, Snackbar, Chip } from '@mui/material';
+import { Typography, CircularProgress, Alert, Container, Card, Box, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, Snackbar, Chip, GlobalStyles } from '@mui/material';
 import { Card as AntCard } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import BreadcrumbNav from '../components/BreadcrumbNav';
 import EditProductModal from '../components/EditProductModal';
 import api from '../services/api';
 import { formatPrice } from '../utils/formatPrice';
+import Squares from '../../y/Squares/Squares';
 
 const MyProductsPage = () => {  interface ProductItem {
     id: number;
@@ -77,11 +78,8 @@ const MyProductsPage = () => {  interface ProductItem {
     setProductToDelete(product);
     setDeleteDialogOpen(true);
   };
-
   const confirmDeleteProduct = async () => {
     if (!productToDelete) return;
-    
-    console.log('Eliminando producto con ID:', productToDelete.id);
     
     // Agregar el producto a la lista de "eliminando" para mostrar estado de carga
     setDeletingProducts(prev => new Set(prev).add(productToDelete.id));
@@ -97,16 +95,13 @@ const MyProductsPage = () => {  interface ProductItem {
         setNotification({
           message: 'Producto eliminado correctamente',
           type: 'success'
-        });
-      } else {
-        console.error('Error al eliminar producto:', response.error);
+        });      } else {
         setNotification({
           message: 'Error al eliminar el producto: ' + response.error,
           type: 'error'
         });
       }
-    } catch (err) {
-      console.error('Error al eliminar producto:', err);
+    } catch {
       setNotification({
         message: 'Error al eliminar el producto',
         type: 'error'
@@ -134,12 +129,8 @@ const MyProductsPage = () => {  interface ProductItem {
 
   const fetchMyProducts = async () => {
     setLoading(true);
-    setError('');
-
-    try {
-      console.log('Obteniendo mis productos...');
+    setError('');    try {
       const productsResponse = await api.getUserProducts();
-      console.log('Respuesta de mis productos:', productsResponse);
       
       if (productsResponse.success) {
         // Procesar datos según el formato de respuesta
@@ -147,26 +138,20 @@ const MyProductsPage = () => {  interface ProductItem {
         
         if (Array.isArray(productsResponse.data)) {
           // Si la respuesta ya es un array de productos
-          productsData = productsResponse.data;
-        } else if (productsResponse.data && productsResponse.data.results) {
+          productsData = productsResponse.data;        } else if (productsResponse.data && productsResponse.data.results) {
           // Si la respuesta es una estructura paginada con 'results'
-          console.log('Procesando datos paginados:', productsResponse.data);
           productsData = productsResponse.data.results;
         } else {
           // Si la respuesta tiene otro formato
-          console.error('Formato de respuesta no reconocido:', productsResponse.data);
           productsData = [];
         }
         
-        console.log('Productos procesados para mostrar:', productsData);
         setProducts(productsData);
       } else {
-        console.error('Error en respuesta de productos:', productsResponse.error);
         setError('No se pudieron cargar tus productos');
         setProducts([]);
       }
-    } catch (err) {
-      console.error('Error al obtener productos:', err);
+    } catch {
       setError('Error al cargar tus productos');
       setProducts([]);
     } finally {
@@ -192,12 +177,53 @@ const MyProductsPage = () => {  interface ProductItem {
       </Container>
     );
   }
-
   return (
-    <Container maxWidth="xl" sx={{ 
+    <>
+      <GlobalStyles
+        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important',
+        }}
+      >
+        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+      
+      <Container maxWidth="xl" sx={{ 
         py: { xs: 0, sm: 1 },
-        px: { xs: 0, sm: 1, md: 3 },
+        px: { xs: 2, sm: 3, md: 4 },
         mt: { xs: 0, sm: 1 },
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: 'transparent !important',
+        minHeight: '100vh',
       }}>
       <BreadcrumbNav 
         items={[
@@ -404,11 +430,11 @@ const MyProductsPage = () => {  interface ProductItem {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         sx={{ 
           '& .MuiSnackbarContent-root': { 
-            bgcolor: notification?.type === 'success' ? 'success.main' : 'error.main'
-          }
+            bgcolor: notification?.type === 'success' ? 'success.main' : 'error.main'          }
         }}
       />
     </Container>
+    </>
   );
 };
 

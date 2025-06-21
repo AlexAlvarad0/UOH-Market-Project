@@ -13,40 +13,42 @@ def message_saved(sender, instance, created, **kwargs):
     
     channel_layer = get_channel_layer()
     conversation = instance.conversation
-    
-    # Crear message_data manualmente para evitar problemas de serialización
-    try:
-        # Serializar usando MessageSerializer
-        message_data = MessageSerializer(instance, context={}).data
-        
-        # Asegurar que las fechas estén en formato string
-        if 'created_at' in message_data and hasattr(message_data['created_at'], 'isoformat'):
-            message_data['created_at'] = message_data['created_at'].isoformat()
-        if 'edited_at' in message_data and message_data['edited_at'] and hasattr(message_data['edited_at'], 'isoformat'):
-            message_data['edited_at'] = message_data['edited_at'].isoformat()
-            
-    except Exception as e:
-        print(f"⚠️ Error serializando mensaje, usando serialización manual: {str(e)}")
-        # Fallback: crear datos manualmente
-        message_data = {
-            'id': instance.id,
-            'conversation': instance.conversation.id,
-            'sender': instance.sender.id,
-            'sender_username': instance.sender.username,
-            'content': instance.content,
-            'message_type': instance.message_type,
-            'audio_file': instance.audio_file.url if instance.audio_file else None,
-            'audio_url': instance.audio_file.url if instance.audio_file else None,
-            'audio_duration': instance.audio_duration,
-            'created_at': instance.created_at.isoformat(),
-            'edited_at': instance.edited_at.isoformat() if instance.edited_at else None,
-            'is_edited': instance.is_edited,
-            'is_read': instance.is_read,
-            'is_deleted': instance.is_deleted,
-            'liked': instance.liked,
-            'liked_by': [user.id for user in instance.liked_by.all()],
-            'liked_by_users': [{'id': user.id, 'username': user.username} for user in instance.liked_by.all()]
+      # Crear message_data usando serialización manual más confiable
+    # Preparar información de reply_to_message si existe
+    reply_to_message_data = None
+    if instance.reply_to:
+        reply_to_message_data = {
+            'id': instance.reply_to.id,
+            'sender_username': instance.reply_to.sender.username,
+            'content': instance.reply_to.content[:100] + '...' if len(instance.reply_to.content or '') > 100 else instance.reply_to.content,
+            'message_type': instance.reply_to.message_type,
+            'audio_duration': instance.reply_to.audio_duration,
+            'created_at': instance.reply_to.created_at.isoformat(),
+            'is_deleted': instance.reply_to.is_deleted
         }
+    
+    # Crear datos del mensaje de forma manual y confiable
+    message_data = {
+        'id': instance.id,
+        'conversation': instance.conversation.id,
+        'sender': instance.sender.id,
+        'sender_username': instance.sender.username,
+        'content': instance.content,
+        'message_type': instance.message_type,
+        'audio_file': instance.audio_file.url if instance.audio_file else None,
+        'audio_url': instance.audio_file.url if instance.audio_file else None,
+        'audio_duration': instance.audio_duration,
+        'reply_to': instance.reply_to.id if instance.reply_to else None,
+        'reply_to_message': reply_to_message_data,
+        'created_at': instance.created_at.isoformat(),
+        'edited_at': instance.edited_at.isoformat() if instance.edited_at else None,
+        'is_edited': instance.is_edited,
+        'is_read': instance.is_read,
+        'is_deleted': instance.is_deleted,
+        'liked': instance.liked,
+        'liked_by': [user.id for user in instance.liked_by.all()],
+        'liked_by_users': [{'id': user.id, 'username': user.username} for user in instance.liked_by.all()]
+    }
     
     # Grupo de la conversación para notificaciones en tiempo real
     conversation_group = f'chat_{conversation.id}'

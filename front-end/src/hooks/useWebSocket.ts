@@ -45,9 +45,7 @@ export const useChatWebSocket = (conversationId: string | null, token: string | 
       // No desconectar automáticamente para evitar reconexiones innecesarias
       // solo marcar como desconectado
     };
-  }, [conversationId, token]);
-
-  const sendMessage = useCallback((content: string, messageType: string = 'text') => {
+  }, [conversationId, token]);  const sendMessage = useCallback((content: string, messageType: string = 'text') => {
     webSocketService.sendMessage(content, messageType);
   }, []);
 
@@ -69,9 +67,7 @@ export const useChatWebSocket = (conversationId: string | null, token: string | 
 
   const handleTyping = useCallback(() => {
     webSocketService.handleTyping();
-  }, []);
-
-  return {
+  }, []);return {
     sendMessage,
     markAsRead,
     toggleLike,
@@ -169,7 +165,6 @@ export const useWebSocket = (conversationId: string | null, token: string | null
   const getConnectionStatus = useCallback(() => {
     return webSocketService.getConnectionStatus();
   }, []);
-
   return {
     ...chat,
     notificationsConnected: notifications.isConnected,

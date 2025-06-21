@@ -14,6 +14,7 @@ body {
 h1 {
   font-weight: bold;
   margin: 0;
+  text-transform: uppercase;
 }
 
 h2 {
@@ -302,6 +303,8 @@ footer a {
   align-items: center;
   justify-content: center;
   height: 100%;
+  top: 50%;
+  transform: translateY(-50%); /* Centrar verticalmente */
 }
 
 .password-toggle:hover {
@@ -325,6 +328,7 @@ footer a {
 
 .sign-up-container h1 {
   margin-bottom: 15px; /* Ajustar si es necesario */
+  text-transform: uppercase;
 }
 
 .sign-up-container .input-container {
@@ -437,18 +441,237 @@ footer a {
   transition: all 0.2s;
 }
 
-.req-unmet {
-  color: #e74c3c;
-  display: flex;
-  align-items: center;
-  margin-bottom: 2px;
+/* Estilos para el enlace de olvido de contraseña */
+.forgot-password-link {
+  text-align: center;
+  margin: 10px 0;
 }
 
-.req-met {
-  color: #27ae60;
+.forgot-password-link a {
+  color: #002C54;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+.forgot-password-link a:hover {
+  color: #004080;
+  text-decoration: underline;
+}
+
+/* Estilos para el botón de Google Login */
+.google-login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  margin: 15px 0;
+}
+
+.google-login-separator {
   display: flex;
   align-items: center;
-  margin-bottom: 2px;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.separator-line {
+  flex: 1;
+  height: 1px;
+  border: none;
+  background-color: #ddd;
+  margin: 0;
+}
+
+.separator-text {
+  padding: 0 15px;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  background-color: white;
+}
+
+.google-login-button-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Estilos para el modal de reseteo de contraseña */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #002C54;
+  font-size: 24px;
+}
+
+.modal-close-icon {
+  cursor: pointer;
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.modal-close-icon:hover {
+  color: #002C54;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cancel-button {
+  flex: 1;
+  padding: 12px 20px;
+  border: 2px solid #ddd;
+  background: white;
+  color: #666;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.cancel-button:hover {
+  border-color: #bbb;
+  color: #333;
+}
+
+.submit-button {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  background: #002C54;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+}
+
+.submit-button:hover {
+  background: #004080;
+}
+
+.submit-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.reset-email-sent {
+  text-align: center;
+}
+
+.reset-email-sent p {
+  margin: 8px 0;
+  color: #333;
+}
+
+/* Estilos para la página de confirmación de reseteo */
+.reset-password-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(45deg, #002C54, #004080);
+  padding: 20px;
+}
+
+.reset-password-form {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 450px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.reset-password-form h1 {
+  color: #002C54;
+  margin-bottom: 8px;
+  font-size: 28px;
+  text-transform: uppercase;
+}
+
+.reset-password-form p {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+.input-group {
+  margin-bottom: 20px;
+}
+
+.reset-submit-button {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  background: #002C54;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+
+.reset-submit-button:hover {
+  background: #004080;
+}
+
+.reset-submit-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.back-to-login {
+  margin-top: 20px;
+}
+
+.back-to-login a {
+  color: #002C54;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+.back-to-login a:hover {
+  color: #004080;
+  text-decoration: underline;
 }
 
 @media (max-width: 600px) {
@@ -472,13 +695,12 @@ footer a {
     font-size: 12px;
     padding: 10px 12px;
   }
-
   .container {
     width: 75%;
-    min-height: 750px;
+    min-height: 600px; /* Reducido de 750px para mejor visualización */
     height: auto;
     max-height: 95vh;
-    transform: translateY(5vh);
+    transform: translateY(3vh); /* Reducido de 5vh */
     margin-bottom: 2vh;
   }
 
@@ -627,19 +849,312 @@ footer a {
     font-size: 11px;
     padding: 8px;
   }
-
   /* Ajustar posición del icono de mostrar/ocultar contraseña */
   .password-toggle {
     right: 10px; /* más cerca del borde */
+    font-size: 18px; /* Reducir tamaño del ícono en móvil */
   }
+  
+  .password-toggle svg {
+    font-size: 18px; /* Asegurar que el SVG tenga el tamaño correcto */
+  }
+  
   /* Asegurar espacio suficiente para el icono en inputs de contraseña */
   .sign-up-container input[type="password"],
   .sign-up-container input[type="text"] {
     padding-right: 36px; /* espacio para el icono */
+    font-size: 12px; /* Tamaño de fuente más pequeño para registro */
+    min-height: 40px; /* Altura mínima para acomodar íconos */
+    line-height: 1.3; /* Mejorar alineación del texto */
   }
+  
+  /* Reducir tamaño de fuente de los inputs en general para móvil */
+  .form-container input {
+    font-size: 13px;
+    min-height: 40px; /* Altura mínima para inputs */
+    line-height: 1.3; /* Mejorar alineación */
+  }
+  
+  /* Ajustar altura mínima de contenedores de input */
+  .input-container {
+    min-height: 40px; /* Altura mínima para acomodar íconos */
+  }
+  
   /* Reducir tamaño de fuente de las etiquetas sobre inputs */
   .sign-up-container label {
     font-size: 12px;
     margin-bottom: 4px;
   }
+  
+  /* Ajustar placeholders para mejor legibilidad */
+  .form-container input::placeholder {
+    font-size: 12px;
+    color: #888;
+  }
+  
+  .sign-up-container input::placeholder {
+    font-size: 11px;
+    color: #888;
+  }
+}
+
+/* Ajustes específicos para pantallas muy pequeñas (móviles) */
+@media (max-width: 480px) {
+  .container {
+    width: 90%;
+    min-height: 680px;
+    transform: translateY(1vh);
+    margin-bottom: 1vh;
+  }
+  
+  /* Reducir espaciado en el formulario de login */
+  .sign-in-container form {
+    padding: 0 10px;
+  }
+    /* Reducir márgenes de inputs */
+  .form-container input {
+    margin: 4px 0;
+    padding: 5px 6px;
+    font-size: 13px; /* Reducir tamaño de fuente para pantallas pequeñas */
+  }
+    /* Reducir tamaño de fuente específicamente para inputs del registro */
+  .sign-up-container input {
+    font-size: 12px; /* Tamaño más pequeño para el registro */
+    padding: 8px 10px;
+  }
+    /* Ajustar padding para inputs con íconos en registro */
+  .sign-up-container .input-container input {
+    padding-left: 36px; /* Espacio para íconos */
+    padding-right: 12px;
+  }
+  
+  /* Ajustar íconos específicamente para pantallas muy pequeñas */
+  .password-toggle {
+    right: 8px; /* Más cerca del borde en móviles pequeños */
+    font-size: 16px; /* Tamaño del ícono aún más pequeño */
+  }
+  
+  .password-toggle svg {
+    font-size: 16px;
+  }
+  
+  /* Asegurar que los inputs con íconos de contraseña tengan espacio suficiente */
+  .sign-up-container input[type="password"],
+  .sign-up-container input[type="text"],
+  .sign-in-container input[type="password"] {
+    padding-right: 32px; /* Reducir espacio para el ícono en móviles pequeños */
+    min-height: 38px; /* Altura mínima reducida para móviles */
+  }
+  
+  /* Mejorar legibilidad de placeholders en pantallas muy pequeñas */
+  .sign-up-container input::placeholder {
+    font-size: 11px;
+    color: #666;
+  }
+  
+  .form-container input::placeholder {
+    font-size: 12px;
+    color: #666;
+  }
+  
+  /* Reducir espaciado del enlace de contraseña olvidada */
+  .forgot-password-link {
+    margin: 8px 0;
+  }
+  
+  .forgot-password-link a {
+    margin: 8px 0;
+    font-size: 12px;
+  }
+  
+  /* Ajustar botón de envío */
+  .form-container button[type="submit"] {
+    margin: 8px 0;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+    /* Reducir tamaño del título */
+  .form-container h1 {
+    font-size: 24px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  
+  /* Ajustar espaciado de errores */
+  .error-text {
+    font-size: 11px;
+    margin: 2px 0 4px 0;
+  }
+}
+
+/* Ajustes específicos y más agresivos para pantallas pequeñas */
+@media (max-width: 768px) {  /* Reducir margen superior del título en login */
+  .sign-in-container h1 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 22px;
+    text-transform: uppercase;
+  }
+  
+  /* Reducir espaciado entre inputs específicamente en login */
+  .sign-in-container .input-container {
+    margin-bottom: 4px;
+  }
+  
+  /* Reducir espacio específico entre contraseña y enlace olvidé contraseña */
+  .sign-in-container .forgot-password-link {
+    margin: 4px 0 8px 0;
+  }
+  
+  /* Reducir margen del botón de submit en login */
+  .sign-in-container button[type="submit"] {
+    margin: 8px 0 4px 0;
+  }
+    /* Reducir gap del separador de Google */
+  .sign-in-container .google-login-container {
+    gap: 6px;
+    margin-bottom: 0; /* Eliminar margen inferior */
+  }
+  
+  .sign-in-container .google-login-separator {
+    margin: 6px 0;
+  }
+  
+  /* Eliminar margen inferior del wrapper del botón de Google */
+  .sign-in-container .google-login-button-wrapper {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .google-login-container {
+    gap: 8px;
+    margin-bottom: 0; /* Eliminar margen inferior en móviles muy pequeños */
+  }
+  
+  .google-login-separator {
+    margin: 8px 0;
+  }
+  
+  .separator-text {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+  
+  /* Ajustes específicos para el botón de Google en móvil */
+  .google-login-button-wrapper div[data-testid="google-signin"] {
+    width: 100% !important;
+    max-width: 220px !important;
+  }
+  
+  /* Ajuste adicional para el contenedor en móviles muy pequeños */
+  .google-login-button-wrapper {
+    padding: 0 10px;
+    margin-bottom: 0; /* Eliminar margen inferior */
+  }
+}
+
+/* Restaurar tamaños normales de botones para pantallas grandes */
+@media (min-width: 769px) {
+  /* Mantener tamaño normal del botón de submit en pantallas grandes */
+  .form-container button[type="submit"] {
+    font-size: 16px !important;
+    padding: 16px 24px !important;
+    margin: 15px 0 !important;
+  }
+  
+  /* Mantener tamaño normal de los botones ghost en overlay */
+  .overlay-panel .ghost {
+    font-size: 16px !important;
+    padding: 16px 24px !important;
+    margin-top: 20px !important;
+  }
+    /* Mantener espaciado normal del título en pantallas grandes */
+  .sign-in-container h1 {
+    font-size: 32px !important;
+    margin-bottom: 20px !important;
+    text-transform: uppercase !important;
+  }
+    /* Mantener espaciado normal de inputs en pantallas grandes */
+  .form-container input {
+    margin: 8px 0 !important;
+    padding: 12px 15px !important;
+  }
+  
+  /* Asegurar que los inputs con íconos mantengan el padding-left correcto */
+  .input-container input {
+    padding-left: 42px !important; /* Mantener espacio para íconos */
+    padding-right: 15px !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+  
+  /* Mantener espaciado normal del enlace de contraseña olvidada */
+  .forgot-password-link {
+    margin: 15px 0 !important;
+  }
+  
+  .forgot-password-link a {
+    margin: 15px 0 !important;
+    font-size: 14px !important;
+  }
+}
+
+/* Asegurar que los estilos base se mantengan en pantallas grandes */
+@media (min-width: 1024px) {
+  /* Restablecer completamente los estilos de botones para pantallas grandes */
+  button {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 12px 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  
+  .form-container button[type="submit"] {
+    font-size: 16px !important;
+    padding: 16px 24px !important;
+    margin: 15px 0 !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+  }
+  
+  .overlay-panel .ghost {
+    font-size: 16px !important;
+    padding: 16px 24px !important;
+    margin-top: 20px !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+  }
+  
+  /* Asegurar padding correcto para inputs con íconos en pantallas grandes */
+  .input-container input {
+    padding: 12px 15px 12px 42px !important;
+  }
+  
+  .input-container input[type="password"],
+  .input-container input[type="text"] {
+    padding: 12px 42px 12px 42px !important; /* Espacio para ambos íconos */
+  }
+}
+
+/* Asegurar que el formulario no tenga espaciado extra en la parte inferior */
+.sign-in-container form {
+  padding-bottom: 5px; /* Reducir padding inferior */
+}
+
+/* Reducir espaciado específico para login en móviles muy pequeños */
+.sign-in-container .google-login-container {
+  gap: 4px;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sign-in-container .google-login-separator {
+  margin: 4px 0;
+}
+
+.sign-in-container .google-login-button-wrapper {
+  margin-bottom: 0;
+  padding-bottom: 0;
 }

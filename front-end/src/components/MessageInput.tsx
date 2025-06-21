@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Box, 
   IconButton, 
@@ -28,6 +28,15 @@ interface MessageInputProps {
   editingMessageId: number | null;
   onEditCancel: () => void;
   disabled?: boolean;
+  replyingToMessage?: {
+    id: number;
+    sender_username: string;
+    content: string;
+    message_type?: 'text' | 'audio';
+    audio_duration?: number;
+    is_deleted?: boolean;
+  } | null;
+  onCancelReply?: () => void;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -38,11 +47,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
   onTyping,
   editingMessageId,
   onEditCancel,
-  disabled = false
-}) => {
-  const [isSending, setIsSending] = useState(false);
+  disabled = false,
+  replyingToMessage,
+  onCancelReply
+}) => {  const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audioMode, setAudioMode] = useState(false);
+  
+  // Refs para throttle de typing
+  const lastTypingRef = useRef<number>(0);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     recordingState,
@@ -58,12 +72,30 @@ const MessageInput: React.FC<MessageInputProps> = ({
     playRecording,
     stopPlayback,
     getAudioFile,  } = useAudioRecorder();
-
-  // Manejador para el cambio de texto que también notifica que está escribiendo
+  // Manejador optimizado para el cambio de texto con throttle de typing
   const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
+    
+    // Throttle para eventos de typing - solo enviar cada 1.5 segundos máximo
     if (onTyping) {
-      onTyping();
+      const now = Date.now();
+      const timeSinceLastTyping = now - lastTypingRef.current;
+      
+      if (timeSinceLastTyping >= 1500) {
+        lastTypingRef.current = now;
+        
+        // Limpiar timeout anterior
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        
+        onTyping();
+        
+        // Configurar timeout para evitar múltiples llamadas
+        typingTimeoutRef.current = setTimeout(() => {
+          lastTypingRef.current = 0; // Reset para permitir el siguiente evento
+        }, 3000);
+      }
     }
   };
 
@@ -92,10 +124,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
     try {
       await onSendAudio(audioFile, recordingTime);
       resetRecording();
-      setAudioMode(false);
-    } catch (error) {
+      setAudioMode(false);    } catch {
       setError('Error al enviar audio');
-      console.error('Error al enviar audio:', error);
     } finally {
       setIsSending(false);
     }
@@ -304,6 +334,45 @@ const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <Box sx={{ position: 'relative' }}>
       {renderError()}
+      
+      {/* Indicador de respuesta */}
+      {replyingToMessage && (
+        <Box 
+          sx={{
+            backgroundColor: '#e3f2fd',
+            border: '1px solid #2196f3',
+            borderRadius: '8px',
+            p: 1,
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mx: 1
+          }}
+        >
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', display: 'block' }}>
+              Respondiendo a {replyingToMessage.sender_username}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ 
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {replyingToMessage.is_deleted 
+                ? '🗑️ Mensaje eliminado'
+                : replyingToMessage.message_type === 'audio' 
+                  ? `🎵 Audio (${replyingToMessage.audio_duration}s)`
+                  : replyingToMessage.content
+              }
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={onCancelReply}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
+
       <form onSubmit={handleSendMessageWrapper} style={{ width: '100%' }}>
         <Box 
           sx={{

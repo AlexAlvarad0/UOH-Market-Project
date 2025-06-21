@@ -6,15 +6,9 @@ import axios from 'axios';
 export const debugApi = {
   fetchCategories: async () => {
     try {
-      console.log("Attempting to fetch categories...");
       const response = await axios.get('http://localhost:8000/api/categories/');
-      console.log("Raw categories response:", response);
-      console.log("Categories data:", response.data);
-      console.log("Is array?", Array.isArray(response.data));
-      console.log("Data type:", typeof response.data);
       return response.data;
-    } catch (error) {
-      console.error("Error debugging categories:", error);
+    } catch {
       return null;
     }
   },

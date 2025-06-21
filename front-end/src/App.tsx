@@ -10,6 +10,7 @@ import styled from 'styled-components';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import PasswordResetConfirmPage from './pages/PasswordResetConfirmPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ProfileEditForm from './pages/ProfileEditForm';
@@ -19,9 +20,9 @@ import ChatPage from './pages/ChatPage';
 import PrivateRoute from './components/PrivateRoute';
 import NewProductPage from './pages/NewProductPage';
 import EditProductPage from './pages/EditProductPage';
+import SellerDashboardPage from './pages/SellerDashboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ErrorBoundary from './components/ErrorBoundary';
-import SellerDashboardPage from './pages/SellerDashboardPage';
 
 // Tema personalizado para Material UI
 const theme = createTheme({
@@ -33,6 +34,19 @@ const theme = createTheme({
       main: '#3730a3',
     },
   },
+  typography: {
+    fontFamily: "'Poppins', sans-serif",
+    fontWeightLight: 200,
+    fontWeightRegular: 200,
+    fontWeightMedium: 400,
+    fontWeightBold: 700,
+    h1: { fontFamily: "'Poppins', sans-serif", fontWeight: 700 },
+    h2: { fontFamily: "'Poppins', sans-serif", fontWeight: 700 },
+    h3: { fontFamily: "'Poppins', sans-serif", fontWeight: 700 },
+    h4: { fontFamily: "'Poppins', sans-serif", fontWeight: 700 },
+    h5: { fontFamily: "'Poppins', sans-serif", fontWeight: 700 },
+    h6: { fontFamily: "'Poppins', sans-serif", fontWeight: 700 },
+  },
 });
 
 // Tema personalizado para Ant Design
@@ -40,6 +54,8 @@ const antTheme = {
   token: {
     colorPrimary: '#4f46e5',
     borderRadius: 6,
+    fontFamily: "'Poppins', sans-serif",
+    fontWeight: 200,
   },
 };
 
@@ -147,10 +163,10 @@ const StyledWrapper = styled.div`
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
-
-  // Verificar si estamos en páginas donde no debe mostrarse el botón de vender
-  const shouldHideButton = location.pathname === '/product/new' || location.pathname === '/login';
+  const { isAuthenticated } = useAuth();  // Verificar si estamos en páginas donde no debe mostrarse el botón de vender
+  const shouldHideButton = location.pathname === '/product/new' || 
+                          location.pathname === '/login' || 
+                          location.pathname.startsWith('/chat');
 
   const handleAddProduct = () => {
     if (!isAuthenticated) {
@@ -179,6 +195,7 @@ function AppContent() {
                 </ErrorBoundary>
               } />
               <Route path="login" element={<LoginPage />} />
+              <Route path="reset-password/:token" element={<PasswordResetConfirmPage />} />
               <Route 
                 path="products/:productId" 
                 element={<ProductDetailPage />} 
@@ -207,7 +224,7 @@ function AppContent() {
                   onClick={handleAddProduct}
                   title="Vender nuevo producto"
                 >
-                  <span className="button-text">Vender</span>
+                  <span className="button-text">VENDER</span>
                   <svg fill="currentColor" viewBox="0 0 24 24" className="icon">
                     <path clipRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.28 10.28a.75.75 0 000-1.06l-3-3a.75.75 0 10-1.06 1.06l1.72 1.72H8.25a.75.75 0 000 1.5h5.69l-1.72 1.72a.75.75 0 101.06 1.06l3-3z" fillRule="evenodd" />
                   </svg>

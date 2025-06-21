@@ -52,9 +52,9 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    'django_filters',  # Add this line
-    # Local apps
+    'django_filters',  # Add this line    # Local apps
     'accounts',
+    'authentication',  # Agregar la app de autenticación
     'products',
     'chat',
     'notifications',
@@ -96,6 +96,20 @@ TEMPLATES = [
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Internationalization
+# https://docs.djangoproject.com/en/5.2/topics/i18n/
+
+LANGUAGE_CODE = 'es-cl'
+
+TIME_ZONE = 'America/Santiago'
+
+USE_I18N = True
+
+USE_TZ = True
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 # Custom user model
 AUTH_USER_MODEL = 'accounts.User'
@@ -163,11 +177,34 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Configuraciones para email
-EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
-ANYMAIL = {
-    'SENDGRID_API_KEY': os.getenv('SENDGRID_API_KEY'),  # Se carga desde .env
-}
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@tu-dominio.com')
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = os.getenv('EMAIL_PORT')
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    # Usar configuración SMTP personalizada (Gmail, Mailtrap, etc.)
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = EMAIL_HOST or 'smtp.gmail.com'  # Default a Gmail
+    EMAIL_PORT = int(EMAIL_PORT) if EMAIL_PORT else 587  # Default port
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = EMAIL_HOST_USER
+    EMAIL_HOST_PASSWORD = EMAIL_HOST_PASSWORD
+    print(f"Configurando SMTP: {EMAIL_HOST_USER} via {EMAIL_HOST}:{EMAIL_PORT}")
+elif SENDGRID_API_KEY:
+    # Usar SendGrid si la API key está disponible
+    EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
+    ANYMAIL = {
+        'SENDGRID_API_KEY': SENDGRID_API_KEY,
+    }
+    print("Configurando SendGrid")
+else:
+    # Usar console backend para desarrollo si no hay configuración
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    print("Usando console backend para emails")
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@uohmarket.com')
 
 # Add these settings to your settings.py
 
@@ -224,3 +261,17 @@ AUTHENTICATION_BACKENDS = [
 
 # Base URL para generar URLs absolutas cuando no hay contexto de request
 BASE_URL = 'http://localhost:8000'
+
+# Configuración para moderación de imágenes - IA AVANZADA + DETECTOR DE DROGAS
+CONTENT_MODERATION_THRESHOLD = 0.3  # Umbral muy estricto para drogas (era 0.5)
+CONTENT_MODERATION_ENABLED = True   # Habilitar/deshabilitar moderación por IA
+CONTENT_MODERATION_FALLBACK = False  # NO usar método local - Solo IA avanzada
+MODERATION_SERVICE = 'enhanced_drug_detection'  # IA avanzada + detector específico de drogas
+
+# Configuraciones legacy (comentadas)
+# HUGGINGFACE_API_TOKEN = os.getenv('HUGGINGFACE_API_TOKEN', '')  # Solo si quieres usar Hugging Face
+# DEEPAI_API_KEY = os.getenv('DEEPAI_API_KEY', '')  # Solo si quieres usar DeepAI
+
+# Configuración de Google OAuth
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '806140741515-b6u96b645s99tpv7ua14q2gpq16cdmb6.apps.googleusercontent.com')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')  # Obtener desde variable de entorno

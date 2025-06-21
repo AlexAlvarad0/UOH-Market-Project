@@ -16,10 +16,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(true);
       try {
         const token = localStorage.getItem('authToken');
-        
-        if (!token) {
+          if (!token) {
           // No token found, user is not authenticated
-          console.log('No auth token found in localStorage');
           setLoading(false);
           return;
         }
@@ -28,8 +26,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         apiService.setToken(token);
         
         // Try to get user data from localStorage first for immediate UI update
-        const savedUserData = localStorage.getItem('userData');
-        if (savedUserData) {
+        const savedUserData = localStorage.getItem('userData');        if (savedUserData) {
           try {
             const parsedUser = JSON.parse(savedUserData);
             setUser(parsedUser);
@@ -37,7 +34,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             // MODIFICACIÓN: Si no podemos validar con el backend, al menos confiar en localStorage
             // por ahora para evitar redirecciones innecesarias
           } catch (error) {
-            console.error('Error parsing stored user data', error);
             localStorage.removeItem('userData');
           }
         }
@@ -49,22 +45,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (response.success && response.data?.user) {
             // Update user data from server
             setUser(response.data.user);
-            localStorage.setItem('userData', JSON.stringify(response.data.user));
-          } else {
+            localStorage.setItem('userData', JSON.stringify(response.data.user));          } else {
             // Token is invalid
-            console.log('Token validation failed', response);
             
             // MODIFICACIÓN: Si tenemos datos de usuario en localStorage y el error es 404,
             // no cerramos sesión, solo asumimos que el endpoint no existe
             if (response.error && typeof response.error === 'string' && response.error.includes('404')) {
-              console.log('Endpoint not found, but keeping session active based on localStorage');
               // No realizar logout aquí
             } else {
               logout();
             }
           }
         } catch (error) {
-          console.error('Token validation error:', error);
           // Don't logout immediately on network errors
           // This allows the app to work offline with previously stored auth data
         }
@@ -77,9 +69,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = async (authData: AuthData): Promise<boolean> => {
-    try {
-      if (!authData.token || !authData.user) {
-        console.error('Invalid auth data received', authData);
+    try {      if (!authData.token || !authData.user) {
         return false;
       }
 
@@ -88,10 +78,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       apiService.setToken(authData.token);
       setUser(authData.user);
-      
-      return true;
+        return true;
     } catch (error) {
-      console.error('Login error:', error);
       return false;
     }
   };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Typography, CircularProgress, Alert, Container, Card, Box, IconButton } from '@mui/material';
+import { Typography, CircularProgress, Alert, Container, Card, Box, IconButton, GlobalStyles } from '@mui/material';
 import { Card as AntCard } from 'antd';
 import { HeartFilled, HeartOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth.hooks';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 import api from '../services/api';
 import { formatPrice } from '../utils/formatPrice';
+import Squares from '../../y/Squares/Squares';
 
 const FavoritesPage = () => {  interface FavoriteItem {
     id: string;
@@ -35,12 +36,8 @@ const FavoritesPage = () => {  interface FavoriteItem {
 
     const fetchFavorites = async () => {
       setLoading(true);
-      setError('');
-
-      try {
-        console.log('Obteniendo favoritos...');
+      setError('');      try {
         const favoritesResponse = await api.favorites.getAll();
-        console.log('Respuesta de favoritos:', favoritesResponse);
         
         if (favoritesResponse.success) {
           // Procesar datos según el formato de respuesta
@@ -48,26 +45,20 @@ const FavoritesPage = () => {  interface FavoriteItem {
           
           if (Array.isArray(favoritesResponse.data)) {
             // Si la respuesta ya es un array de favoritos
-            favoritesData = favoritesResponse.data;
-          } else if (favoritesResponse.data && favoritesResponse.data.results) {
+            favoritesData = favoritesResponse.data;          } else if (favoritesResponse.data && favoritesResponse.data.results) {
             // Si la respuesta es una estructura paginada con 'results'
-            console.log('Procesando datos paginados:', favoritesResponse.data);
             favoritesData = favoritesResponse.data.results;
           } else {
             // Si la respuesta tiene otro formato
-            console.error('Formato de respuesta no reconocido:', favoritesResponse.data);
             favoritesData = [];
           }
           
-          console.log('Favoritos procesados para mostrar:', favoritesData);
           setFavorites(favoritesData);
         } else {
-          console.error('Error en respuesta de favoritos:', favoritesResponse.error);
           setError('No se pudieron cargar los favoritos');
           setFavorites([]);
         }
       } catch (err) {
-        console.error('Error al obtener favoritos:', err);
         setError('Error al cargar los favoritos');
         setFavorites([]);
       } finally {
@@ -81,10 +72,6 @@ const FavoritesPage = () => {  interface FavoriteItem {
   }, [isAuthenticated, user, navigate, authLoading]);  const handleRemoveFavorite = async (productId: string) => {
     const numericProductId = Number(productId);
     
-    console.log('Eliminando favorito con ID:', numericProductId);
-    console.log('ProductId original (string):', productId);
-    console.log('Lista actual de favoritos:', favorites);
-    
     // Agregar el producto a la lista de "removiendo" para mostrar estado de carga
     setRemovingFavorites(prev => new Set(prev).add(productId));
     
@@ -97,10 +84,8 @@ const FavoritesPage = () => {  interface FavoriteItem {
       
       // Actualizar la lista de favoritos eliminando el producto
       setFavorites(prevFavorites => 
-        prevFavorites.filter(item => item.product !== productId)
-      );
+        prevFavorites.filter(item => item.product !== productId)      );
     } catch (err) {
-      console.error('Error al eliminar favorito:', err);
       setError('Error al eliminar de favoritos');
     } finally {
       // Remover el producto de la lista de "removiendo"
@@ -120,10 +105,52 @@ const FavoritesPage = () => {  interface FavoriteItem {
       </Container>
     );
   }  return (
-    <Container maxWidth="xl" sx={{ 
+    <>
+      <GlobalStyles
+        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important',
+        }}
+      >
+        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+      
+      <Container maxWidth="xl" sx={{ 
         py: { xs: 0, sm: 1 },
-        px: { xs: 0, sm: 1, md: 3 },
+        px: { xs: 2, sm: 3, md: 4 },
         mt: { xs: 0, sm: 1 },
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: 'transparent !important',
+        minHeight: '100vh',
       }}>
       <BreadcrumbNav 
         items={[
@@ -226,10 +253,10 @@ const FavoritesPage = () => {  interface FavoriteItem {
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Explora nuestros productos y agrega algunos a tus favoritos
             </Typography>
-          </Box>
-        )}
+          </Box>        )}
       </Card>
     </Container>
+    </>
   );
 };
 

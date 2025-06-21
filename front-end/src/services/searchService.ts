@@ -14,9 +14,7 @@ export class SearchService {
   static getSearchHistory(): string[] {
     try {
       const savedHistory = localStorage.getItem(SEARCH_HISTORY_KEY);
-      return savedHistory ? JSON.parse(savedHistory) : [];
-    } catch (error) {
-      console.error('Error al obtener historial de búsqueda:', error);
+      return savedHistory ? JSON.parse(savedHistory) : [];    } catch {
       return [];
     }
   }
@@ -42,9 +40,7 @@ export class SearchService {
       // Guardar en localStorage
       localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
       
-      return updatedHistory;
-    } catch (error) {
-      console.error('Error al guardar historial de búsqueda:', error);
+      return updatedHistory;    } catch {
       return this.getSearchHistory();
     }
   }
@@ -61,9 +57,7 @@ export class SearchService {
       );
       
       localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
-      return updatedHistory;
-    } catch (error) {
-      console.error('Error al eliminar del historial:', error);
+      return updatedHistory;    } catch {
       return this.getSearchHistory();
     }
   }
@@ -96,9 +90,7 @@ export class SearchService {
           );
       }
       
-      return [];
-    } catch (error) {
-      console.error('Error al obtener sugerencias:', error);
+      return [];    } catch {
       return [];
     }
   }

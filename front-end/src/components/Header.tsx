@@ -66,9 +66,7 @@ const Header = () => {
             favoritesData = [];
           }
           setFavoritesCount(favoritesData.length);
-        }
-      } catch (err) {
-        console.error('Error al obtener contador de favoritos:', err);
+        }      } catch {
         setFavoritesCount(0);
       }
     };
@@ -79,16 +77,12 @@ const Header = () => {
     }
 
     // Cargar contador inicial
-    loadFavoritesCount();
-
-    // Escuchar eventos personalizados de favoritos
+    loadFavoritesCount();    // Escuchar eventos personalizados de favoritos
     const handleFavoriteAdded = () => {
-      console.log('Evento: Favorito agregado - actualizando contador');
       loadFavoritesCount();
     };
 
     const handleFavoriteRemoved = () => {
-      console.log('Evento: Favorito eliminado - actualizando contador');
       loadFavoritesCount();
     };
 
@@ -243,10 +237,6 @@ const Header = () => {
             <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/login'); }}>
               <LoginIcon />
               <span className="menu-item-text">Iniciar Sesión</span>
-            </button>
-            <button className="menu-item" onClick={() => { handleMenuClose(); navigate('/register'); }}>
-              <PersonAddIcon/>
-              <span className="menu-item-text">Registrarse</span>
             </button>
           </>
         )}

@@ -16,9 +16,10 @@ router.register(r'messages', MessageViewSet, basename='message')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('accounts.urls')),
-    path('api/profile/', UserProfileView.as_view(), name='user-profile'), 
-    path('api/', include(router.urls)),          
+    path('api/auth/', include('authentication.urls')),  # Rutas de authentication (login, google login)
+    path('api/accounts/', include('accounts.urls')),  # Rutas de accounts (register, profile, ratings, etc.)
+    path('api/', include(router.urls)),
+    path('api/products/', include('products.urls')),  # Incluir URLs adicionales de products
     path('api/notifications/', include('notifications.urls')),  
 ]
 

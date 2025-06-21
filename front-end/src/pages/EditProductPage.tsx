@@ -4,7 +4,8 @@ import {
   Paper, CircularProgress, Alert, FormControl,
   InputLabel, Select, FormHelperText, Chip, IconButton,
   Card, CardContent, Divider,
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  GlobalStyles
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.hooks';
@@ -19,6 +20,7 @@ import { formatPrice } from '../utils/formatPrice';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 import PriceDisplay from '../components/PriceDisplay';
 import CategoryIcon from '../components/CategoryIcon';
+import Squares from '../../y/Squares/Squares';
 
 // Configuración de la URL base
 const API_BASE_URL = 'http://localhost:8000';
@@ -29,18 +31,8 @@ interface Category {
 }
 
 const EditProductPage: React.FC = () => {
-  const { id: productId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { id: productId } = useParams<{ id: string }>();  const navigate = useNavigate();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
-  
-  // Log inicial del componente
-  console.log('🎯 EditProductPage renderizado:', {
-    productId,
-    isAuthenticated,
-    authLoading,
-    hasUser: !!user,
-    username: user?.username
-  });
   
   // Estado del formulario
   const [title, setTitle] = useState('');
@@ -88,11 +80,9 @@ const EditProductPage: React.FC = () => {
     { value: 'fair', label: 'Estado aceptable' },
     { value: 'poor', label: 'Mal estado' }
   ];
-
   // Comprobar autenticación
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log("Usuario no autenticado, redirigiendo a login");
       navigate('/login', { state: { from: `/product/edit/${productId}` } });
     }
   }, [isAuthenticated, navigate, productId]);
@@ -102,14 +92,12 @@ const EditProductPage: React.FC = () => {
     const fetchCategories = async () => {
       try {
         setFetchingCategories(true);
-        const response = await api.getCategories();
-        if (response.success && response.data) {
+        const response = await api.getCategories();        if (response.success && response.data) {
           setCategories(response.data);
         } else {
-          console.error('Error al obtener categorías:', response.error);
-        }
-      } catch (error: unknown) {
-        console.error('Error al obtener categorías:', error);
+          // Error fetching categories
+        }      } catch {
+        // Error fetching categories
       } finally {
         setFetchingCategories(false);
       }
@@ -118,72 +106,49 @@ const EditProductPage: React.FC = () => {
     fetchCategories();
   }, []);  // Cargar datos del producto
   useEffect(() => {
-    console.log('🚀 useEffect loadData ejecutándose...');
-    
     const loadData = async () => {
-      console.log('🔍 LoadData useEffect ejecutado:', { 
-        isAuthenticated, 
-        productId, 
-        authLoading,
-        user: user?.username || 'sin usuario'
-      });
-      
       // Esperar a que la autenticación termine de cargar
       if (authLoading) {
-        console.log('⏳ Esperando a que la autenticación termine de cargar...');
-        return;
-      }
+        return;      }
       
       if (!isAuthenticated) {
-        console.log('❌ Usuario no autenticado, redirigiendo...');
         setLoading(false);
         return;
       }
       
       if (!productId) {
-        console.log('❌ No hay productId');
         setLoading(false);
         return;
       }
       
-      console.log('✅ Condiciones cumplidas, cargando producto...');
       setLoading(true);
       setError(null);
-      
-      try {
+        try {
         // Cargar datos del producto
-        console.log(`📦 Cargando producto ${productId}...`);
         const numericId = parseInt(productId);
         if (isNaN(numericId)) {
           throw new Error('ID de producto no válido');
-        }
-          const productResponse = await api.getProductById(numericId);
-        console.log('Respuesta completa de getProductById:', productResponse);
+        }        const productResponse = await api.getProductById(numericId);
         
         if (productResponse.success && productResponse.data) {
           const product = productResponse.data;
-          console.log('Datos del producto recibidos:', product);
-          setProduct(product);          // Establecer los valores del formulario
-          console.log('📝 Estableciendo valores del formulario...');
+          setProduct(product);
+          
+          // Establecer los valores del formulario
           const titleValue = product.title || '';
           const descriptionValue = product.description || '';
           const priceValue = typeof product.price === 'number' ? product.price.toString() : (product.price?.toString() || '');
           
-          console.log('🔧 Valores a establecer:', { titleValue, descriptionValue, priceValue });
           setTitle(titleValue);
           setDescription(descriptionValue);
           setPrice(priceValue);
-          
-          // Manejar categoría (puede ser objeto o ID)
+            // Manejar categoría (puede ser objeto o ID)
           if (typeof product.category === 'object' && product.category?.id) {
-            console.log('Categoría es objeto:', product.category);
-            setCategoryId(product.category.id);
-          } else if (typeof product.category === 'number') {
-            console.log('Categoría es número:', product.category);
+            setCategoryId(product.category.id);} else if (typeof product.category === 'number') {
             setCategoryId(product.category);
           } else {
-            console.log('Categoría no reconocida:', product.category);
-            setCategoryId('');          }
+            setCategoryId('');
+          }
           
           setCondition(product.condition || '');
           
@@ -191,27 +156,19 @@ const EditProductPage: React.FC = () => {
           setImages([]);
           
           // Cargar imágenes existentes
-          console.log('Imágenes del producto:', product.images);
           if (product.images && product.images.length > 0) {
-            console.log('Configurando imágenes existentes:', product.images);
             setExistingImages(product.images);
             setRemovedImageIds([]); // Resetear imágenes marcadas para eliminación
             // Crear previews de las imágenes existentes con URLs completas
-            const previews = product.images.map((img: { id: number; image: string; is_primary: boolean }) => {
-              const imageUrl = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
-              console.log(`Imagen ${img.id}: ${img.image} -> ${imageUrl}`);
+            const previews = product.images.map((img: { id: number; image: string; is_primary: boolean }) => {              const imageUrl = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
               return imageUrl;
-            });
-            console.log('Previews de imágenes generados:', previews);
-            setImagePreviews(previews);
+            });            setImagePreviews(previews);
           } else {
-            console.log('No hay imágenes o array vacío');
             setExistingImages([]);
             setRemovedImageIds([]);
             setImagePreviews([]);
           }
           
-          console.log("Producto cargado correctamente");
         } else {
           throw new Error(productResponse.error || 'Error al cargar el producto');
         }
@@ -318,9 +275,7 @@ const EditProductPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      console.log("Formulario con errores:", formErrors);
+      if (!validateForm()) {
       return;
     }
     
@@ -332,8 +287,6 @@ const EditProductPage: React.FC = () => {
     setSubmitting(true);
     setError(null);
     setErrorDialogOpen(false);    try {
-      console.log("Procesando datos del producto...");
-      
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
@@ -347,34 +300,16 @@ const EditProductPage: React.FC = () => {
       });
         // Procesar y agregar nuevas imágenes
       if (images.length > 0) {
-        console.log(`Procesando ${images.length} nuevas imágenes...`);
         const processedImages = await processImages(images);
         
         processedImages.forEach((image, index) => {
           const fieldName = `new_images[${index}]`;
           formData.append(fieldName, image);
-          console.log(`✅ Agregada imagen: ${fieldName} - ${image.name} (${image.size} bytes)`);
         });
-        
-        console.log(`${processedImages.length} nuevas imágenes agregadas al FormData`);
       }
 
-      // Log del contenido completo del FormData para debugging
-      console.log("🔍 Contenido completo del FormData:");
-      for (const [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`  ${key}: archivo - ${value.name} (${value.size} bytes)`);
-        } else {
-          console.log(`  ${key}: ${value}`);
-        }
-      }
-
-      console.log("Enviando datos del producto actualizado");
-      
-      const response = await api.updateProduct(parseInt(productId), formData);
-      
+      const response = await api.updateProduct(parseInt(productId), formData);      
       if (response.success) {
-        console.log("Producto actualizado correctamente");
         navigate(`/products/${productId}`);
       } else {
         let errorMessage = 'Error al actualizar el producto';
@@ -383,23 +318,21 @@ const EditProductPage: React.FC = () => {
             ? response.error
             : JSON.stringify(response.error);
         }
-        
-        // Verificar si el error está relacionado con contenido inapropiado
+          // Verificar si el error está relacionado con contenido inapropiado
         if (errorMessage.includes("No podemos actualizar tu producto") || 
             errorMessage.includes("contenido inapropiado") ||
-            errorMessage.includes("inapropiado")) {
+            errorMessage.includes("inapropiado") ||
+            errorMessage.includes("sistema de seguridad") ||
+            errorMessage.includes("revisión")) {
           setErrorMessage(errorMessage);
           setErrorDialogOpen(true);
         } else {
           setError(errorMessage);
         }
-      }
-    } catch (error: unknown) {
+      }    } catch (error: unknown) {
       if (error instanceof Error) {
-        console.error('Error al actualizar:', error);
         setError(error.message || 'Error al actualizar el producto');
       } else {
-        console.error('Error desconocido al actualizar:', error);
         setError('Error desconocido al actualizar el producto');
       }
     } finally {
@@ -479,13 +412,54 @@ const EditProductPage: React.FC = () => {
       </Container>
     );
   }
-
   return (
-    <Container maxWidth="xl" sx={{ 
-      py: { xs: 0, sm: 1 },
-      px: { xs: 0, sm: 1, md: 3 },
-      mt: { xs: 0, sm: 1 },
-    }}>
+    <>
+      <GlobalStyles
+        styles={{
+          'body': {
+            backgroundColor: '#ffffff !important',
+            margin: 0,
+            padding: 0,
+          },
+          'html': {
+            backgroundColor: '#ffffff !important',
+          },
+          '#root': {
+            backgroundColor: 'transparent !important',
+          }
+        }}
+      />
+      {/* Fondo animado con Squares */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff !important',
+        }}
+      >
+        <Squares
+          speed={0.5}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(0, 79, 158, 0.2)"
+          hoverFillColor="rgba(0, 79, 158, 0.05)"
+        />
+      </Box>
+      
+      <Container maxWidth="xl" sx={{ 
+        py: { xs: 0, sm: 1 },
+        px: { xs: 2, sm: 3, md: 4 },
+        mt: { xs: 0, sm: 1 },
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: 'transparent !important',
+        minHeight: '100vh',
+      }}>
       <BreadcrumbNav 
         items={[
           { name: 'Editar producto', href: `/product/edit/${productId}`, current: true }
@@ -999,10 +973,10 @@ const EditProductPage: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setErrorDialogOpen(false)} autoFocus>
             Cerrar
-          </Button>
-        </DialogActions>
+          </Button>        </DialogActions>
       </Dialog>
     </Container>
+    </>
   );
 };
 
