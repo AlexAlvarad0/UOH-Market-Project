@@ -8,16 +8,10 @@ NIXPACKS_PYTHON_VERSION = "3.12"
 nixPkgs = ["python312", "postgresql"]
 
 [phases.install]
-cmds = [
-    "cd back-end",
-    "pip install -r requirements.txt"
-]
+cmds = ["cd back-end && pip install -r requirements.txt"]
 
 [phases.build]
-cmds = [
-    "cd back-end",
-    "python manage.py collectstatic --noinput"
-]
+cmds = ["cd back-end && python manage.py collectstatic --noinput"]
 
 [start]
 cmd = "cd back-end && python manage.py migrate && gunicorn backend.wsgi --log-file - --bind 0.0.0.0:$PORT"
