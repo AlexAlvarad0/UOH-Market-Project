@@ -230,6 +230,30 @@ class UserProfileView(RetrieveUpdateAPIView):
     def get_object(self):
         profile, _ = Profile.objects.get_or_create(user=self.request.user)
         return profile
+    
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except serializers.ValidationError as e:
+            # Las ValidationError del serializer deben pasarse tal como están
+            logger.error(f"Error de validación al actualizar perfil: {str(e)}")
+            raise e  # Re-lanzar para que DRF la maneje
+        except IntegrityError as e:
+            logger.error(f"IntegrityError al actualizar perfil: {str(e)}")
+            # Si hay un error de integridad, probablemente sea por username duplicado
+            if 'username' in str(e).lower() or 'unique' in str(e).lower():
+                return Response({
+                    "username": ["Este nombre de usuario ya está en uso."]
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    "error": "Error de integridad en los datos."
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error inesperado al actualizar perfil: {str(e)}")
+            return Response({
+                "error": "Error interno del servidor."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RatingCreateView(generics.CreateAPIView):
     """Vista para crear una nueva calificación"""

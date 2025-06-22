@@ -95,18 +95,17 @@ export const useSwipe = (
 
       handlers.onSwipeEnd?.();
       reset();
-    };
-
-    // Touch events
+    };    // Touch events
     const handleTouchStart = (e: TouchEvent) => {
       if (!trackTouch) return;
+      // Prevenir eventos de mouse cuando se usa touch
       const touch = e.touches[0];
       handleStart(touch.clientX);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!trackTouch || !isTracking) return;
-      if (preventDefaultTouchmoveEvent) e.preventDefault();
+      e.preventDefault(); // Siempre prevenir el comportamiento por defecto en move
       const touch = e.touches[0];
       handleMove(touch.clientX);
     };
@@ -114,44 +113,43 @@ export const useSwipe = (
     const handleTouchEnd = () => {
       if (!trackTouch) return;
       handleEnd();
-    };
-
-    // Mouse events
+    };    // Mouse events
     const handleMouseDown = (e: MouseEvent) => {
       if (!trackMouse) return;
+      // Solo permitir el botón izquierdo del mouse
+      if (e.button !== 0) return;
+      e.preventDefault();
       handleStart(e.clientX);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!trackMouse || !isTracking) return;
+      e.preventDefault();
       handleMove(e.clientX);
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
       if (!trackMouse) return;
+      e.preventDefault();
       handleEnd();
-    };
-
-    const handleMouseLeave = () => {
+    };    const handleMouseLeave = () => {
       if (!trackMouse) return;
       reset();
-    };
-
-    // Add event listeners
+    };    // Add event listeners
     if (trackTouch) {
-      element.addEventListener('touchstart', handleTouchStart, { passive: true });
-      element.addEventListener('touchmove', handleTouchMove, { passive: !preventDefaultTouchmoveEvent });
-      element.addEventListener('touchend', handleTouchEnd, { passive: true });
+      element.addEventListener('touchstart', handleTouchStart, { passive: false });
+      element.addEventListener('touchmove', handleTouchMove, { passive: false });
+      element.addEventListener('touchend', handleTouchEnd, { passive: false });
     }
 
     if (trackMouse) {
-      element.addEventListener('mousedown', handleMouseDown);
-      element.addEventListener('mousemove', handleMouseMove);
-      element.addEventListener('mouseup', handleMouseUp);
+      element.addEventListener('mousedown', handleMouseDown, { passive: false });
+      element.addEventListener('mousemove', handleMouseMove, { passive: false });
+      element.addEventListener('mouseup', handleMouseUp, { passive: false });
       element.addEventListener('mouseleave', handleMouseLeave);
-    }
-
-    return () => {
+      // Prevenir el comportamiento de arrastre por defecto
+      element.addEventListener('dragstart', (e) => e.preventDefault());
+    }    return () => {
       if (trackTouch) {
         element.removeEventListener('touchstart', handleTouchStart);
         element.removeEventListener('touchmove', handleTouchMove);
@@ -163,6 +161,7 @@ export const useSwipe = (
         element.removeEventListener('mousemove', handleMouseMove);
         element.removeEventListener('mouseup', handleMouseUp);
         element.removeEventListener('mouseleave', handleMouseLeave);
+        element.removeEventListener('dragstart', (e) => e.preventDefault());
       }
     };
   }, [isTracking, isVisualTracking, startX, currentX, threshold, trackTouch, trackMouse, preventDefaultTouchmoveEvent, trackingDelay, minDragDistance, handlers]);

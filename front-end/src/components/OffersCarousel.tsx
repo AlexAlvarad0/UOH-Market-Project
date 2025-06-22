@@ -60,7 +60,7 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
         setLoading(true);
         
         // Debug: obtener información de productos
-        const debugResponse = await apiService.getDebugProducts();
+        await apiService.getDebugProducts();
         
         const response = await apiService.getWeeklyOffers();
         if (response.success && response.data) {

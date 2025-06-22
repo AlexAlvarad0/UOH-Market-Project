@@ -79,6 +79,20 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture', 'average_rating', 'total_ratings')
     
+    def validate(self, attrs):
+        """Validar que el nombre de usuario no esté duplicado"""
+        user_data = attrs.get('user', {})
+        username = user_data.get('username')
+        
+        if username and self.instance:
+            # Verificar si el username ya existe en otro usuario
+            if User.objects.filter(username=username).exclude(id=self.instance.user.id).exists():
+                raise serializers.ValidationError({
+                    "username": "Este nombre de usuario ya está en uso."
+                })
+        
+        return attrs
+    
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
         

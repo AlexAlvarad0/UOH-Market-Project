@@ -208,7 +208,7 @@ const MyProductsPage = () => {  interface ProductItem {
         }}
       >
         <Squares
-          speed={0.5}
+          speed={0.25}
           squareSize={40}
           direction="diagonal"
           borderColor="rgba(0, 79, 158, 0.2)"
@@ -400,14 +400,15 @@ const MyProductsPage = () => {  interface ProductItem {
         />
       )}
 
-      {/* Diálogo de confirmación para eliminar */}
-      <Dialog
+      {/* Diálogo de confirmación para eliminar */}      <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
       >
-        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogTitle id="delete-dialog-title">Confirmar eliminación</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText id="delete-dialog-description">
             ¿Estás seguro que deseas eliminar este producto? Esta acción no se puede deshacer.
           </DialogContentText>
         </DialogContent>

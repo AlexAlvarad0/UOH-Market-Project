@@ -24,12 +24,12 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-q+0lgi)&jl2ro0dxcl5qar%)yoz2nid1^)gk&$ulj#dul%-v4#'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-q+0lgi)&jl2ro0dxcl5qar%)yoz2nid1^)gk&$ulj#dul%-v4#')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
 # Root URL Configuration
 ROOT_URLCONF = 'backend.urls'
@@ -66,6 +66,7 @@ INSTALLED_APPS += [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Para servir archivos estáticos en producción
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -145,10 +146,13 @@ CHANNEL_LAYERS = {
 }
 
 # Configuración de CORS
-CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Solo en desarrollo
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = [
+# URLs permitidas para CORS
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 
+    'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000'
+).split(',') if not DEBUG else [
     "http://localhost:5173",  # URL del frontend (Vite)
     "http://localhost:3000",  # URL alternativa del frontend
     "http://127.0.0.1:5173",  # URL del frontend usando 127.0.0.1
@@ -208,8 +212,8 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@uohmarket.com')
 
 # Add these settings to your settings.py
 
-# Frontend URL for building confirmation links
-FRONTEND_URL = 'http://localhost:5173'  # Adjust to your React app's URL
+# Frontend URL for building confirmation links  
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 # Config para Rest Framework
 REST_FRAMEWORK = {
@@ -248,10 +252,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql' if os.getenv('DATABASE_URL') else 'django.db.backends.sqlite3',
+        'NAME': os.getenv('DATABASE_URL') or BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Si hay DATABASE_URL, usar configuración PostgreSQL de Railway
+if os.getenv('DATABASE_URL'):
+    import dj_database_url
+    DATABASES['default'] = dj_database_url.parse(os.getenv('DATABASE_URL'))
 
 # Configuración de autenticación
 AUTHENTICATION_BACKENDS = [
@@ -260,7 +269,10 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Base URL para generar URLs absolutas cuando no hay contexto de request
-BASE_URL = 'http://localhost:8000'
+BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
+
+# Frontend URL for building confirmation links
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 # Configuración para moderación de imágenes - IA AVANZADA + DETECTOR DE DROGAS
 CONTENT_MODERATION_THRESHOLD = 0.3  # Umbral muy estricto para drogas (era 0.5)

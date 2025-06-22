@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -27,7 +27,8 @@ import {
   ThumbUp as ThumbUpIcon, 
   ThumbUpOutlined as ThumbUpOutlinedIcon,
   ArrowBack as ArrowBackIcon,
-  DoneAll as DoneAllIcon
+  DoneAll as DoneAllIcon,
+  Reply as ReplyIcon
 } from '@mui/icons-material';
 import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import AudioMessage from '../components/AudioMessage';
@@ -157,6 +158,7 @@ const ChatPage = () => {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);  // Estado para edición de mensajes
+  const initialLoadRef = useRef(true); // Para auto-scroll inicial
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
@@ -258,11 +260,19 @@ const ChatPage = () => {
       }
         // Scroll al final de los mensajes solo una vez
       if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'auto' }); // Scroll inmediato, sin animation
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
       }
     };
     
     fetchMessages();  }, [conversationId]); // Remover refreshConversations de dependencias
+
+  // Auto-scroll inicial al último mensaje después de montar mensajes
+  useEffect(() => {
+    if (initialLoadRef.current && messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      initialLoadRef.current = false;
+    }
+  }, [messages]);
 
   // WebSocket listeners para mensajes en tiempo real
   useEffect(() => {
@@ -427,15 +437,16 @@ const ChatPage = () => {
     unreadMessages.forEach(msg => {
       markAsRead(msg.id);
     });  }, [messages, conversationId, user?.id, markAsRead]);
-
   // Funciones para el menú contextual
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, messageId: number) => {
+  const handleMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>, messageId: number) => {
     setAnchorEl(event.currentTarget);
     setSelectedMessageId(messageId);
-  };  const handleMenuClose = () => {
+  }, []);
+
+  const handleMenuClose = useCallback(() => {
     setAnchorEl(null);
     setSelectedMessageId(null);
-  };  // Iniciar edición de un mensaje
+  }, []);// Iniciar edición de un mensaje
   const handleEditStart = () => {
     if (!selectedMessageId) return;
     
@@ -488,12 +499,11 @@ const ChatPage = () => {
     setDeleteDialogOpen(false);
     setSelectedMessageId(null);
   };
-
   // Función para iniciar respuesta a un mensaje
-  const handleReplyToMessage = (message: Message) => {
+  const handleReplyToMessage = useCallback((message: Message) => {
     setReplyingToMessage(message);
     handleMenuClose();
-  };
+  }, [handleMenuClose]);
 
   // Función para cancelar respuesta
   const handleCancelReply = () => {
@@ -570,9 +580,8 @@ const ChatPage = () => {
         }}    } catch {
       // Error handling for audio message
     }
-  };
-  // Función para dar like a un mensaje
-  const handleLikeMessage = async (messageId: number) => {
+  };  // Función para dar like a un mensaje
+  const handleLikeMessage = useCallback(async (messageId: number) => {
     // Usar API REST en lugar de WebSocket para mayor confiabilidad
     const res = await api.likeMessage(messageId);
     if (res.success) {
@@ -591,12 +600,13 @@ const ChatPage = () => {
         })
       );
     }
-  };
-  
+  }, []);
   // Función para volver a la lista de conversaciones en móvil
   const handleBackToConversations = () => {
     navigate('/chat');
-  };  // Funciones memoizadas para formateo de fechas para evitar recálculos
+  };
+
+  // Funciones memoizadas para formateo de fechas para evitar recálculos
   const formatDateHeader = useCallback((date: string) => {
     if (!date) {
       return 'Fecha desconocida';
@@ -670,6 +680,336 @@ const ChatPage = () => {
            d1.getMonth() === d2.getMonth() && 
            d1.getFullYear() === d2.getFullYear();
   }, []);
+
+  // Memoizar la lista de mensajes para evitar re-renders innecesarios cuando se escribe
+  const messagesList = useMemo(() => (
+    <Box sx={{ flexGrow: 1 }}>
+      {messages.map((msg, index) => {
+        const isOwnMessage = msg.sender === user?.id;
+        const showDateHeader = index === 0 || !isSameDay(msg.created_at, messages[index - 1].created_at);
+
+        if (msg.is_deleted) {
+          return (
+            <Box key={msg.id} sx={{ 
+              mb: 1,
+              // Márgenes iguales - más pequeños en móvil para evitar solapamiento
+              mx: { xs: '8px', md: '15px' }
+            }}>
+              {showDateHeader && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                  <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
+                    {formatDateHeader(msg.created_at)}
+                  </Typography>
+                </Box>
+              )}
+
+              <SwipeableMessage
+                onReply={() => handleReplyToMessage(msg)}
+                isOwnMessage={isOwnMessage}
+                disabled={true} // Los mensajes eliminados no se pueden responder
+              >                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', 
+                  mb: 0.5,
+                  // Márgenes simétricos para balancear el diseño
+                  ml: isOwnMessage ? { xs: '20%', md: '25%' } : 0, // Margen izquierdo para mensajes propios
+                  mr: !isOwnMessage ? { xs: '20%', md: '25%' } : 0  // Margen derecho para mensajes de otros
+                }}>
+                  <Box sx={{ 
+                    maxWidth: '70%',
+                    minWidth: 'fit-content', // Asegurar que tenga el ancho mínimo necesario
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>                    <Box
+                      sx={{
+                        backgroundColor: 'grey.100',
+                        color: 'text.secondary',
+                        p: { xs: 0.8, md: 1 }, // Menos padding en móvil
+                        borderRadius: 10,
+                        border: '1px solid',
+                        borderColor: 'grey.300',
+                        wordBreak: 'break-word',
+                        // Asegurar que se mantenga en una línea en móvil
+                        minWidth: 'fit-content',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ 
+                        fontStyle: 'italic', 
+                        opacity: 0.8,
+                        fontSize: { xs: '0.75rem', md: '0.875rem' } // Texto más pequeño en móvil
+                      }}>
+                        🗑️ Mensaje eliminado
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                      {msg.sender_username} • {formatMessageTime(msg.created_at)}
+                    </Typography>
+                    {/* Indicador de lectura para mensajes propios eliminados */}
+                    {isOwnMessage && msg.is_read && (
+                      <DoneAllIcon sx={{ 
+                        fontSize: 12, 
+                        color: '#004f9e',
+                        ml: 0.5
+                      }} />
+                    )}
+                  </Box>
+                </Box>
+              </SwipeableMessage>
+            </Box>
+          );
+        }
+
+        return (
+          // Wrapper de mensaje con overflow visible
+          <Box key={msg.id} sx={{
+            mb: 1,
+            position: 'relative',
+            overflow: 'visible',
+            // Márgenes iguales - más pequeños en móvil para evitar solapamiento
+            mx: { xs: '8px', md: '15px' }
+          }}>
+            {showDateHeader && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
+                  {formatDateHeader(msg.created_at)}
+                </Typography>
+              </Box>
+            )}
+
+            <SwipeableMessage
+              onReply={() => handleReplyToMessage(msg)}
+              isOwnMessage={isOwnMessage}
+              disabled={false} // Permitir swipe en todos los mensajes normales
+            >              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', 
+                mb: 0.5,
+                // Márgenes simétricos para balancear el diseño
+                ml: isOwnMessage ? { xs: '20%', md: '25%' } : 0, // Margen izquierdo para mensajes propios
+                mr: !isOwnMessage ? { xs: '20%', md: '25%' } : 0  // Margen derecho para mensajes de otros
+              }}>
+                <Box sx={{ 
+                  maxWidth: '70%', 
+                  position: 'relative'
+                }} className="group">
+
+                  {msg.message_type === 'audio' ? (
+                    <AudioMessage
+                      audioUrl={msg.audio_url || ''}
+                      duration={msg.audio_duration || 0}
+                      isOwnMessage={isOwnMessage}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        backgroundColor: isOwnMessage ? 'primary.main' : 'grey.200',
+                        color: isOwnMessage ? 'white' : 'text.primary',
+                        p: 1.5,
+                        borderRadius: 2,
+                        position: 'relative',
+                        wordBreak: 'break-word'
+                      }}
+                    >
+                      {/* Mostrar mensaje de respuesta si existe */}
+                      {msg.reply_to_message && (
+                        <Box
+                          sx={{
+                            backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                            border: `2px solid ${isOwnMessage ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`,
+                            borderRadius: 1,
+                            p: 1,
+                            mb: 1,
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ 
+                            fontWeight: 'bold',
+                            color: isOwnMessage ? 'rgba(255,255,255,0.9)' : 'text.secondary',
+                            display: 'block'
+                          }}>
+                            {msg.reply_to_message.sender_username}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'text.secondary',
+                            fontStyle: msg.reply_to_message.is_deleted ? 'italic' : 'normal',
+                            opacity: msg.reply_to_message.is_deleted ? 0.7 : 1
+                          }}>
+                            {msg.reply_to_message.is_deleted 
+                              ? '🗑️ Mensaje eliminado'
+                              : msg.reply_to_message.message_type === 'audio' 
+                                ? `🎵 Audio (${msg.reply_to_message.audio_duration}s)`
+                                : msg.reply_to_message.content
+                            }
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      <Typography variant="body2">
+                        {msg.content}
+                      </Typography>
+                      {msg.is_edited && (
+                        <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                          (editado)
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Menú contextual para mensajes (propios y de otros) */}
+                  <IconButton
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: -12,
+                      right: -12, // Siempre en la esquina superior derecha
+                      opacity: 1,
+                      backgroundColor: '#eeeeee',
+                      border: '1px solid #e0e0e0',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                      '&:hover': {
+                        backgroundColor: 'grey.100',
+                        transform: 'scale(1.05)'
+                      },
+                      zIndex: 10,
+                      width: 24,
+                      height: 24,
+                      minWidth: 24
+                    }}
+                    onClick={(e) => handleMenuOpen(e, msg.id)}
+                  >
+                    <MoreVertIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+
+                  {/* Información de likes - mostrar para todos los mensajes */}
+                  {msg.liked_by && msg.liked_by.length > 0 && (
+                    <Box sx={{ 
+                      position: 'absolute', 
+                      bottom: -12, 
+                      right: isOwnMessage ? -12 : -12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      mr: 1 // Margen para separar del contenido
+                    }}>
+                      {/* Para mensajes propios: solo mostrar info de likes */}
+                      {isOwnMessage ? (
+                        <Tooltip title={`Le gustó a: ${msg.liked_by_users?.map(u => u.username).join(', ') || ''}`}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            backgroundColor: 'background.paper',
+                            borderRadius: '50%',
+                            width: 32,
+                            height: 32,
+                            justifyContent: 'center',
+                            border: '1px solid #e0e0e0',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}>
+                            <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
+                            {msg.liked_by.length > 1 && (
+                              <Typography variant="caption" sx={{ ml: 0.3, fontSize: '0.6rem', fontWeight: 'bold' }}>
+                                {msg.liked_by.length}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Tooltip>
+                      ) : (
+                        /* Para mensajes de otros: botón de like funcional */
+                        <>
+                          <Tooltip title={msg.liked_by_users?.map(u => u.username).join(', ') || ''}>
+                            <IconButton
+                              size="small"
+                              sx={{ 
+                                backgroundColor: 'background.paper',
+                                width: 32,
+                                height: 32,
+                                border: '1px solid #e0e0e0',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                '&:hover': { 
+                                  backgroundColor: 'grey.100',
+                                  transform: 'scale(1.05)'
+                                }
+                              }}
+                              onClick={() => handleLikeMessage(msg.id)}
+                            >
+                              {msg.liked_by?.includes(user?.id || 0) ? (
+                                <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
+                              ) : (
+                                <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                          {msg.liked_by.length > 1 && (
+                            <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.6rem', fontWeight: 'bold' }}>
+                              {msg.liked_by.length}
+                            </Typography>
+                          )}
+                        </>
+                      )}
+                    </Box>
+                  )}
+                  
+                  {/* Botón de like para mensajes de otros usuarios (cuando no hay likes aún) */}
+                  {!isOwnMessage && (!msg.liked_by || msg.liked_by.length === 0) && (
+                    <Box sx={{ 
+                      position: 'absolute', 
+                      bottom: -12, 
+                      right: -12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      mr: 1 // Margen para separar del contenido
+                    }}>
+                      <IconButton
+                        size="small"
+                        sx={{ 
+                          backgroundColor: 'background.paper',
+                          width: 32,
+                          height: 32,
+                          border: '1px solid #e0e0e0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          '&:hover': { 
+                            backgroundColor: 'grey.100',
+                            transform: 'scale(1.05)'
+                          }
+                        }}
+                        onClick={() => handleLikeMessage(msg.id)}
+                      >
+                        <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    {msg.sender_username} • {formatMessageTime(msg.created_at)}
+                  </Typography>
+                  {/* Indicador de lectura para mensajes propios */}
+                  {isOwnMessage && msg.is_read && (
+                    <DoneAllIcon sx={{ 
+                      fontSize: 12, 
+                      color: '#004f9e',
+                      ml: 0.5
+                    }} />
+                  )}
+                </Box>
+              </Box>
+            </SwipeableMessage>
+          </Box>
+        );
+      })}
+
+      {/* Indicador de escritura usando componente memoizado */}
+      <TypingIndicator typingUsers={typingUsers} />
+      
+      <div ref={messagesEndRef} />
+    </Box>  ), [messages, typingUsers, user?.id, formatDateHeader, formatMessageTime, isSameDay, handleReplyToMessage, handleMenuOpen, handleLikeMessage]);
 
   // Renderizar solo lista de conversaciones en móvil cuando no hay conversación seleccionada
   if (isMobile && !conversationId) {
@@ -906,291 +1246,8 @@ const ChatPage = () => {
                 <Typography variant="h6" color="text.secondary">
                   {isMobile ? 'Selecciona una conversación' : 'Selecciona una conversación para empezar a chatear'}
                 </Typography>
-              </Box>
-            ) : (
-              <Box sx={{ flexGrow: 1 }}>                {messages.map((msg, index) => {
-                  const isOwnMessage = msg.sender === user?.id;
-                  const showDateHeader = index === 0 || !isSameDay(msg.created_at, messages[index - 1].created_at);if (msg.is_deleted) {                    return (
-                      <Box key={msg.id} sx={{ 
-                        mb: 1,
-                        // Márgenes iguales - más pequeños en móvil para evitar solapamiento
-                        mx: { xs: '8px', md: '15px' }
-                      }}>
-                        {showDateHeader && (
-                          <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                            <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
-                              {formatDateHeader(msg.created_at)}
-                            </Typography>
-                          </Box>
-                        )}                        <SwipeableMessage
-                          onReply={() => handleReplyToMessage(msg)}
-                          isOwnMessage={isOwnMessage}
-                          disabled={true} // Los mensajes eliminados no se pueden responder
-                        >
-                          <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
-                            <Box sx={{ maxWidth: '70%' }}>
-                              <Box
-                                sx={{
-                                  backgroundColor: 'grey.100',
-                                  color: 'text.secondary',
-                                  p: 1,
-                                  borderRadius: 10,
-                                  border: '1px solid',
-                                  borderColor: 'grey.300',
-                                  wordBreak: 'break-word'
-                                }}
-                              >
-                                <Typography variant="body2" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
-                                  🗑️ Mensaje eliminado
-                                </Typography>
-                              </Box>
-                            </Box>                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                {msg.sender_username} • {formatMessageTime(msg.created_at)}
-                              </Typography>
-                              {/* Indicador de lectura para mensajes propios eliminados */}
-                              {isOwnMessage && msg.is_read && (
-                                <DoneAllIcon sx={{ 
-                                  fontSize: 12, 
-                                  color: '#004f9e',
-                                  ml: 0.5
-                                }} />
-                              )}
-                            </Box>
-                          </Box>
-                        </SwipeableMessage>
-                      </Box>
-                    );
-                  }                  return (
-                    // Wrapper de mensaje con overflow visible
-                    <Box key={msg.id} sx={{
-                      mb: 1,
-                      position: 'relative',
-                      overflow: 'visible',
-                      // Márgenes iguales - más pequeños en móvil para evitar solapamiento
-                      mx: { xs: '8px', md: '15px' }
-                    }}>
-                      {showDateHeader && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                          <Typography variant="caption" sx={{ backgroundColor: 'grey.200', px: 2, py: 0.5, borderRadius: 2 }}>
-                            {formatDateHeader(msg.created_at)}
-                          </Typography>
-                        </Box>
-                      )}                        <SwipeableMessage
-                          onReply={() => handleReplyToMessage(msg)}
-                          isOwnMessage={isOwnMessage}
-                          disabled={false} // Permitir swipe en todos los mensajes normales
-                        >
-                          <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', mb: 0.5 }}>
-                            <Box sx={{ 
-                              maxWidth: '70%', 
-                              position: 'relative'
-                            }} className="group">                          {msg.message_type === 'audio' ? (
-                            <AudioMessage
-                              audioUrl={msg.audio_url || ''}
-                              duration={msg.audio_duration || 0}
-                              isOwnMessage={isOwnMessage}
-                            />
-                          ) : (
-                            <Box
-                              sx={{
-                                backgroundColor: isOwnMessage ? 'primary.main' : 'grey.200',
-                                color: isOwnMessage ? 'white' : 'text.primary',
-                                p: 1.5,
-                                borderRadius: 2,
-                                position: 'relative',
-                                wordBreak: 'break-word'
-                              }}
-                            >                              {/* Mostrar mensaje de respuesta si existe */}
-                              {msg.reply_to_message && (
-                                <Box
-                                  sx={{
-                                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                                    border: `2px solid ${isOwnMessage ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`,
-                                    borderRadius: 1,
-                                    p: 1,
-                                    mb: 1,
-                                    fontSize: '0.875rem'
-                                  }}
-                                >
-                                    <Typography variant="caption" sx={{ 
-                                      fontWeight: 'bold',
-                                      color: isOwnMessage ? 'rgba(255,255,255,0.9)' : 'text.secondary',
-                                      display: 'block'
-                                    }}>
-                                      {msg.reply_to_message.sender_username}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ 
-                                      color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'text.secondary',
-                                      fontStyle: msg.reply_to_message.is_deleted ? 'italic' : 'normal',
-                                      opacity: msg.reply_to_message.is_deleted ? 0.7 : 1
-                                    }}>
-                                      {msg.reply_to_message.is_deleted 
-                                        ? '🗑️ Mensaje eliminado'
-                                        : msg.reply_to_message.message_type === 'audio' 
-                                          ? `🎵 Audio (${msg.reply_to_message.audio_duration}s)`
-                                          : msg.reply_to_message.content
-                                      }                                    </Typography>
-                                  </Box>
-                              )}
-                              
-                              <Typography variant="body2">
-                                {msg.content}
-                              </Typography>
-                              {msg.is_edited && (
-                                <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
-                                  (editado)
-                                </Typography>
-                              )}
-                            </Box>
-                          )}                          {/* Menú contextual para mensajes propios (tanto texto como audio) */}
-                          {isOwnMessage && (
-                            <IconButton
-                              size="small"
-                              sx={{ 
-                                position: 'absolute', 
-                                top: -12, // Posición más arriba - mitad afuera del mensaje
-                                right: -12, // Posición más a la derecha - mitad afuera del mensaje
-                                opacity: 1, // Siempre visible
-                                backgroundColor: '#eeeeee',
-                                border: '1px solid #e0e0e0',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                '&:hover': { 
-                                  backgroundColor: 'grey.100',
-                                  transform: 'scale(1.05)'
-                                },
-                                zIndex: 10, // Asegurar que esté por encima de otros elementos
-                                width: 24, // Hacer el botón más pequeño
-                                height: 24,
-                                minWidth: 24
-                              }}
-                              onClick={(e) => handleMenuOpen(e, msg.id)}
-                            >
-                              <MoreVertIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          )}
-                            {/* Información de likes - mostrar para todos los mensajes */}
-                          {msg.liked_by && msg.liked_by.length > 0 && (
-                            <Box sx={{ 
-                              position: 'absolute', 
-                              bottom: -12, 
-                              right: isOwnMessage ? -12 : -12,
-                              display: 'flex',
-                              alignItems: 'center',
-                              mr: 1 // Margen para separar del contenido
-                            }}>
-                              {/* Para mensajes propios: solo mostrar info de likes */}
-                              {isOwnMessage ? (
-                                <Tooltip title={`Le gustó a: ${msg.liked_by_users?.map(u => u.username).join(', ') || ''}`}>
-                                  <Box sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    backgroundColor: 'background.paper',
-                                    borderRadius: '50%',
-                                    width: 32,
-                                    height: 32,
-                                    justifyContent: 'center',
-                                    border: '1px solid #e0e0e0',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                  }}>
-                                    <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
-                                    {msg.liked_by.length > 1 && (
-                                      <Typography variant="caption" sx={{ ml: 0.3, fontSize: '0.6rem', fontWeight: 'bold' }}>
-                                        {msg.liked_by.length}
-                                      </Typography>
-                                    )}
-                                  </Box>
-                                </Tooltip>
-                              ) : (
-                                /* Para mensajes de otros: botón de like funcional */
-                                <>
-                                  <Tooltip title={msg.liked_by_users?.map(u => u.username).join(', ') || ''}>
-                                    <IconButton
-                                      size="small"
-                                      sx={{ 
-                                        backgroundColor: 'background.paper',
-                                        width: 32,
-                                        height: 32,
-                                        border: '1px solid #e0e0e0',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                        '&:hover': { 
-                                          backgroundColor: 'grey.100',
-                                          transform: 'scale(1.05)'
-                                        }
-                                      }}
-                                      onClick={() => handleLikeMessage(msg.id)}
-                                    >
-                                      {msg.liked_by?.includes(user?.id || 0) ? (
-                                        <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
-                                      ) : (
-                                        <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
-                                      )}
-                                    </IconButton>
-                                  </Tooltip>
-                                  {msg.liked_by.length > 1 && (
-                                    <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.6rem', fontWeight: 'bold' }}>
-                                      {msg.liked_by.length}
-                                    </Typography>
-                                  )}
-                                </>
-                              )}
-                            </Box>
-                          )}
-                          
-                          {/* Botón de like para mensajes de otros usuarios (cuando no hay likes aún) */}
-                          {!isOwnMessage && (!msg.liked_by || msg.liked_by.length === 0) && (
-                            <Box sx={{ 
-                              position: 'absolute', 
-                              bottom: -12, 
-                              right: -12,
-                              display: 'flex',
-                              alignItems: 'center',
-                              mr: 1 // Margen para separar del contenido
-                            }}>
-                              <IconButton
-                                size="small"
-                                sx={{ 
-                                  backgroundColor: 'background.paper',
-                                  width: 32,
-                                  height: 32,
-                                  border: '1px solid #e0e0e0',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                  '&:hover': { 
-                                    backgroundColor: 'grey.100',
-                                    transform: 'scale(1.05)'
-                                  }
-                                }}
-                                onClick={() => handleLikeMessage(msg.id)}
-                              >
-                                <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
-                              </IconButton>
-                            </Box>
-                          )}                        </Box>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', justifyContent: isOwnMessage ? 'flex-end' : 'flex-start', px: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                            {msg.sender_username} • {formatMessageTime(msg.created_at)}
-                          </Typography>
-                          {/* Indicador de lectura para mensajes propios */}
-                          {isOwnMessage && msg.is_read && (
-                            <DoneAllIcon sx={{ 
-                              fontSize: 12, 
-                              color: '#004f9e',
-                              ml: 0.5
-                            }} />
-                          )}
-                        </Box>
-                      </Box>
-                      </SwipeableMessage>
-                    </Box>
-                  );
-                })}                  {/* Indicador de escritura usando componente memoizado */}
-                <TypingIndicator typingUsers={typingUsers} />
-                
-                <div ref={messagesEndRef} />
-              </Box>
+              </Box>            ) : (
+              messagesList
             )}
           </Box>          {/* Input de mensaje */}
           {conversationId && (
@@ -1214,18 +1271,34 @@ const ChatPage = () => {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        {/* Mostrar opción de editar solo para mensajes de texto */}
-        {selectedMessageId && messages.find(msg => msg.id === selectedMessageId)?.message_type !== 'audio' && (
-          <MenuItem onClick={handleEditStart}>
-            <EditIcon sx={{ mr: 1 }} fontSize="small" />
-            Editar
-          </MenuItem>
-        )}
-        {/* Opción de eliminar para todos los tipos de mensaje */}
-        <MenuItem onClick={handleDeleteMessage}>
-          <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
-          Eliminar
+        {/* Opción de responder para todos los mensajes */}
+        <MenuItem onClick={() => {
+          const msg = messages.find(m => m.id === selectedMessageId);
+          if (msg) handleReplyToMessage(msg);
+          handleMenuClose();
+        }}>
+          <ReplyIcon sx={{ mr: 1 }} fontSize="small" />
+          Responder
         </MenuItem>
+        {/* Opciones edit/delete solo para mis mensajes */}
+        {(() => {
+          const msg = messages.find(m => m.id === selectedMessageId);
+          const isOwn = msg?.sender === user?.id;
+          return isOwn ? (
+            <>
+              {msg?.message_type !== 'audio' && (
+                <MenuItem onClick={handleEditStart}>
+                  <EditIcon sx={{ mr: 1 }} fontSize="small" />
+                  Editar
+                </MenuItem>
+              )}
+              <MenuItem onClick={handleDeleteMessage}>
+                <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
+                Eliminar
+              </MenuItem>
+            </>
+          ) : null;
+        })()}
       </Menu>
 
       {/* Diálogo de confirmación de eliminación */}

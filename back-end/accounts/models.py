@@ -37,8 +37,6 @@ class User(AbstractUser):
         unique=True,
         default=generate_username  # Ahora usamos la función en lugar de lambda
     )
-    # Campo temporal para códigos de verificación (Google OAuth)
-    verification_code = models.CharField(max_length=10, blank=True, null=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']

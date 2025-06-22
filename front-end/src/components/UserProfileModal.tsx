@@ -51,9 +51,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const fetchUserProfile = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
-        // Usar la misma estructura que el frontend usa en otros lugares
-      const response = await fetch(`${API_URL}/accounts/users/${userId}/profile/`, {
+      setError('');      // Usar la misma estructura que el frontend usa en otros lugares
+      const response = await fetch(`${API_URL}/api/accounts/users/${userId}/profile/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

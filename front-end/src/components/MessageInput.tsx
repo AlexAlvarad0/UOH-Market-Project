@@ -182,13 +182,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
   if (audioMode && (recordingState === 'recording' || recordingState === 'paused')) {
     return (
       <Box sx={{ position: 'relative' }}>
-        {renderError()}
-        <Box
+        {renderError()}        <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            padding: '0 12px',
+            padding: '0', // Mismo padding que el input normal
             backgroundColor: recordingState === 'recording' ? 'error.light' : 'warning.light',
             borderRadius: '20px',
             border: '1px solid',
@@ -196,13 +195,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
             animation: recordingState === 'recording' ? 'pulse 1.5s infinite' : 'none',
             height: '40px',
             width: '100%',
-            margin: '10px 10px 0',
+            margin: '10px 10px 0', // Mismo margen que el input normal
+            // Padding interno para los elementos
+            px: '12px',
             '@keyframes pulse': {
               '0%, 100%': { opacity: 1 },
               '50%': { opacity: 0.8 },
             },
           }}
-        >          {/* Indicador de grabación */}
+        >{/* Indicador de grabación */}
           {recordingState === 'recording' ? (
             <RecordIcon sx={{ color: 'error.main', fontSize: 16 }} />
           ) : (
@@ -256,22 +257,23 @@ const MessageInput: React.FC<MessageInputProps> = ({
   if (audioMode && recordingState === 'recorded' && hasRecording) {
     return (
       <Box sx={{ position: 'relative' }}>
-        {renderError()}
-        <Box
+        {renderError()}        <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            padding: '0 12px',
+            padding: '0', // Mismo padding que el input normal
             backgroundColor: 'success.light',
             borderRadius: '20px',
             border: '1px solid',
             borderColor: 'success.main',
             height: '40px',
             width: '100%',
-            margin: '10px 10px 0',
+            margin: '10px 10px 0', // Mismo margen que el input normal
+            // Padding interno para los elementos
+            px: '12px',
           }}
-        >          {/* Botón de reproducir/pausar */}
+        >{/* Botón de reproducir/pausar */}
           <IconButton
             onClick={handlePlayToggle}
             disabled={isSending}
@@ -333,9 +335,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   // Modo normal: input de texto
   return (
     <Box sx={{ position: 'relative' }}>
-      {renderError()}
-      
-      {/* Indicador de respuesta */}
+      {renderError()}      {/* Indicador de respuesta */}
       {replyingToMessage && (
         <Box 
           sx={{
@@ -347,27 +347,49 @@ const MessageInput: React.FC<MessageInputProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            mx: 1
+            // Alinear al margen derecho con 10px de separación
+            mr: '10px',
+            ml: 'auto', // Esto empuja el elemento hacia la derecha
+            // Limitar el ancho máximo para evitar expansión excesiva
+            maxWidth: 'calc(100% - 10px)', // Ancho máximo menos el margen derecho
+            minWidth: 0, // Permitir que se contraiga
+            width: 'fit-content'
           }}
         >
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', display: 'block' }}>
+          <Box sx={{ 
+            flex: 1,
+            minWidth: 0, // Permitir que se contraiga
+            maxWidth: { xs: 'calc(100vw - 120px)', md: '400px' }, // Limitar ancho en móvil y desktop
+            overflow: 'hidden'
+          }}>
+            <Typography variant="caption" color="primary" sx={{ 
+              fontWeight: 'bold', 
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
               Respondiendo a {replyingToMessage.sender_username}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ 
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              wordBreak: 'break-word',
+              // Limitar la longitud del texto mostrado
+              maxWidth: '100%'
             }}>
               {replyingToMessage.is_deleted 
                 ? '🗑️ Mensaje eliminado'
                 : replyingToMessage.message_type === 'audio' 
                   ? `🎵 Audio (${replyingToMessage.audio_duration}s)`
-                  : replyingToMessage.content
+                  : replyingToMessage.content.length > 50 
+                    ? `${replyingToMessage.content.substring(0, 50)}...`
+                    : replyingToMessage.content
               }
             </Typography>
           </Box>
-          <IconButton size="small" onClick={onCancelReply}>
+          <IconButton size="small" onClick={onCancelReply} sx={{ flexShrink: 0, ml: 1 }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>

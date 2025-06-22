@@ -5,6 +5,7 @@ export interface User {
   email: string;
   username: string;
   is_email_verified?: boolean;
+  is_verified_seller?: boolean;
   profile?: {
     first_name?: string;
     last_name?: string;

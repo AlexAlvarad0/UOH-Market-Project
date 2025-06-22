@@ -49,7 +49,7 @@ const RatingsList: React.FC<RatingsListProps> = ({
   const [selectedUsername, setSelectedUsername] = useState<string>('');  const fetchRatings = useCallback(async (pageNumber: number = 1) => {    try {
       setLoading(true);
       const response = await fetch(
-        `${API_URL}/accounts/ratings/user/${sellerId}/?page=${pageNumber}`
+        `${API_URL}/api/accounts/ratings/user/${sellerId}/?page=${pageNumber}`
       );
 
       if (response.ok) {
@@ -141,9 +141,11 @@ const RatingsList: React.FC<RatingsListProps> = ({
       ) : (        <Box className="ratings-list">
           {ratings.map((rating, index) => {
             return (
-              <Paper key={rating.id || index} className="rating-item" elevation={5}>
-                <Box className="rating-header">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>                    {/* Avatar clicable */}                    <Avatar 
+              <Paper key={rating.id || index} className="rating-item" elevation={5}>                <Box className="rating-header">
+                  {/* Contenido principal: Avatar y datos del usuario */}
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, width: '100%' }}>
+                    {/* Avatar clicable */}
+                    <Avatar 
                       src={
                         typeof rating.rater === 'object' && rating.rater && rating.rater.profile_picture
                           ? rating.rater.profile_picture
@@ -175,28 +177,73 @@ const RatingsList: React.FC<RatingsListProps> = ({
                       })()}
                     </Avatar>
                     
-                    <Box>
-                      <Typography 
-                        className="rating-user"
-                        onClick={() => {
-                          // Obtener userId y username para el modal
-                          const userId = typeof rating.rater === 'object' && rating.rater ? rating.rater.id : null;
-                          const username = rating.rater_username || getDisplayName(rating.rater);
-                          
-                          if (userId) {
-                            handleOpenUserProfile(userId, username);
-                          }
-                        }}
-                        sx={{
-                          cursor: typeof rating.rater === 'object' && rating.rater ? 'pointer' : 'default',
-                          color: typeof rating.rater === 'object' && rating.rater ? 'primary.main' : 'inherit',
-                          '&:hover': {
-                            textDecoration: typeof rating.rater === 'object' && rating.rater ? 'underline' : 'none',
-                          }
-                        }}
-                      >
-                        {rating.rater_username || getDisplayName(rating.rater)}
-                      </Typography>
+                    {/* Información del usuario y fecha responsiva */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      {/* Desktop: Nombre y fecha en la misma línea */}
+                      <Box sx={{ 
+                        display: { xs: 'none', sm: 'flex' },
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        mb: 1
+                      }}>
+                        <Typography 
+                          className="rating-user"
+                          onClick={() => {
+                            const userId = typeof rating.rater === 'object' && rating.rater ? rating.rater.id : null;
+                            const username = rating.rater_username || getDisplayName(rating.rater);
+                            
+                            if (userId) {
+                              handleOpenUserProfile(userId, username);
+                            }
+                          }}
+                          sx={{
+                            cursor: typeof rating.rater === 'object' && rating.rater ? 'pointer' : 'default',
+                            color: typeof rating.rater === 'object' && rating.rater ? 'primary.main' : 'inherit',
+                            '&:hover': {
+                              textDecoration: typeof rating.rater === 'object' && rating.rater ? 'underline' : 'none',
+                            }
+                          }}
+                        >
+                          {rating.rater_username || getDisplayName(rating.rater)}
+                        </Typography>
+                        <Typography className="rating-date" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                          {rating.created_at ? formatDate(rating.created_at) : 'Fecha desconocida'}
+                        </Typography>
+                      </Box>
+                      
+                      {/* Mobile: Nombre arriba, fecha abajo */}
+                      <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                        <Typography 
+                          className="rating-user"
+                          onClick={() => {
+                            const userId = typeof rating.rater === 'object' && rating.rater ? rating.rater.id : null;
+                            const username = rating.rater_username || getDisplayName(rating.rater);
+                            
+                            if (userId) {
+                              handleOpenUserProfile(userId, username);
+                            }
+                          }}
+                          sx={{
+                            cursor: typeof rating.rater === 'object' && rating.rater ? 'pointer' : 'default',
+                            color: typeof rating.rater === 'object' && rating.rater ? 'primary.main' : 'inherit',
+                            '&:hover': {
+                              textDecoration: typeof rating.rater === 'object' && rating.rater ? 'underline' : 'none',
+                            },
+                            mb: 0.5
+                          }}
+                        >
+                          {rating.rater_username || getDisplayName(rating.rater)}
+                        </Typography>
+                        <Typography className="rating-date" sx={{ 
+                          fontSize: '0.75rem', 
+                          color: 'text.secondary',
+                          mb: 1
+                        }}>
+                          {rating.created_at ? formatDate(rating.created_at) : 'Fecha desconocida'}
+                        </Typography>
+                      </Box>
+                      
+                      {/* Estrellas */}
                       <StarRating
                         rating={rating.rating || 0}
                         showText={false}
@@ -204,9 +251,6 @@ const RatingsList: React.FC<RatingsListProps> = ({
                       />
                     </Box>
                   </Box>
-                  <Typography className="rating-date">
-                    {rating.created_at ? formatDate(rating.created_at) : 'Fecha desconocida'}
-                  </Typography>
                 </Box>
                 
                 {rating.comment && (

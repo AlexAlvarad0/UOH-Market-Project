@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { webSocketService, ChatMessage, ConversationData, MessageHandler, ConversationHandler } from '../services/websocket';
+import { webSocketService, MessageHandler, ConversationHandler } from '../services/websocket';
 
 // Hook para manejar conexión de chat
 export const useChatWebSocket = (conversationId: string | null, token: string | null) => {

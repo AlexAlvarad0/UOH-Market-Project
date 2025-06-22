@@ -23,6 +23,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   maxResends = 3
 }) => {
   const [values, setValues] = useState(Array(6).fill(''));
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
@@ -40,6 +41,24 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     }
   };
 
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const newVals = [...values];
+      
+      if (newVals[index]) {
+        // Si la casilla actual tiene un valor, lo borramos
+        newVals[index] = '';
+        setValues(newVals);
+      } else if (index > 0) {
+        // Si la casilla actual está vacía, vamos a la anterior y la borramos
+        newVals[index - 1] = '';
+        setValues(newVals);
+        inputsRef.current[index - 1]?.focus();
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const code = values.join('');
@@ -48,15 +67,27 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     }
   };
 
+  const handleOverlayClick = () => {
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmCancel = () => {
+    setShowConfirmation(false);
+    onCancel();
+  };
+
+  const handleStayInModal = () => {
+    setShowConfirmation(false);
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-
   return (
     <Wrapper>
-      <div className="overlay" onClick={onCancel} />
+      <div className="overlay" onClick={handleOverlayClick} />
       <StyledWrapper>
         <form className="form" onSubmit={handleSubmit}>
           <div className="title">Verificación de Email</div>
@@ -72,6 +103,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 maxLength={1}
                 value={v}
                 onChange={e => handleChange(i, e.target.value)}
+                onKeyDown={e => handleKeyDown(i, e)}
               />
             ))}
           </div>
@@ -114,6 +146,25 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
           </div>
         </form>
       </StyledWrapper>
+      
+      {/* Modal de confirmación */}
+      {showConfirmation && (
+        <ConfirmationModal>
+          <div className="confirmation-overlay" onClick={handleStayInModal} />
+          <div className="confirmation-content">
+            <h3>¿Estás seguro?</h3>
+            <p>Si sales ahora, no podrás verificar tu cuenta y tendrás que registrarte nuevamente.</p>
+            <div className="confirmation-buttons">
+              <button className="stay-button" onClick={handleStayInModal}>
+                Quedarme
+              </button>
+              <button className="leave-button" onClick={handleConfirmCancel}>
+                Salir
+              </button>
+            </div>
+          </div>
+        </ConfirmationModal>
+      )}
     </Wrapper>
   );
 };
@@ -282,12 +333,92 @@ const StyledWrapper = styled.div`
     padding: 10px;
     text-align: center;
   }
-
   .warning p {
     margin: 0;
     color: #856404;
     font-size: 12px;
     font-weight: bold;
+  }
+`;
+
+const ConfirmationModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1002;
+
+  .confirmation-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.7);
+  }
+
+  .confirmation-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1003;
+    text-align: center;
+    max-width: 400px;
+    margin: 20px;
+  }
+
+  .confirmation-content h3 {
+    margin: 0 0 15px 0;
+    color: #002C54;
+    font-size: 20px;
+  }
+
+  .confirmation-content p {
+    margin: 0 0 25px 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .confirmation-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+  }
+
+  .stay-button, .leave-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 100px;
+  }
+
+  .stay-button {
+    background-color: #002C54;
+    color: white;
+  }
+
+  .stay-button:hover {
+    background-color: #003a73;
+  }
+
+  .leave-button {
+    background-color: #dc3545;
+    color: white;
+  }
+
+  .leave-button:hover {
+    background-color: #c82333;
   }
 `;
 

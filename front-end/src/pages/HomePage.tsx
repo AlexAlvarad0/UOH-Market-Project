@@ -92,7 +92,7 @@ const ShadcnSlider = ({ value, onChange, min, max, step, onValueCommit }: Shadcn
 
 const HomePage = () => {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [page, setPage] = useState(1);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [filters, setFilters] = useState({
@@ -391,7 +391,6 @@ const HomePage = () => {
     };
     return conditionMap[condition] || condition;
   };
-
   const getOrderingName = (ordering: string) => {
     const orderingMap: { [key: string]: string } = {
       '-created_at': 'Más recientes',
@@ -400,7 +399,34 @@ const HomePage = () => {
       '-views_count': 'Más vistos'
     };
     return orderingMap[ordering] || ordering;
-  };  return (
+  };
+  // Filtrar productos pendientes: solo visibles para el dueño
+  const getFilteredProducts = () => {
+    if (!isAuthenticated || !user) {
+      // Si el usuario no está autenticado, mostrar solo productos que no estén pendientes
+      return products.filter(product => product.status !== 'pending');
+    }
+    
+    // Función para obtener el ID del seller
+    const getSellerId = (seller: number | { id: number; username?: string; email?: string }) => {
+      if (typeof seller === 'number') {
+        return seller;
+      } else if (typeof seller === 'object' && seller !== null) {
+        return seller.id;
+      }
+      return null;
+    };
+    
+    // Si está autenticado, mostrar todos los productos excepto los pendientes de otros usuarios
+    return products.filter(product => {
+      if (product.status === 'pending') {
+        // Los productos pendientes solo se muestran al dueño
+        const sellerId = getSellerId(product.seller);
+        return sellerId && sellerId === user.id;
+      }
+      return true; // Mostrar todos los demás productos
+    });
+  };return (
     <>
       <GlobalStyles        styles={{
           'body': {
@@ -429,7 +455,7 @@ const HomePage = () => {
           backgroundColor: '#ffffff !important', // Fondo blanco base
         }}
       >        <Squares
-          speed={0.5}
+          speed={0.25}
           squareSize={40}
           direction="diagonal"
           borderColor="rgba(0, 79, 158, 0.2)"
@@ -845,10 +871,9 @@ const HomePage = () => {
       ) : loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress />
-        </Box>
-      ) : products.length > 0 ? (
+        </Box>      ) : getFilteredProducts().length > 0 ? (
         <>          <ProductList 
-            products={products} 
+            products={getFilteredProducts()} 
             onFavoriteClick={handleFavoriteClick}
             isLoading={loading}
             itemsPerRow={getItemsPerRow()}

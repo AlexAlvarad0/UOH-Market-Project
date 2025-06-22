@@ -18,10 +18,6 @@ import string
 
 User = get_user_model()
 
-def generate_verification_code(length=6):
-    """Genera un código de verificación numérico"""
-    return ''.join(random.choices(string.digits, k=length))
-
 class LoginView(APIView):
     authentication_classes = []  # Permitir login sin CSRF/session
     permission_classes = [AllowAny]
@@ -151,13 +147,15 @@ class GoogleLoginView(APIView):
             # Verificar si el usuario ya existe
             try:
                 user = User.objects.get(email=email)
-                
-                # Verificar si el usuario necesita verificación de email
+                  # Verificar si el usuario necesita verificación de email
                 if not user.is_email_verified:
-                    # Si no está verificado, generar nuevo código y enviar
-                    verification_code = generate_verification_code()
-                    user.verification_code = verification_code
-                    user.save()
+                    # Si no está verificado, generar nuevo código OTP usando el sistema unificado
+                    from accounts.models import EmailVerificationOTP
+                    otp = EmailVerificationOTP.create_for_user(user)
+                    
+                    # Enviar email de verificación
+                    from accounts.views import send_verification_email
+                    email_sent = send_verification_email(user, otp.code)
                     
                     return Response({
                         'success': True,
@@ -200,14 +198,21 @@ class GoogleLoginView(APIView):
                     last_name=family_name,
                     is_email_verified=False  # Requerirá verificación OTP
                 )
+                  # Generar código de verificación OTP usando el sistema unificado
+                from accounts.models import EmailVerificationOTP
+                otp = EmailVerificationOTP.create_for_user(user)
                 
-                # Generar código de verificación OTP
-                verification_code = generate_verification_code()
-                user.verification_code = verification_code
-                user.save()
+                # Enviar email de verificación
+                from accounts.views import send_verification_email
+                email_sent = send_verification_email(user, otp.code)
                 
-                # TODO: Enviar email con código de verificación
-                # Por ahora, retornamos que requiere verificación
+                if not email_sent:
+                    # Si falla el envío, eliminar usuario y reportar error
+                    user.delete()
+                    return Response({
+                        'success': False,
+                        'error': 'Error al enviar email de verificación. Por favor, intenta nuevamente.'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 return Response({
                     'success': True,

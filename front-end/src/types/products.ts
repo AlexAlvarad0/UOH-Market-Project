@@ -18,7 +18,7 @@ export interface Product {
   status?: string;
   created_at: string;
   updated_at: string;
-  seller: number;
+  seller: number | { id: number; username?: string; email?: string };
   seller_name?: string;
   images?: ProductImage[];
 }

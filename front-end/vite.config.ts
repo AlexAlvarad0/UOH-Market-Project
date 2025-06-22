@@ -10,4 +10,16 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'mui': ['@mui/material', '@mui/icons-material'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'utils': ['@/utils/formatPrice', '@/lib/utils']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  }
 })

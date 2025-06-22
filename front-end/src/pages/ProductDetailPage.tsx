@@ -81,12 +81,12 @@ const ProductDetailPage = () => {
   const { isAuthenticated, user } = useAuth();
   const [product, setProduct] = useState<ProductType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);  const [editModalOpen, setEditModalOpen] = useState(false);  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const [error, setError] = useState<string | null>(null);  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);  const [editModalOpen, setEditModalOpen] = useState(false);  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentUserRating, setCurrentUserRating] = useState<Rating | null>(null);
   const [sellerTabValue, setSellerTabValue] = useState(0);  const [ratingsRefreshKey, setRatingsRefreshKey] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false); // Nuevo estado para controlar eliminación
   
   // Estados para el modal de imagen ampliada
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -386,38 +386,42 @@ const ProductDetailPage = () => {
     if (product && product.images) {
       setModalImageIndex((modalImageIndex + 1) % product.images.length);
     }
-  };
-
-  const handleDeleteProduct = async () => {
-    if (!product) return;
+  };  const handleDeleteProduct = async () => {
+    if (!product || isDeleting) return; // Prevenir múltiples eliminaciones
     
     try {
+      setIsDeleting(true);
       setLoading(true);
+      setDeleteDialogOpen(false); // Cerrar el modal inmediatamente
+      
       const response = await api.deleteProduct(product.id);
       
       if (response.success) {
-        setDeleteDialogOpen(false);
         setNotification({
           message: 'Producto eliminado correctamente',
           type: 'success'
         });
         
+        // Navegar inmediatamente después de mostrar la notificación
         setTimeout(() => {
-          navigate('/');
-        }, 1500);
+          navigate('/', { replace: true });
+        }, 1000);
       } else {
-        setError(response.error || 'Error al eliminar el producto');
-        setDeleteDialogOpen(false);
+        setNotification({
+          message: response.error || 'Error al eliminar el producto',
+          type: 'error'
+        });
+        setLoading(false);
+        setIsDeleting(false);
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || 'Error desconocido al eliminar el producto');
-      } else {
-        setError('Error desconocido al eliminar el producto');
-      }
-      setDeleteDialogOpen(false);
-    } finally {
+      console.error('Error al eliminar producto:', err);
+      setNotification({
+        message: 'Error al eliminar el producto',
+        type: 'error'
+      });
       setLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -438,13 +442,14 @@ const ProductDetailPage = () => {
       });
     }
   };
-
   // Renderizamos diferentes estados de la UI
   if (loading) {
     return (
       <Container maxWidth="xl" sx={{ mt: 4, textAlign: 'center', py: { xs: 2, sm: 3 }, px: { xs: 1, sm: 2, md: 3 } }}>
         <CircularProgress size={60} thickness={4} />
-        <Typography variant="h6" mt={2}>Cargando detalles del producto...</Typography>
+        <Typography variant="h6" mt={2}>
+          {product ? 'Eliminando producto...' : 'Cargando detalles del producto...'}
+        </Typography>
       </Container>
     );
   }
@@ -504,7 +509,7 @@ const ProductDetailPage = () => {
         }}
       >
         <Squares
-          speed={0.5}
+          speed={0.25}
           squareSize={40}
           direction="diagonal"
           borderColor="rgba(0, 79, 158, 0.2)"
@@ -1131,18 +1136,30 @@ const ProductDetailPage = () => {
 
       {/* Diálogo de confirmación para eliminar */}      <Dialog
         open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        onClose={() => !isDeleting && setDeleteDialogOpen(false)}
+        disableEscapeKeyDown={isDeleting}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
       >
-        <DialogTitle sx={{ borderRadius: '25px 25px 0 0' }}>Confirmar eliminación</DialogTitle>
+        <DialogTitle id="delete-dialog-title" sx={{ borderRadius: '25px 25px 0 0' }}>Confirmar eliminación</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText id="delete-dialog-description">
             ¿Estás seguro que deseas eliminar este producto? Esta acción no se puede deshacer.
           </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleDeleteProduct} color="error" autoFocus>
-            Eliminar
+        </DialogContent><DialogActions>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={isDeleting}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleDeleteProduct} 
+            color="error" 
+            autoFocus
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Eliminando...' : 'Eliminar'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -5,6 +5,7 @@ import {
   Pause as PauseIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
+import { API_URL } from '../config';
 
 interface AudioMessageProps {
   audioUrl: string;
@@ -21,7 +22,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
   const [audioDuration, setAudioDuration] = useState(duration);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);useEffect(() => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);  useEffect(() => {
     if (!audioUrl) {
       setHasError(true);
       setIsLoading(false);
@@ -29,7 +30,10 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     }
 
     const audio = new Audio();
-    audioRef.current = audio;
+    audioRef.current = audio;    // Construir URL completa si es relativa
+    const fullAudioUrl = audioUrl.startsWith('http') 
+      ? audioUrl 
+      : `${API_URL}${audioUrl.startsWith('/') ? audioUrl : '/' + audioUrl}`;
 
     const handleLoadedMetadata = () => {
       if (isFinite(audio.duration)) {
@@ -54,7 +58,15 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     };
 
     const handleError = (e: Event) => {
-      console.error('Error loading audio:', e, 'URL:', audioUrl);
+      console.error('Error loading audio:', e);
+      console.error('Failed URL:', fullAudioUrl);
+      console.error('Original URL:', audioUrl);
+      
+      // Intentar diagnosticar el problema
+      if (audioUrl.includes('/media/')) {
+        console.error('URL seems to be a media file path. Check if MEDIA_URL is configured correctly in backend.');
+      }
+      
       setIsLoading(false);
       setHasError(true);
       setIsPlaying(false);
@@ -76,7 +88,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     audio.addEventListener('canplay', handleCanPlay);
 
     // Cargar el audio después de configurar los listeners
-    audio.src = audioUrl;
+    audio.src = fullAudioUrl;
     audio.load();
 
     return () => {

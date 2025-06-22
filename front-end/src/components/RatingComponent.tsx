@@ -9,6 +9,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import StarRating from './StarRating';
+import { createRating } from '../api';
 import '../styles/StarRating.css';
 
 interface Rating {
@@ -65,13 +66,9 @@ const RatingComponent: React.FC<RatingComponentProps> = ({
 
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError('Debes estar autenticado para calificar');
+      if (!token) {        setError('Debes estar autenticado para calificar');
         return;
       }      
-      
-      // Importar la función createRating de api.ts
-      const { createRating } = await import('../api');
       
       // Siempre usamos createRating para evitar problemas de updateRating
       // El backend está configurado para manejar esto, actualizando si ya existe una calificación

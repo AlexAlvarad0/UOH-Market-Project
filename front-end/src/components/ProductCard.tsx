@@ -13,8 +13,19 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteClick }) => {
   const { isAuthenticated, user } = useAuth();
-  // Determine ownership: product.seller is an ID number
-  const isOwner = isAuthenticated && user && user.id === product.seller;
+  
+  // Obtener el ID del seller, manejando tanto si es número como objeto
+  const getSellerId = () => {
+    if (typeof product.seller === 'number') {
+      return product.seller;
+    } else if (typeof product.seller === 'object' && product.seller !== null) {
+      return (product.seller as { id: number }).id;
+    }
+    return null;
+  };
+    const sellerId = getSellerId();
+  const isOwner = isAuthenticated && user && sellerId && user.id === sellerId;
+  
   const [imageError, setImageError] = useState(false);
   
   // Encontrar la imagen primaria o la primera

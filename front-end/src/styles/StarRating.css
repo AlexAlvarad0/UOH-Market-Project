@@ -1,7 +1,8 @@
 /* StarRating Styles */
 .star-rating {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
   gap: 4px;
 }
 
@@ -35,10 +36,12 @@
 }
 
 .rating-text {
-  margin-left: 8px;
-  font-size: 14px;
+  margin-left: 0;
+  margin-top: 2px;
+  font-size: 12px;
   color: #666;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 /* Animación para las estrellas cuando se hace hover */

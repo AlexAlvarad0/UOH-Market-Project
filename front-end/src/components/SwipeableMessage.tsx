@@ -18,8 +18,7 @@ const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { ref: swipeRef, isTracking, swipeOffset } = useSwipe(
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));  const { ref: swipeRef, isTracking, swipeOffset } = useSwipe(
     {
       onSwipeRight: () => {
         if (!disabled && !isOwnMessage) {
@@ -33,11 +32,11 @@ const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
       }
     },
     {
-      threshold: isMobile ? 50 : 60,
-      trackTouch: !disabled, // Deshabilitar touch si está disabled
-      trackMouse: !disabled, // Deshabilitar mouse si está disabled
-      trackingDelay: 100,
-      minDragDistance: isMobile ? 8 : 12
+      threshold: isMobile ? 40 : 50, // Umbral para ejecutar swipe
+      trackTouch: !disabled,
+      trackMouse: !disabled,
+      trackingDelay: isMobile ? 300 : 150, // Más delay en móvil para distinguir taps
+      minDragDistance: isMobile ? 15 : 8 // Mayor distancia mínima en móvil
     }
   );
   
@@ -109,18 +108,26 @@ const SwipeableMessage: React.FC<SwipeableMessageProps> = ({
         </Box>
       )}      {/* Contenido del mensaje */}
       <Box
-        ref={swipeRef}
-        sx={{
+        ref={swipeRef}        sx={{
           transform: isTracking ? `translateX(${limitedOffset}px)` : 'translateX(0px)',
           transition: isTracking ? 'none' : 'transform 0.3s ease',
           position: 'relative',
           zIndex: 1,
           backgroundColor: 'inherit',
-          cursor: isTracking ? 'grabbing' : 'default',
+          cursor: disabled ? 'default' : (isTracking ? 'grabbing' : 'grab'),
           userSelect: isTracking ? 'none' : 'auto',
           // Agregar una sombra sutil cuando se está arrastrando
           boxShadow: isTracking ? (isMobile ? '0 2px 8px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.15)') : 'none',
           borderRadius: isTracking ? '8px' : '0px',
+          // Prevenir la selección de texto durante el swipe
+          WebkitUserSelect: isTracking ? 'none' : 'auto',
+          MozUserSelect: isTracking ? 'none' : 'auto',
+          msUserSelect: isTracking ? 'none' : 'auto',
+          // Prevenir el comportamiento de arrastre por defecto
+          WebkitTouchCallout: 'none',
+          WebkitTapHighlightColor: 'transparent',
+          // Optimización de rendimiento para transformaciones
+          willChange: isTracking ? 'transform' : 'auto',
           // Asegurar que el contenido no se solape con los bordes en móvil
           ...(isMobile && isTracking && {
             mx: 1 // Margen horizontal cuando se está arrastrando en móvil

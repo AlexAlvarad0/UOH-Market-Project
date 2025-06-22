@@ -537,7 +537,6 @@ class ApiService {
       };
     }
   }
-
   // Método para eliminar un producto
   async deleteProduct(productId: number) {
     try {
@@ -548,7 +547,6 @@ class ApiService {
         };
       }      console.log(`Intentando eliminar producto ${productId}...`);
       
-      // Simplificar la petición inicial - sin parámetros que podrían causar problemas
       await axios.delete(
         `${API_URL}/products/${productId}/`, 
         {
@@ -564,39 +562,51 @@ class ApiService {
         data: { 
           message: 'Producto eliminado correctamente',
         } 
-      };    } catch (error: unknown) {
+      };
+    } catch (error: unknown) {
       console.error(`Error al eliminar producto ${productId}:`, error);
       
-      // Si el error es 404, podemos asumir que el producto ya fue eliminado o no existe
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (axios.isAxiosError(error)) {
+        // Si el error es 404, el producto ya no existe
+        if (error.response?.status === 404) {
+          return {
+            success: true,
+            data: { 
+              message: 'El producto ya no existe en el sistema',
+            }
+          };
+        }
+        
+        // Si el error es 400, verificar el mensaje específico
+        if (error.response?.status === 400) {
+          const errorMessage = error.response?.data?.error || 
+                              error.response?.data?.message || 
+                              'El producto no se puede eliminar en este momento';
+          return {
+            success: false,
+            error: errorMessage
+          };
+        }
+        
+        // Otros errores HTTP
+        const statusCode = error.response?.status;
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            `Error del servidor (${statusCode})`;
+        
         return {
-          success: true,
-          data: { 
-            message: 'El producto ya no existe en el sistema',
-          }
+          success: false,
+          error: errorMessage
         };
       }
-      
-      // Para otros errores, intentar extraer el mensaje más informativo
-      let errorMsg = 'Error al eliminar el producto';
-      if (axios.isAxiosError(error)) {
-        if (error.response?.data?.detail) {
-          errorMsg = error.response.data.detail;
-        } else if (error.response?.data) {
-          errorMsg = typeof error.response.data === 'string' 
-            ? error.response.data 
-            : JSON.stringify(error.response.data);
-        }
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      
+        // Error de red u otros errores
       return {
         success: false,
-        error: errorMsg
+        error: 'Error de conexión. Verifica tu conexión a internet.'
       };
     }
   }
+
   // Método para obtener el perfil del usuario autenticado
   async getUserProfile() {
     try {
@@ -610,8 +620,7 @@ class ApiService {
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al cargar el perfil' };
     }
-  }
-  // Método para actualizar el perfil del usuario
+  }  // Método para actualizar el perfil del usuario
   async updateUserProfile(formData: FormData) {
     try {
       const response = await axios.patch(
@@ -633,7 +642,30 @@ class ApiService {
       return { success: true, data: response.data };    } catch (error: unknown) {
       console.error('Error al actualizar el perfil:', error);
       if (axios.isAxiosError(error) && error.response) {
-        return { success: false, error: error.response.data || 'Error al actualizar el perfil' };
+        const errorData = error.response.data;
+        
+        // Si hay errores específicos de campos, intentar extraer el mensaje más relevante
+        if (typeof errorData === 'object') {
+          if (errorData.username && Array.isArray(errorData.username)) {
+            return { success: false, error: errorData.username[0] };
+          }
+          if (errorData.username && typeof errorData.username === 'string') {
+            return { success: false, error: errorData.username };
+          }
+          // Si hay otros errores de campos, intentar extraer el primero
+          const fieldKeys = Object.keys(errorData);
+          if (fieldKeys.length > 0) {
+            const firstError = errorData[fieldKeys[0]];
+            if (Array.isArray(firstError)) {
+              return { success: false, error: firstError[0] };
+            }
+            if (typeof firstError === 'string') {
+              return { success: false, error: firstError };
+            }
+          }
+        }
+        
+        return { success: false, error: errorData || 'Error al actualizar el perfil' };
       }
       return { success: false, error: error instanceof Error ? error.message : 'Error al actualizar el perfil' };
     }

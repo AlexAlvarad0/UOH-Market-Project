@@ -87,9 +87,8 @@ const StarRating: React.FC<StarRatingProps> = ({
   const formatRating = (value: number) => {
     return value % 1 === 0 ? value.toString() : value.toFixed(1);
   };
-
   return (
-    <div className="star-rating">
+    <div className="star-rating" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
       <div className="star-container">
         {Array.from({ length: maxRating }, (_, index) => {
           const starIndex = index + 1;
@@ -107,7 +106,7 @@ const StarRating: React.FC<StarRatingProps> = ({
         })}
       </div>
       {showText && (
-        <span className="rating-text">
+        <span className="rating-text" style={{ marginTop: '4px', fontSize: '0.875rem' }}>
           {rating > 0 ? (
             <>
               {formatRating(rating)}

@@ -260,7 +260,7 @@ const ProfilePage = () => {
         }}
       >
         <Squares
-          speed={0.5}
+          speed={0.25}
           squareSize={40}
           direction="diagonal"
           borderColor="rgba(0, 79, 158, 0.2)"
