@@ -2,11 +2,12 @@
  * Simple utility to debug API responses in the browser console
  */
 import axios from 'axios';
+import { API_URL } from '../config';
 
 export const debugApi = {
   fetchCategories: async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/categories/');
+      const response = await axios.get(`${API_URL}/categories/`);
       return response.data;
     } catch {
       return null;
@@ -16,7 +17,7 @@ export const debugApi = {
   fetchProducts: async () => {
     try {
       console.log("Attempting to fetch products...");
-      const response = await axios.get('http://localhost:8000/api/products/');
+      const response = await axios.get(`${API_URL}/products/`);
       console.log("Raw products response:", response);
       console.log("Products data:", response.data);
       return response.data;
