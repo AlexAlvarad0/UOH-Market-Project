@@ -11,4 +11,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('debug_user_verification/', views.debug_user_verification, name='debug_user_verification'),
     path('debug_check_user/', views.debug_check_user, name='debug_check_user'),
+    path('weekly_offers/', views.ProductViewSet.as_view({'get': 'weekly_offers'}), name='weekly_offers'),
 ]

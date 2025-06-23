@@ -12,7 +12,6 @@ import { Box, Typography, Button } from '@mui/material';
 import { WeeklyOffer } from '@/types/products';
 import apiService from '@/services/api';
 import { formatPrice } from '@/utils/formatPrice';
-import { API_URL } from '../config';
 interface OffersCarouselProps {
   isVisible?: boolean;
 }
@@ -102,11 +101,11 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
       api.off("select", handleSelect);
       clearInterval(autoplayInterval);
     };
-  }, [api, offers.length]);
-  const getProductImage = (offer: WeeklyOffer) => {
+  }, [api, offers.length]);  const getProductImage = (offer: WeeklyOffer) => {
     if (offer.images && offer.images.length > 0) {
       const primaryImage = offer.images.find(img => img.is_primary) || offer.images[0];
-      return `${API_URL}${primaryImage.image}`;
+      // La imagen ya viene con URL absoluta desde el backend
+      return primaryImage.image;
     }
     return '/src/assets/placeholder-image.png'; // Imagen placeholder si no hay imagen
   };
