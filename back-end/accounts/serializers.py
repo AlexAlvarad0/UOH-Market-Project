@@ -63,10 +63,26 @@ class ProfileSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source='user.email', read_only=True)
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
-    profile_picture = serializers.ImageField(allow_null=True, required=False)
+    profile_picture = serializers.SerializerMethodField()
     average_rating = serializers.ReadOnlyField()
     total_ratings = serializers.ReadOnlyField()
     birth_date = serializers.SerializerMethodField()
+
+    def get_profile_picture(self, obj):
+        """Generar URL absoluta para la imagen de perfil"""
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                try:
+                    return request.build_absolute_uri(obj.profile_picture.url)
+                except:
+                    # Fallback usando BASE_URL si build_absolute_uri falla
+                    from django.conf import settings
+                    base_url = getattr(settings, 'BASE_URL', '')
+                    if base_url:
+                        return f"{base_url.rstrip('/')}{obj.profile_picture.url}"
+            return obj.profile_picture.url
+        return None
 
     def get_birth_date(self, obj):
         """Serializar la fecha sin conversiones de zona horaria"""
