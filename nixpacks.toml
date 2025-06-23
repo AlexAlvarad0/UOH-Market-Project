@@ -1,14 +1,11 @@
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.12"
 
-[phases.setup]
-nixPkgs = ["python312", "pip"]
-
 [phases.install]
-cmds = ["cd back-end && python -m pip install -r requirements.txt"]
+cmds = ["cd back-end && python -m pip install --upgrade pip && python -m pip install -r requirements.txt"]
 
 [phases.build]
 cmds = ["cd back-end && python manage.py collectstatic --noinput"]
 
 [start]
-cmd = "cd back-end && python manage.py migrate && gunicorn backend.wsgi --log-file - --bind 0.0.0.0:$PORT"
+cmd = "cd back-end && python manage.py migrate && daphne -b 0.0.0.0 -p $PORT backend.asgi:application"
