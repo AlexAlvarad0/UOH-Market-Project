@@ -20,6 +20,11 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from chat.middleware import JWTAuthMiddlewareStack
 from chat.routing import websocket_urlpatterns
 
+print("🚀 Configurando aplicación ASGI...")
+print(f"📡 WebSocket routes registradas: {len(websocket_urlpatterns)}")
+for i, pattern in enumerate(websocket_urlpatterns):
+    print(f"   {i+1}. {pattern.pattern}")
+
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": JWTAuthMiddlewareStack(
@@ -28,3 +33,5 @@ application = ProtocolTypeRouter({
         )
     ),
 })
+
+print("✅ Aplicación ASGI configurada correctamente")
