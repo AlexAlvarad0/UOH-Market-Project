@@ -17,9 +17,23 @@ class ProductBasicSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'price']
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    
     class Meta:
         model = ProductImage
         fields = ['id', 'image', 'is_primary']
+    
+    def get_image(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            else:
+                # Fallback para cuando no hay request context
+                from django.conf import settings
+                base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                return f"{base_url}{obj.image.url}"
+        return None
 
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
@@ -75,14 +89,13 @@ class ProductSerializer(serializers.ModelSerializer):
             'email': seller.email,
             'is_verified_seller': seller.is_verified_seller,
             'profile_picture': profile_picture,
-            'profile': profile_data
-        }
+            'profile': profile_data        }
         
         return result
     
     def get_is_favorite(self, obj):
         request = self.context.get('request')
-        if request and request.user.is_authenticated:
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
             return Favorite.objects.filter(user=request.user, product=obj).exists()
         return False
     

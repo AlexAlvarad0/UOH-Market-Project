@@ -56,6 +56,15 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     pagination_class = CustomPageNumberPagination
     
+    def get_serializer_context(self):
+        """
+        Asegurar que el request se pase al contexto del serializer
+        para generar URLs absolutas de las imágenes
+        """
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductDetailSerializer

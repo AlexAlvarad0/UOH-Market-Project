@@ -25,7 +25,13 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),  
 ]
 
-# Añadir URLs para archivos estáticos y media en modo de desarrollo
+# Configurar serving de archivos estáticos y media
+# En desarrollo siempre se sirven
 if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+else:
+    # En producción también servir media files para Railway
+    # Nota: En un entorno más grande usarías un CDN como Cloudinary o AWS S3
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

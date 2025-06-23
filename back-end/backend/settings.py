@@ -248,17 +248,19 @@ REST_FRAMEWORK = {
 # Static files settings
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-
-# Ensure static files are properly served in development
-if DEBUG:
-    STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 # Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Asegurar que los directorios existan
+import os
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+os.makedirs(STATIC_ROOT, exist_ok=True)
+
+# En desarrollo, configurar STATICFILES_DIRS si existe el directorio
+if DEBUG:
+    STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
