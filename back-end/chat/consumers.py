@@ -513,5 +513,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'unread_count': event['unread_count']
         }))
 
-
-print("✅ Consumers cargados correctamente")
+    async def product_rejected_notification(self, event):
+        """Notificar producto rechazado"""
+        await self.send(text_data=json.dumps({
+            'type': 'product_rejected',
+            'notification': event['notification']
+        }))

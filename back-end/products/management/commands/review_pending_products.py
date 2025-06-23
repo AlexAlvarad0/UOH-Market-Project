@@ -39,8 +39,7 @@ class Command(BaseCommand):
                     product.status = 'unavailable'
                     product.save(update_fields=['status'])
                     continue
-                
-                # Aplicar moderación
+                  # Aplicar moderación
                 result = moderate_content(product.title, product.description, image_paths)
                 
                 if result['approved']:
@@ -51,12 +50,21 @@ class Command(BaseCommand):
                 else:
                     logger.warning(f"Producto #{product.id} rechazado: {result['reason']}")
                     
+                    # Guardar información del producto antes de eliminarlo para la notificación
+                    product_title = product.title
+                    product_seller = product.seller
+                    rejection_reason = result['reason']
+                    
                     # Guardar producto y sus imágenes para eliminarlos
                     product_images = list(product.images.all())
                     image_paths = [img.image.path for img in product_images]
                     
                     # Eliminar el producto (lo que también eliminará las imágenes por CASCADE)
                     product.delete()
+                    
+                    # Crear notificación al vendedor sobre el rechazo
+                    from notifications.signals import create_product_rejected_notification
+                    create_product_rejected_notification(product_seller, product_title, rejection_reason)
                     
                     # Intentar eliminar los archivos físicos de imágenes
                     for path in image_paths:
@@ -67,7 +75,7 @@ class Command(BaseCommand):
                         except Exception as e:
                             logger.error(f"Error al eliminar imagen {path}: {str(e)}")
                     
-                    self.stdout.write(self.style.WARNING(f"Producto #{product.id} rechazado y eliminado: {result['reason']}"))
+                    self.stdout.write(self.style.WARNING(f"Producto #{product.id} rechazado y eliminado: {result['reason']}. Notificación enviada al vendedor."))
                     
             except Exception as e:
                 logger.error(f"Error al revisar producto #{product.id}: {str(e)}")

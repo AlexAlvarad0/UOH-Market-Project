@@ -139,3 +139,58 @@ def create_rating_notification(sender, instance, created, **kwargs):
     
     except Exception as e:
         logger.error(f"Error al crear notificación de calificación: {str(e)}")
+
+
+def create_product_rejected_notification(seller, product_title, rejection_reason=None):
+    """
+    Crea una notificación cuando un producto es rechazado por el sistema de moderación.
+    """
+    try:
+        if not seller:
+            logger.warning("No se pudo crear notificación de producto rechazado: seller no definido")
+            return
+        
+        # Crear mensaje específico basado en la razón de rechazo
+        if rejection_reason:
+            detailed_message = f"Tu producto '{product_title}' no fue publicado. Motivo: {rejection_reason}"
+        else:
+            detailed_message = f"Tu producto '{product_title}' incumple las políticas de publicación y no pudo ser publicado."
+        
+        # Crear la notificación
+        notification = Notification.objects.create(
+            user=seller,
+            type='product_rejected',
+            title=f'El producto {product_title} no fue publicado',
+            message=detailed_message
+        )
+        
+        # Enviar notificación en tiempo real via WebSocket
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            user_group = f'user_{seller.id}'
+            
+            # Crear datos de notificación para WebSocket
+            notification_data = {
+                'id': notification.id,
+                'type': notification.type,
+                'title': notification.title,
+                'message': notification.message,
+                'is_read': notification.is_read,
+                'created_at': notification.created_at.isoformat(),
+            }
+            
+            async_to_sync(channel_layer.group_send)(
+                user_group,
+                {
+                    'type': 'product_rejected_notification',
+                    'notification': notification_data
+                }
+            )
+        
+        logger.info(f"Notificación de producto rechazado creada para {seller.username}: {product_title}")
+    
+    except Exception as e:
+        logger.error(f"Error al crear notificación de producto rechazado: {str(e)}")

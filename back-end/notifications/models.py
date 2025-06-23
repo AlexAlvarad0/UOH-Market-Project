@@ -9,6 +9,7 @@ class Notification(models.Model):
         ('favorite', 'Añadido a favoritos'),
         ('like_message', 'Like en mensaje'),
         ('rating', 'Nueva calificación'),
+        ('product_rejected', 'Producto rechazado'),
     )
     
     user = models.ForeignKey(

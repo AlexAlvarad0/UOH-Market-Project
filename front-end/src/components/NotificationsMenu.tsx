@@ -13,6 +13,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import HotelClassIcon from '@mui/icons-material/HotelClass';
+import ProductionQuantityLimitsIcon from '@mui/icons-material/ProductionQuantityLimits';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTheme } from '@mui/material/styles';
@@ -231,10 +232,14 @@ const NotificationsMenu: React.FC = () => {
         const unreadNotifications = notifications.filter(
           n => n.is_read === false && n.related_message !== notification.related_message        ).length;
         setUnreadCount(unreadNotifications);
-        navigate(`/chat/${conversationId}`);
-      } else if (notification.type === 'rating' && user?.id) {
+        navigate(`/chat/${conversationId}`);      } else if (notification.type === 'rating' && user?.id) {
         // Navegar al perfil del usuario actual (quien recibió la calificación), en la pestaña de calificaciones
-        navigate(`/profile`);      } else if (notification.related_product && notification.related_product.id) {
+        navigate(`/profile`);
+      } else if (notification.type === 'product_rejected') {
+        // Para productos rechazados, solo marcar como leído pero no navegar a ningún lugar
+        // Ya se marcó como leído al inicio de la función, así que no hacemos nada más
+        return;
+      } else if (notification.related_product && notification.related_product.id) {
         await notificationsService.markProductAsRead(notification.related_product.id);
         setNotifications(prevNotifications => 
           prevNotifications.map(notif => 
@@ -252,8 +257,7 @@ const NotificationsMenu: React.FC = () => {
       }} catch {
       // Error al procesar clic en notificación
     }
-  };
-  const getNotificationIcon = (type: string) => {
+  };  const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'message':
         return <MessageIcon sx={{ fontSize: '1.2rem', color: '#1976d2' }} />;
@@ -265,6 +269,8 @@ const NotificationsMenu: React.FC = () => {
         return <ThumbUpIcon sx={{ fontSize: '1.2rem', color: '#1976d2' }} />;
       case 'rating':
         return <HotelClassIcon sx={{ fontSize: '1.2rem', color: '#ffd700' }} />;
+      case 'product_rejected':
+        return <ProductionQuantityLimitsIcon sx={{ fontSize: '1.2rem', color: '#d32f2f' }} />;
       default:
         return <NotificationsIcon sx={{ fontSize: '1.2rem' }} />;
     }
@@ -389,11 +395,18 @@ const NotificationsMenu: React.FC = () => {
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
-                      }
-                      sx={{
+                      }                      sx={{
                         cursor: 'pointer',
-                        backgroundColor: notification.is_read ? 'transparent' : 'rgba(25, 118, 210, 0.08)',
-                        borderLeft: notification.is_read ? 'none' : '3px solid #1976d2',
+                        backgroundColor: notification.is_read 
+                          ? 'transparent' 
+                          : notification.type === 'product_rejected'
+                            ? 'rgba(211, 47, 47, 0.08)'
+                            : 'rgba(25, 118, 210, 0.08)',
+                        borderLeft: notification.is_read 
+                          ? 'none' 
+                          : notification.type === 'product_rejected'
+                            ? '3px solid #d32f2f'
+                            : '3px solid #1976d2',
                         '&:hover': {
                           backgroundColor: 'rgba(0, 0, 0, 0.04)',
                         },
@@ -409,6 +422,8 @@ const NotificationsMenu: React.FC = () => {
                                 ? '#ffebee'
                               : notification.type === 'rating'
                                 ? '#fffbf0'
+                              : notification.type === 'product_rejected'
+                                ? '#ffebee'
                                 : '#f5f5f5',
                             width: 40,
                             height: 40
@@ -421,11 +436,14 @@ const NotificationsMenu: React.FC = () => {
                         primary={
                           <Typography 
                             variant="subtitle2" 
-                            component="span"
-                            sx={{ 
+                            component="span"                            sx={{ 
                               fontWeight: 'bold',
                               fontSize: '0.9rem',
-                              color: notification.is_read ? '#000000' : '#1976d2'
+                              color: notification.is_read 
+                                ? '#000000' 
+                                : notification.type === 'product_rejected'
+                                  ? '#d32f2f'
+                                  : '#1976d2'
                             }}
                           >
                             {notification.title}
