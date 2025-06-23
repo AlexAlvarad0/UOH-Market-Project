@@ -1,0 +1,9 @@
+node_modules
+front-end
+.back-end/.nixpacks
+.env
+.vscode
+.git
+venv
+*.pyc
+__pycache__
