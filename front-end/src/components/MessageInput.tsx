@@ -182,12 +182,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
   if (audioMode && (recordingState === 'recording' || recordingState === 'paused')) {
     return (
       <Box sx={{ position: 'relative' }}>
-        {renderError()}        <Box
+        {renderError()}
+        <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            padding: '0', // Mismo padding que el input normal
+            padding: '0 12px',
             backgroundColor: recordingState === 'recording' ? 'error.light' : 'warning.light',
             borderRadius: '20px',
             border: '1px solid',
@@ -195,15 +196,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
             animation: recordingState === 'recording' ? 'pulse 1.5s infinite' : 'none',
             height: '40px',
             width: '100%',
-            margin: '10px 10px 0', // Mismo margen que el input normal
-            // Padding interno para los elementos
-            px: '12px',
+            margin: '10px 10px 0',
             '@keyframes pulse': {
               '0%, 100%': { opacity: 1 },
               '50%': { opacity: 0.8 },
             },
           }}
-        >{/* Indicador de grabación */}
+        >          {/* Indicador de grabación */}
           {recordingState === 'recording' ? (
             <RecordIcon sx={{ color: 'error.main', fontSize: 16 }} />
           ) : (
@@ -257,23 +256,22 @@ const MessageInput: React.FC<MessageInputProps> = ({
   if (audioMode && recordingState === 'recorded' && hasRecording) {
     return (
       <Box sx={{ position: 'relative' }}>
-        {renderError()}        <Box
+        {renderError()}
+        <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            padding: '0', // Mismo padding que el input normal
+            padding: '0 12px',
             backgroundColor: 'success.light',
             borderRadius: '20px',
             border: '1px solid',
             borderColor: 'success.main',
             height: '40px',
             width: '100%',
-            margin: '10px 10px 0', // Mismo margen que el input normal
-            // Padding interno para los elementos
-            px: '12px',
+            margin: '10px 10px 0',
           }}
-        >{/* Botón de reproducir/pausar */}
+        >          {/* Botón de reproducir/pausar */}
           <IconButton
             onClick={handlePlayToggle}
             disabled={isSending}

@@ -12,12 +12,12 @@ import { Box, Typography, Button } from '@mui/material';
 import { WeeklyOffer } from '@/types/products';
 import apiService from '@/services/api';
 import { formatPrice } from '@/utils/formatPrice';
-
+import { API_URL } from '../config';
 interface OffersCarouselProps {
   isVisible?: boolean;
 }
 
-const API_BASE_URL = 'http://localhost:8000';
+
 
 const arrowButtonStyle = {
   minWidth: 0,
@@ -106,7 +106,7 @@ const OffersCarousel = ({ isVisible = true }: OffersCarouselProps) => {
   const getProductImage = (offer: WeeklyOffer) => {
     if (offer.images && offer.images.length > 0) {
       const primaryImage = offer.images.find(img => img.is_primary) || offer.images[0];
-      return `${API_BASE_URL}${primaryImage.image}`;
+      return `${API_URL}${primaryImage.image}`;
     }
     return '/src/assets/placeholder-image.png'; // Imagen placeholder si no hay imagen
   };
