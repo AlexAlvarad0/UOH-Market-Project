@@ -7,32 +7,72 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         categories = [
             {
-                'name': 'Electrónica',
-                'description': 'Dispositivos electrónicos, smartphones, laptops, etc.'
+                'name': 'Arriendos',
+                'description': 'Alquiler de habitaciones, departamentos y espacios'
             },
             {
-                'name': 'Hogar',
-                'description': 'Muebles, decoración, electrodomésticos, etc.'
+                'name': 'Artes y Manualidades',
+                'description': 'Materiales artísticos, manualidades y proyectos creativos'
             },
             {
-                'name': 'Ropa',
+                'name': 'Cafetería y Snacks',
+                'description': 'Comida, bebidas, snacks y productos de cafetería'
+            },
+            {
+                'name': 'Deportes y Outdoor',
+                'description': 'Equipamiento deportivo, actividades al aire libre'
+            },
+            {
+                'name': 'Electrodomésticos',
+                'description': 'Electrodomésticos para el hogar, cocina y limpieza'
+            },
+            {
+                'name': 'Entradas y Eventos',
+                'description': 'Boletos, entradas y eventos universitarios'
+            },
+            {
+                'name': 'Hogar y Dormitorio',
+                'description': 'Muebles, decoración y artículos para el hogar'
+            },
+            {
+                'name': 'Relojes y Joyas',
+                'description': 'Relojes, joyas y accesorios'
+            },
+            {
+                'name': 'Instrumentos Musicales',
+                'description': 'Instrumentos musicales y equipamiento de audio'
+            },
+            {
+                'name': 'Juegos y Entretenimiento',
+                'description': 'Videojuegos, juegos de mesa y entretenimiento'
+            },
+            {
+                'name': 'Libros, película y música',
+                'description': 'Libros, películas, música y material educativo'
+            },
+            {
+                'name': 'Mascotas',
+                'description': 'Productos y accesorios para mascotas'
+            },
+            {
+                'name': 'Varios',
+                'description': 'Artículos diversos que no encajan en otras categorías'
+            },
+            {
+                'name': 'Ropa y Accesorios',
                 'description': 'Ropa, calzado y accesorios de moda'
             },
             {
-                'name': 'Deportes',
-                'description': 'Equipamiento deportivo, ropa deportiva, etc.'
+                'name': 'Servicios Estudiantiles',
+                'description': 'Servicios académicos, tutorías y apoyo estudiantil'
             },
             {
-                'name': 'Juguetes',
-                'description': 'Juguetes y artículos para niños'
+                'name': 'Tecnología',
+                'description': 'Dispositivos tecnológicos, computadoras y electrónicos'
             },
             {
-                'name': 'Libros',
-                'description': 'Libros, revistas, cómics, etc.'
-            },
-            {
-                'name': 'Otros',
-                'description': 'Categoría para artículos que no encajan en otras categorías'
+                'name': 'Vehículos',
+                'description': 'Vehículos, bicicletas y medios de transporte'
             }
         ]
 
