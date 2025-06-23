@@ -196,13 +196,11 @@ const ProductDetailPage = () => {
 
   // Cargar la calificación actual del usuario para este vendedor
   useEffect(() => {
-    const loadCurrentUserRating = async () => {
-      if (product && isAuthenticated && !isOwner) {
+    const loadCurrentUserRating = async () => {      if (product && isAuthenticated && !isOwner) {
         try {
-          const token = localStorage.getItem('authToken');
-          if (token) {            const rating = await getUserRatingForSeller(product.seller.id, token);
-            setCurrentUserRating(rating);
-          }        } catch {
+          const rating = await getUserRatingForSeller(product.seller.id);
+          setCurrentUserRating(rating);
+        } catch {
           // Error loading user rating
         }
       }
@@ -969,11 +967,9 @@ const ProductDetailPage = () => {
                     
                     // Recargar la calificación actual del usuario
                     try {
-                      const token = localStorage.getItem('authToken');
-                      if (token) {
-                        const rating = await getUserRatingForSeller(product.seller.id, token);
-                        setCurrentUserRating(rating);
-                      }                    } catch {
+                      const rating = await getUserRatingForSeller(product.seller.id);
+                      setCurrentUserRating(rating);
+                    } catch {
                       // Error handling for rating reload
                     }
                   }}

@@ -5,13 +5,16 @@ import { PhotoCamera, Visibility, VisibilityOff } from '@mui/icons-material';
 import apiService from '../services/api';
 import LocationSelector from '../components/LocationSelector';
 import { passwordRequirements } from '../utils/passwordRequirements';
+import { useAuth } from '../hooks/useAuth.hooks';
 
 interface ProfileEditFormProps {
   onProfileSaved?: () => void;
 }
 
 const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ onProfileSaved }) => {
+  const { updateUser } = useAuth();
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [bio, setBio] = useState('');
@@ -36,11 +39,11 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ onProfileSaved }) => 
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
-      const response = await apiService.getUserProfile();
-      if (response.success) {
+      const response = await apiService.getUserProfile();      if (response.success) {
         setUsername(response.data.username);
+        setEmail(response.data.email || '');
         setFirstName(response.data.first_name || '');
-        setLastName(response.data.last_name || '');        setBio(response.data.bio || '');
+        setLastName(response.data.last_name || '');setBio(response.data.bio || '');
         setLocation(response.data.location || '');        // Formatear la fecha correctamente - extraer solo YYYY-MM-DD
         const birthDateValue = response.data.birth_date;
         if (birthDateValue) {
@@ -76,21 +79,33 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ onProfileSaved }) => 
     setError(null);
     setSuccessMsg(null);    const formData = new FormData();
     formData.append('username', username);
+    formData.append('email', email);
     formData.append('first_name', firstName);
     formData.append('last_name', lastName);
     formData.append('bio', bio);
-    formData.append('location', location);    // Enviar la fecha exactamente como está (formato YYYY-MM-DD)
+    formData.append('location', location);// Enviar la fecha exactamente como está (formato YYYY-MM-DD)
     if (birthDate) {
       formData.append('birth_date', birthDate);
     }
     if (profileImage) {
       formData.append('profile_picture', profileImage);
-    }
-
-    const response = await apiService.updateUserProfile(formData);
+    }    const response = await apiService.updateUserProfile(formData);
     setSaving(false);
     if (response.success) {
       setSuccessMsg('Perfil actualizado correctamente');
+        // Actualizar el usuario en el contexto de autenticación
+      updateUser({
+        username,
+        email: email || response.data.email,
+        profile: {
+          first_name: firstName,
+          last_name: lastName,
+          bio,
+          location,
+        },
+        profile_picture: response.data.profile_picture || undefined,
+      });
+      
       // Llamar al callback si está disponible, sino navegar
       if (onProfileSaved) {
         setTimeout(() => {
@@ -179,13 +194,21 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ onProfileSaved }) => 
               <input hidden accept="image/*" type="file" onChange={handleImageChange} />
               <PhotoCamera />
             </IconButton>
-          </Box>
-          <TextField
+          </Box>          <TextField
             label="Nombre de Usuario"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
             sx={{ width: '100%', maxWidth: '600px' }}
+          />
+          <TextField
+            label="Email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            sx={{ width: '100%', maxWidth: '600px' }}
+            helperText="Use su email institucional @uoh.cl o @pregrado.uoh.cl para obtener verificación de vendedor"
           />
           <TextField
             label="Nombre"

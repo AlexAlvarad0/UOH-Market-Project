@@ -40,6 +40,7 @@ interface ProfileData {
   profile_picture?: string;
   average_rating?: number;
   total_ratings?: number;
+  is_verified_seller?: boolean;
 }
 
 interface ProductImage {
@@ -93,7 +94,7 @@ class MyErrorBoundary extends React.Component<ErrorBoundaryProps> {
 }
 
 const ProfilePage = () => {
-  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { isAuthenticated, user, loading: authLoading, updateUser } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
   const [userProducts, setUserProducts] = useState<Product[]>([]);
@@ -101,8 +102,25 @@ const ProfilePage = () => {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isEditModalOpen, setEditModalOpen] = useState(false);  // Estado para datos de perfil
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
+  // Estado para datos de perfil
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  
+  // Función para verificar si el email es institucional UOH
+  const isVerifiedSeller = (email: string): boolean => {
+    return email.endsWith('@uoh.cl') || email.endsWith('@pregrado.uoh.cl');
+  };
+
+  // Función para obtener el email más actualizado
+  const getCurrentEmail = (): string => {
+    return profileData?.email || user?.email || '';
+  };
+
+  // Función para obtener el estado de verificación actual
+  const getCurrentVerificationStatus = (): boolean => {
+    return isVerifiedSeller(getCurrentEmail());
+  };
+  
   const handleOpenEditModal = () => setEditModalOpen(true);
   const handleCloseEditModal = () => setEditModalOpen(false);
 
@@ -112,6 +130,21 @@ const ProfilePage = () => {
       const profileRes = await api.getUserProfile();
       if (profileRes.success) {
         setProfileData(profileRes.data);
+        
+        // Actualizar el contexto de usuario si el email cambió
+        if (user && profileRes.data.email && profileRes.data.email !== user.email) {
+          updateUser({
+            email: profileRes.data.email,
+            username: profileRes.data.username,
+            profile: {
+              first_name: profileRes.data.first_name,
+              last_name: profileRes.data.last_name,
+              bio: profileRes.data.bio,
+              location: profileRes.data.location,
+            },
+            profile_picture: profileRes.data.profile_picture,
+          });
+        }
       }    } catch {
       // Error refreshing profile
     }
@@ -323,13 +356,12 @@ const ProfilePage = () => {
                 </Box>
               </Box>              {/* Información del usuario */}
               <Box sx={{ flex: 1, width: '100%' }}>                {/* Nombre y botón de editar en la misma línea */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
                       {profileData?.first_name || profileData?.last_name
                         ? `${profileData.first_name || ''} ${profileData.last_name || ''}`
                         : (user as UserWithProfile).username || user.email}
-                    </Typography>                    {(user as UserWithProfile).is_verified_seller && (
+                    </Typography>                    {getCurrentVerificationStatus() && (
                       <VerifiedIcon 
                         sx={{ 
                           color: '#1976d2',
@@ -342,8 +374,8 @@ const ProfilePage = () => {
                   <Box sx={{ display: { xs: 'none', md: 'block' } }}>
                     <EditButton onClick={handleOpenEditModal} />
                   </Box>
-                </Box><Typography variant="body1" color="textSecondary">
-                  {profileData?.email || user.email}
+                </Box>                <Typography variant="body1" color="textSecondary">
+                  {getCurrentEmail()}
                 </Typography>
                   {/* Rating info */}
                 <Box sx={{ mt: 2, mb: 2 }}>
@@ -361,28 +393,27 @@ const ProfilePage = () => {
                   )}
                 </Box>
                   {/* Information Cards */}
-                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>                  {/* Verification Status Card */}
-                  <Box 
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>                  {/* Verification Status Card */}                  <Box 
                     sx={{ 
                       p: 1.5, 
                       border: '1px solid #e0e0e0', 
                       borderRadius: 2, 
-                      backgroundColor: (user as UserWithProfile).is_verified_seller ? '#e8f5e8' : '#fff3e0',
-                      borderLeft: `4px solid ${(user as UserWithProfile).is_verified_seller ? '#4caf50' : '#ff9800'}`
+                      backgroundColor: getCurrentVerificationStatus() ? '#e8f5e8' : '#fff3e0',
+                      borderLeft: `4px solid ${getCurrentVerificationStatus() ? '#4caf50' : '#ff9800'}`
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                       <VerifiedIcon sx={{ 
                         mr: 1, 
                         fontSize: 16, 
-                        color: (user as UserWithProfile).is_verified_seller ? '#4caf50' : '#ff9800' 
+                        color: getCurrentVerificationStatus() ? '#4caf50' : '#ff9800' 
                       }} />
                       <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold' }}>
                         Estado de verificación
                       </Typography>
                     </Box>
                     <Typography variant="body2">
-                      {(user as UserWithProfile).is_verified_seller 
+                      {getCurrentVerificationStatus()
                         ? 'Vendedor verificado - Email institucional UOH'
                         : 'No verificado - Solo email institucional UOH puede vender'
                       }

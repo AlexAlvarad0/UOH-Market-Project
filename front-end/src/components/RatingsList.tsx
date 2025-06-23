@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import StarRating from './StarRating';
 import UserProfileModal from './UserProfileModal';
-import { API_URL } from '../config';
+import { axiosInstance } from '../config';
 import '../styles/StarRating.css';
 
 interface Rating {
@@ -46,14 +46,15 @@ const RatingsList: React.FC<RatingsListProps> = ({
   // Estados para el modal de perfil de usuario
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [selectedUsername, setSelectedUsername] = useState<string>('');  const fetchRatings = useCallback(async (pageNumber: number = 1) => {    try {
+  const [selectedUsername, setSelectedUsername] = useState<string>('');  const fetchRatings = useCallback(async (pageNumber: number = 1) => {
+    try {
       setLoading(true);
-      const response = await fetch(
-        `${API_URL}/api/accounts/ratings/user/${sellerId}/?page=${pageNumber}`
+      const response = await axiosInstance.get(
+        `/accounts/ratings/user/${sellerId}/?page=${pageNumber}`
       );
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         setRatings(data.results || data);
         if (data.count) {
           setTotalPages(Math.ceil(data.count / 10)); // Asumiendo 10 items por página

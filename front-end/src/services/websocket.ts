@@ -1,3 +1,5 @@
+import { getWebSocketURL } from '../config';
+
 interface WebSocketMessage {
   type: string;
   [key: string]: any;
@@ -74,8 +76,10 @@ class WebSocketService {
           console.error('❌ Token no configurado para chat');
           reject(new Error('Token no configurado'));
           return;
-        }
-          this.currentConversationId = conversationId;        const wsUrl = `ws://127.0.0.1:8000/ws/chat/${conversationId}/?token=${this.token}`;
+        }          this.currentConversationId = conversationId;
+        
+        const baseWsUrl = getWebSocketURL();
+        const wsUrl = `${baseWsUrl}/ws/chat/${conversationId}/?token=${this.token}`;
         this.chatSocket = new WebSocket(wsUrl);this.chatSocket.onopen = () => {
           this.reconnectAttempts = 0;
           resolve();
@@ -115,9 +119,10 @@ class WebSocketService {
         if (!this.token) {
           console.error('❌ Token no configurado para notificaciones');
           reject(new Error('Token no configurado'));
-          return;
-        }        
-        const wsUrl = `ws://127.0.0.1:8000/ws/notifications/?token=${this.token}`;
+          return;        }        
+        
+        const baseWsUrl = getWebSocketURL();
+        const wsUrl = `${baseWsUrl}/ws/notifications/?token=${this.token}`;
         this.notificationSocket = new WebSocket(wsUrl);
 
         this.notificationSocket.onopen = () => {

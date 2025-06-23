@@ -83,7 +83,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return false;
     }
   };
-
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
@@ -91,13 +90,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('userData', JSON.stringify(updatedUser));
+    }
+  };
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
       loading,
       login,
-      logout
+      logout,
+      updateUser
     }}>
       {children}
     </AuthContext.Provider>

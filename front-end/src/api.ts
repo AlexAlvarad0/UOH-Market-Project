@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL } from './config';
+import { API_URL, axiosInstance } from './config';
 
 type RegisterData = {
   username: string;
@@ -103,7 +103,7 @@ export const createRating = async (ratingData: CreateRatingData, token: string) 
  */
 export const getUserRatings = async (userId: number, page: number = 1) => {
   try {
-    const response = await axios.get(`${API_URL}/accounts/ratings/user/${userId}/?page=${page}`);
+    const response = await axiosInstance.get(`/accounts/ratings/user/${userId}/?page=${page}`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -116,15 +116,10 @@ export const getUserRatings = async (userId: number, page: number = 1) => {
 /**
  * Obtener la calificación actual del usuario autenticado para un vendedor específico
  */
-export const getUserRatingForSeller = async (sellerId: number, token: string) => {
+export const getUserRatingForSeller = async (sellerId: number) => {
   try {
-    const response = await axios.get(
-      `${API_URL}/accounts/ratings/user/${sellerId}/my-rating/`,
-      {
-        headers: {
-          'Authorization': `Token ${token}`,
-        },
-      }
+    const response = await axiosInstance.get(
+      `/accounts/ratings/user/${sellerId}/my-rating/`
     );
     // Si el backend devuelve { rating: null }, debemos devolver null para indicar que no hay calificación
     if (response.data && response.data.rating === null) {
@@ -146,17 +141,11 @@ export const getUserRatingForSeller = async (sellerId: number, token: string) =>
 /**
  * Actualizar una calificación existente
  */
-export const updateRating = async (sellerId: number, ratingData: Omit<CreateRatingData, 'rated_user'>, token: string) => {
+export const updateRating = async (sellerId: number, ratingData: Omit<CreateRatingData, 'rated_user'>) => {
   try {
-    const response = await axios.put(
-      `${API_URL}/accounts/ratings/user/${sellerId}/my-rating/`,
-      ratingData,
-      {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    const response = await axiosInstance.put(
+      `/accounts/ratings/user/${sellerId}/my-rating/`,
+      ratingData
     );
     return response.data;
   } catch (error) {

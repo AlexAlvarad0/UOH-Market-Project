@@ -29,7 +29,6 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   useEffect(() => {
     inputsRef.current[0]?.focus();
   }, []);
-
   const handleChange = (index: number, val: string) => {
     if (/^[0-9]?$/.test(val)) {
       const newVals = [...values];
@@ -38,6 +37,19 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
       if (val && index < 5) {
         inputsRef.current[index + 1]?.focus();
       }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text');
+    
+    // Verificar que el texto pegado sea solo números y tenga 6 dígitos
+    if (/^\d{6}$/.test(pastedData)) {
+      const digits = pastedData.split('');
+      setValues(digits);
+      // Enfocar el último input después de pegar
+      inputsRef.current[5]?.focus();
     }
   };
 
@@ -93,8 +105,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
           <div className="title">Verificación de Email</div>
           <p className="message">Se ha enviado un código de verificación a:</p>
           <p className="email">{email}</p>
-          
-          <div className="inputs">
+            <div className="inputs">
             {values.map((v, i) => (
               <input
                 key={i}
@@ -104,6 +115,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 value={v}
                 onChange={e => handleChange(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(i, e)}
+                onPaste={handlePaste}
               />
             ))}
           </div>
