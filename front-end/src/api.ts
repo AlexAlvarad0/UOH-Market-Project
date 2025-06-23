@@ -15,7 +15,7 @@ type RegisterData = {
  * Registra un nuevo usuario
  */
 export const register = async (userData: RegisterData) => {  try {
-    return (await axios.post(`${API_URL}/api/auth/register/`, userData)).data;
+    return (await axios.post(`${API_URL}/auth/register/`, userData)).data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw error;
@@ -28,7 +28,7 @@ export const register = async (userData: RegisterData) => {  try {
  * Versión simplificada para compatibilidad con implementaciones existentes
  */
 export const registerSimple = async (username: string, email: string, password: string) => {  try {
-    await axios.post(`${API_URL}/api/auth/register/`, {
+    await axios.post(`${API_URL}/auth/register/`, {
       username,
       email,
       password,
@@ -41,8 +41,8 @@ export const registerSimple = async (username: string, email: string, password: 
 
 export const login = async (email: string, password: string) => {
   try {
-    // Actualizando la URL para usar la ruta completa api/auth en lugar de auth
-    const response = await axios.post(`${API_URL}/api/auth/login/`, { email, password });
+    // URL corregida sin duplicar /api
+    const response = await axios.post(`${API_URL}/auth/login/`, { email, password });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -80,7 +80,7 @@ export interface CreateRatingData {
 export const createRating = async (ratingData: CreateRatingData, token: string) => {
   try {
     const response = await axios.post(
-      `${API_URL}/api/accounts/ratings/create/`,
+      `${API_URL}/accounts/ratings/create/`,
       ratingData,
       {
         headers: {
@@ -103,7 +103,7 @@ export const createRating = async (ratingData: CreateRatingData, token: string) 
  */
 export const getUserRatings = async (userId: number, page: number = 1) => {
   try {
-    const response = await axios.get(`${API_URL}/api/accounts/ratings/user/${userId}/?page=${page}`);
+    const response = await axios.get(`${API_URL}/accounts/ratings/user/${userId}/?page=${page}`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -119,7 +119,7 @@ export const getUserRatings = async (userId: number, page: number = 1) => {
 export const getUserRatingForSeller = async (sellerId: number, token: string) => {
   try {
     const response = await axios.get(
-      `${API_URL}/api/accounts/ratings/user/${sellerId}/my-rating/`,
+      `${API_URL}/accounts/ratings/user/${sellerId}/my-rating/`,
       {
         headers: {
           'Authorization': `Token ${token}`,
@@ -149,7 +149,7 @@ export const getUserRatingForSeller = async (sellerId: number, token: string) =>
 export const updateRating = async (sellerId: number, ratingData: Omit<CreateRatingData, 'rated_user'>, token: string) => {
   try {
     const response = await axios.put(
-      `${API_URL}/api/accounts/ratings/user/${sellerId}/my-rating/`,
+      `${API_URL}/accounts/ratings/user/${sellerId}/my-rating/`,
       ratingData,
       {
         headers: {

@@ -26,12 +26,7 @@ urlpatterns = [
 ]
 
 # Configurar serving de archivos estáticos y media
-# En desarrollo siempre se sirven
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-else:
-    # En producción también servir media files para Railway
-    # Nota: En un entorno más grande usarías un CDN como Cloudinary o AWS S3
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# Servir archivos media tanto en desarrollo como en producción
+# Railway necesita esto para servir archivos media
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

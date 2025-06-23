@@ -13,14 +13,13 @@ class NotificationsService {  // Método para obtener los headers con el token d
     }
     console.warn('No se encontró token de autenticación, enviando request sin Authorization header');
     return { 'Content-Type': 'application/json' };
-  }
-  // Obtener todas las notificaciones del usuario
+  }  // Obtener todas las notificaciones del usuario
   async getAll() {
     try {
       const headers = this.getHeaders();
-      console.log('Headers para getAll notifications:', headers);      console.log('URL de request:', `${API_URL}/api/notifications/`);
+      console.log('Headers para getAll notifications:', headers);      console.log('URL de request:', `${API_URL}/notifications/`);
       
-      const response = await axios.get(`${API_URL}/api/notifications/`, {
+      const response = await axios.get(`${API_URL}/notifications/`, {
         headers
       });
       
@@ -44,7 +43,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   // Obtener solo notificaciones no leídas
   async getUnread() {
     try {
-      const response = await axios.get(`${API_URL}/api/notifications/unread/`, {
+      const response = await axios.get(`${API_URL}/notifications/unread/`, {
         headers: this.getHeaders()
       });
       return { success: true, data: response.data };
@@ -67,7 +66,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
     try {
       console.log(`Intentando marcar notificación ${notificationId} como leída...`);
       const response = await axios.post(
-        `${API_URL}/api/notifications/${notificationId}/mark_read/`,
+        `${API_URL}/notifications/${notificationId}/mark_read/`,
         {},
         { headers: this.getHeaders() }
       );
@@ -93,7 +92,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
     try {
       console.log('Intentando marcar todas las notificaciones como leídas...');
       const response = await axios.post(
-        `${API_URL}/api/notifications/mark_all_read/`,
+        `${API_URL}/notifications/mark_all_read/`,
         {},
         { headers: this.getHeaders() }
       );
@@ -118,7 +117,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   async markConversationAsRead(conversationId: string | number) {
     try {
       const response = await axios.post(
-        `${API_URL}/api/notifications/mark_conversation_read/`,
+        `${API_URL}/notifications/mark_conversation_read/`,
         { conversation_id: conversationId },
         { headers: this.getHeaders() }
       );
@@ -141,7 +140,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   async markProductAsRead(productId: string | number) {
     try {
       const response = await axios.post(
-        `${API_URL}/api/notifications/mark_product_read/`,
+        `${API_URL}/notifications/mark_product_read/`,
         { product_id: productId },
         { headers: this.getHeaders() }
       );
@@ -164,7 +163,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   async markMessageAsRead(messageId: string | number) {
     try {
       const response = await axios.post(
-        `${API_URL}/api/notifications/mark_message_read/`,
+        `${API_URL}/notifications/mark_message_read/`,
         { message_id: messageId },
         { headers: this.getHeaders() }
       );
@@ -187,7 +186,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   async deleteNotification(notificationId: string | number) {
     try {
       const response = await axios.delete(
-        `${API_URL}/api/notifications/${notificationId}/`,
+        `${API_URL}/notifications/${notificationId}/`,
         { headers: this.getHeaders() }
       );
       return { success: true, data: response.data };
@@ -209,7 +208,7 @@ class NotificationsService {  // Método para obtener los headers con el token d
   async deleteAllNotifications() {
     try {
       const response = await axios.delete(
-        `${API_URL}/api/notifications/delete_all/`,
+        `${API_URL}/notifications/delete_all/`,
         { headers: this.getHeaders() }
       );
       return { success: true, data: response.data };

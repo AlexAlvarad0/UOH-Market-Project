@@ -283,7 +283,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Base URL para generar URLs absolutas cuando no hay contexto de request
+# Configuración de URL base para construcción de URLs absolutas
 BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
+
+# Asegurar HTTPS en producción (Railway)
+if 'railway.app' in BASE_URL and BASE_URL.startswith('http://'):
+    BASE_URL = BASE_URL.replace('http://', 'https://')
 
 # Frontend URL for building confirmation links
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')

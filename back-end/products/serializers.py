@@ -32,6 +32,9 @@ class ProductImageSerializer(serializers.ModelSerializer):
                 # Fallback para cuando no hay request context
                 from django.conf import settings
                 base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                # Asegurar HTTPS en producción
+                if 'railway.app' in base_url and base_url.startswith('http://'):
+                    base_url = base_url.replace('http://', 'https://')
                 return f"{base_url}{obj.image.url}"
         return None
 
@@ -48,9 +51,9 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'price', 'original_price', 'category', 'category_name',
             'seller', 'seller_username', 'condition', 'created_at', 'updated_at',
             'is_available', 'views_count', 'images', 'is_favorite', 'status',
-            'review_scheduled_at', 'manually_unavailable'
-        ]
-        read_only_fields = [            'views_count', 'created_at', 'updated_at', 
+            'review_scheduled_at', 'manually_unavailable'        ]
+        read_only_fields = [
+            'views_count', 'created_at', 'updated_at', 
             'review_scheduled_at', 'manually_unavailable'
         ]
     
@@ -66,7 +69,13 @@ class ProductSerializer(serializers.ModelSerializer):
                 if request:
                     profile_picture = request.build_absolute_uri(seller.profile.profile_picture.url)
                 else:
-                    profile_picture = seller.profile.profile_picture.url
+                    # Fallback usando BASE_URL para imágenes de perfil
+                    from django.conf import settings
+                    base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                    # Asegurar HTTPS en producción
+                    if 'railway.app' in base_url and base_url.startswith('http://'):
+                        base_url = base_url.replace('http://', 'https://')
+                    profile_picture = f"{base_url}{seller.profile.profile_picture.url}"
             
             # Calcular calificaciones promedio para el vendedor
             from accounts.models import Rating
