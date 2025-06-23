@@ -64,6 +64,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
     profile_picture = serializers.SerializerMethodField()
+    profile_picture_upload = serializers.ImageField(write_only=True, required=False)
     average_rating = serializers.ReadOnlyField()
     total_ratings = serializers.ReadOnlyField()
     birth_date = serializers.SerializerMethodField()
@@ -93,7 +94,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture', 'average_rating', 'total_ratings')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'location', 'birth_date', 'profile_picture', 'profile_picture_upload', 'average_rating', 'total_ratings')
     
     def validate(self, attrs):
         """Validar que el nombre de usuario no esté duplicado"""
@@ -112,6 +113,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
         
+        # Manejar profile_picture_upload por separado
+        profile_picture_upload = validated_data.pop('profile_picture_upload', None)
+        
         # Manejar birth_date por separado ya que es un SerializerMethodField
         birth_date_str = self.initial_data.get('birth_date')
         
@@ -128,6 +132,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         if 'last_name' in user_data:
             instance.user.last_name = user_data['last_name']
         instance.user.save()
+        
+        # Manejar imagen de perfil si se proporciona
+        if profile_picture_upload:
+            instance.profile_picture = profile_picture_upload
+            print(f"DEBUG: Nueva imagen de perfil asignada: {profile_picture_upload}")
         
         # Actualizar campos del perfil (excluyendo birth_date que se maneja por separado)
         for attr, value in validated_data.items():

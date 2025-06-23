@@ -86,10 +86,9 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ onProfileSaved }) => 
     formData.append('location', location);// Enviar la fecha exactamente como está (formato YYYY-MM-DD)
     if (birthDate) {
       formData.append('birth_date', birthDate);
-    }
-    if (profileImage) {
-      formData.append('profile_picture', profileImage);
-    }    const response = await apiService.updateUserProfile(formData);
+    }    if (profileImage) {
+      formData.append('profile_picture_upload', profileImage);
+    }const response = await apiService.updateUserProfile(formData);
     setSaving(false);
     if (response.success) {
       setSuccessMsg('Perfil actualizado correctamente');
