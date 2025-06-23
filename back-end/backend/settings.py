@@ -180,6 +180,18 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# CSRF Settings for production
+CSRF_TRUSTED_ORIGINS = [
+    'https://uoh-market-project-production-e906.up.railway.app',
+    'https://uoh-market.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+]
+
+# Add your Railway domain to allowed hosts
+if not DEBUG:
+    ALLOWED_HOSTS = ['uoh-market-project-production-e906.up.railway.app', '*']
+
 # Configuraciones para email
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
