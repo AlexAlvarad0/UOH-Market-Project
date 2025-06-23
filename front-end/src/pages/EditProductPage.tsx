@@ -21,9 +21,7 @@ import BreadcrumbNav from '../components/BreadcrumbNav';
 import PriceDisplay from '../components/PriceDisplay';
 import CategoryIcon from '../components/CategoryIcon';
 import Squares from '../../y/Squares/Squares';
-
-// Configuración de la URL base
-const API_BASE_URL = 'http://localhost:8000';
+import { API_URL } from '../config';
 
 interface Category {
   id: number;
@@ -160,7 +158,7 @@ const EditProductPage: React.FC = () => {
             setExistingImages(product.images);
             setRemovedImageIds([]); // Resetear imágenes marcadas para eliminación
             // Crear previews de las imágenes existentes con URLs completas
-            const previews = product.images.map((img: { id: number; image: string; is_primary: boolean }) => {              const imageUrl = img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
+            const previews = product.images.map((img: { id: number; image: string; is_primary: boolean }) => {              const imageUrl = img.image.startsWith('http') ? img.image : `${API_URL}${img.image}`;
               return imageUrl;
             });            setImagePreviews(previews);
           } else {
@@ -206,8 +204,8 @@ const EditProductPage: React.FC = () => {
     const newPreviews = images.map(file => URL.createObjectURL(file));
     const existingPreviews = existingImages.map((img) => {
       // Si la imagen ya tiene una URL completa, la usamos tal como está
-      // Si no, le agregamos el prefijo del API_BASE_URL
-      return img.image.startsWith('http') ? img.image : `${API_BASE_URL}${img.image}`;
+      // Si no, le agregamos el prefijo del API_URL
+      return img.image.startsWith('http') ? img.image : `${API_URL}${img.image}`;
     });
     setImagePreviews([...existingPreviews, ...newPreviews]);
     
