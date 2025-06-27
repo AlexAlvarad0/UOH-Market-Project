@@ -72,10 +72,10 @@ class ProductReviewMiddleware:
                             
                             # Eliminar producto (lo que también eliminará las imágenes por CASCADE)
                             product.delete()
-                            
-                            # Crear notificación al vendedor sobre el rechazo
+                              # Crear notificación al vendedor sobre el rechazo
                             from notifications.signals import create_product_rejected_notification
-                            create_product_rejected_notification(product_seller, product_title, reason)
+                            product_category_name = product.category.name if product.category else 'Varios'
+                            create_product_rejected_notification(product_seller, product_title, reason, product_category_name)
                             
                             # Intentar eliminar archivos físicos
                             for path in image_paths:
@@ -86,12 +86,13 @@ class ProductReviewMiddleware:
                                     logger.error(f"Error eliminando imagen {path}: {str(e)}")
                                     
                             logger.warning(f"Producto #{product_id} rechazado por nombre de archivo: {reason}")
-                            continue
+                            continue                        # Si los nombres de archivos son apropiados, proceder con moderación de contenido por categoría
+                        from .advanced_moderator import moderate_product_by_category
                         
-                        # Si los nombres de archivos son apropiados, proceder con moderación de contenido
-                        result = moderate_content(product.title, product.description, image_paths)
+                        # Usar el nuevo sistema de moderación avanzado
+                        is_approved, rejection_reason = moderate_product_by_category(product)
                         
-                        if result['approved']:                            # Producto aprobado
+                        if is_approved:# Producto aprobado
                             product.status = 'available'
                             product.save(update_fields=['status'])
                             logger.info(f"Producto #{product.id} aprobado y disponible")
@@ -100,7 +101,8 @@ class ProductReviewMiddleware:
                             product_id = product.id
                             product_title = product.title
                             product_seller = product.seller
-                            reason = result['reason']
+                            product_category_name = product.category.name if product.category else 'Varios'
+                            reason = rejection_reason
                             
                             # Guardar imágenes para eliminarlas
                             product_images = list(product.images.all())
@@ -111,7 +113,7 @@ class ProductReviewMiddleware:
                             
                             # Crear notificación al vendedor sobre el rechazo
                             from notifications.signals import create_product_rejected_notification
-                            create_product_rejected_notification(product_seller, product_title, reason)
+                            create_product_rejected_notification(product_seller, product_title, reason, product_category_name)
                             
                             # Intentar eliminar archivos físicos
                             for path in image_paths:

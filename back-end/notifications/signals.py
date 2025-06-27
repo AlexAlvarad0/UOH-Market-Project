@@ -141,7 +141,7 @@ def create_rating_notification(sender, instance, created, **kwargs):
         logger.error(f"Error al crear notificación de calificación: {str(e)}")
 
 
-def create_product_rejected_notification(seller, product_title, rejection_reason=None):
+def create_product_rejected_notification(seller, product_title, rejection_reason=None, category_name=None):
     """
     Crea una notificación cuando un producto es rechazado por el sistema de moderación.
     """
@@ -150,18 +150,20 @@ def create_product_rejected_notification(seller, product_title, rejection_reason
             logger.warning("No se pudo crear notificación de producto rechazado: seller no definido")
             return
         
-        # Crear mensaje específico basado en la razón de rechazo
-        if rejection_reason:
-            detailed_message = f"Tu producto '{product_title}' no fue publicado. Motivo: {rejection_reason}"
-        else:
-            detailed_message = f"Tu producto '{product_title}' incumple las políticas de publicación y no pudo ser publicado."
-        
-        # Crear la notificación
+        # Mensaje exacto como solicita el usuario
+        notification_message = f"La publicación de tu producto {product_title} ha sido rechazada por incumplir las políticas de venta de UOH Market"
+          # Crear la notificación con el motivo completo guardado en extra_data
         notification = Notification.objects.create(
             user=seller,
             type='product_rejected',
-            title=f'El producto {product_title} no fue publicado',
-            message=detailed_message
+            title='Producto rechazado',
+            message=notification_message,
+            extra_data={
+                'product_title': product_title,
+                'rejection_reason': rejection_reason or 'No se especificó motivo específico',
+                'category_name': category_name,
+                'full_reason': rejection_reason
+            }
         )
         
         # Enviar notificación en tiempo real via WebSocket
@@ -177,7 +179,9 @@ def create_product_rejected_notification(seller, product_title, rejection_reason
                 'id': notification.id,
                 'type': notification.type,
                 'title': notification.title,
-                'message': notification.message,
+                'message': notification_message,  # Solo el mensaje básico
+                'rejection_reason': rejection_reason or 'No se especificó motivo',
+                'product_title': product_title,
                 'is_read': notification.is_read,
                 'created_at': notification.created_at.isoformat(),
             }

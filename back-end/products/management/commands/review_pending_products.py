@@ -38,22 +38,21 @@ class Command(BaseCommand):
                     # Si no hay imágenes, marcar como no disponible
                     product.status = 'unavailable'
                     product.save(update_fields=['status'])
-                    continue
-                  # Aplicar moderación
-                result = moderate_content(product.title, product.description, image_paths)
-                
-                if result['approved']:
+                    continue                # Aplicar moderación avanzada por categoría
+                from products.advanced_moderator import moderate_product_by_category
+                is_approved, rejection_reason = moderate_product_by_category(product)
+                  if is_approved:
                     logger.info(f"Producto #{product.id} aprobado")
                     product.status = 'available'
                     product.save(update_fields=['status'])
                     self.stdout.write(self.style.SUCCESS(f"Producto #{product.id} aprobado y marcado como disponible"))
                 else:
-                    logger.warning(f"Producto #{product.id} rechazado: {result['reason']}")
+                    logger.warning(f"Producto #{product.id} rechazado: {rejection_reason}")
                     
                     # Guardar información del producto antes de eliminarlo para la notificación
                     product_title = product.title
                     product_seller = product.seller
-                    rejection_reason = result['reason']
+                    product_category_name = product.category.name if product.category else 'Varios'
                     
                     # Guardar producto y sus imágenes para eliminarlos
                     product_images = list(product.images.all())
@@ -64,7 +63,7 @@ class Command(BaseCommand):
                     
                     # Crear notificación al vendedor sobre el rechazo
                     from notifications.signals import create_product_rejected_notification
-                    create_product_rejected_notification(product_seller, product_title, rejection_reason)
+                    create_product_rejected_notification(product_seller, product_title, rejection_reason, product_category_name)
                     
                     # Intentar eliminar los archivos físicos de imágenes
                     for path in image_paths:
@@ -75,7 +74,7 @@ class Command(BaseCommand):
                         except Exception as e:
                             logger.error(f"Error al eliminar imagen {path}: {str(e)}")
                     
-                    self.stdout.write(self.style.WARNING(f"Producto #{product.id} rechazado y eliminado: {result['reason']}. Notificación enviada al vendedor."))
+                    self.stdout.write(self.style.WARNING(f"Producto #{product.id} rechazado y eliminado: {rejection_reason}. Notificación enviada al vendedor."))
                     
             except Exception as e:
                 logger.error(f"Error al revisar producto #{product.id}: {str(e)}")

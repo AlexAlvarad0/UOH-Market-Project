@@ -11,13 +11,14 @@ class NotificationSerializer(serializers.ModelSerializer):
     time_ago = SerializerMethodField()
     message_info = SerializerMethodField()
     rating_info = SerializerMethodField()
+    
     class Meta:
         model = Notification
         fields = [
             'id', 'type', 'type_display', 'title', 'message', 'is_read', 
             'created_at', 'from_user', 'related_product', 
             'related_conversation', 'related_message', 'related_rating',
-            'time_ago', 'message_info', 'rating_info'
+            'time_ago', 'message_info', 'rating_info', 'extra_data'
         ]
     
     def get_time_ago(self, obj):

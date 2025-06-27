@@ -86,6 +86,13 @@ class Notification(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     
+    # Campo para guardar datos adicionales (como motivo completo de rechazo)
+    extra_data = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Datos adicionales en formato JSON (motivos de rechazo, etc.)'
+    )
+    
     class Meta:
         ordering = ['-created_at']
         

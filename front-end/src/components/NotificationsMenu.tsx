@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, MouseEvent, UIEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.hooks';
 import notificationsService from '../services/notifications';
+import ProductRejectionModal from './ProductRejectionModal';
 import { 
   IconButton, Badge, Popover, Box, Typography, 
   Button, Divider, List, ListItem, ListItemText,
@@ -29,7 +30,11 @@ interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
-  time_ago: string;
+  time_ago: string;  extra_data?: {
+    rejection_reason?: string;
+    category_name?: string;
+    [key: string]: unknown;
+  };
   from_user?: {
     id: number;
     username: string;
@@ -60,10 +65,17 @@ const NotificationsMenu: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [isOpen, setIsOpen] = useState<boolean>(false);  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const { isAuthenticated, user } = useAuth();
   const touchStartXRef = useRef<Record<number, number>>({}); // Referencia para posiciones de touch por notificación
+  
+  // Estados para el modal de producto rechazado
+  const [rejectionModalOpen, setRejectionModalOpen] = useState<boolean>(false);
+  const [selectedRejection, setSelectedRejection] = useState<{
+    productName: string;
+    rejectionReason: string;
+    category?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -234,10 +246,18 @@ const NotificationsMenu: React.FC = () => {
         setUnreadCount(unreadNotifications);
         navigate(`/chat/${conversationId}`);      } else if (notification.type === 'rating' && user?.id) {
         // Navegar al perfil del usuario actual (quien recibió la calificación), en la pestaña de calificaciones
-        navigate(`/profile`);
-      } else if (notification.type === 'product_rejected') {
-        // Para productos rechazados, solo marcar como leído pero no navegar a ningún lugar
-        // Ya se marcó como leído al inicio de la función, así que no hacemos nada más
+        navigate(`/profile`);      } else if (notification.type === 'product_rejected') {
+        // Para productos rechazados, abrir modal con motivo completo
+        const productName = notification.related_product?.title || 'tu producto';
+        const rejectionReason = notification.extra_data?.rejection_reason || 'No se proporcionó un motivo específico.';
+        const category = notification.extra_data?.category_name;
+        
+        setSelectedRejection({
+          productName,
+          rejectionReason,
+          category
+        });
+        setRejectionModalOpen(true);
         return;
       } else if (notification.related_product && notification.related_product.id) {
         await notificationsService.markProductAsRead(notification.related_product.id);
@@ -495,10 +515,21 @@ const NotificationsMenu: React.FC = () => {
                 opacity: bottomGradientOpacity,
                 zIndex: 2,
               }}
-            ></div>
-          </div>
+            ></div>          </div>
         </div>
       </Popover>
+
+      {/* Modal para mostrar motivo completo de rechazo */}
+      <ProductRejectionModal
+        open={rejectionModalOpen}
+        onClose={() => {
+          setRejectionModalOpen(false);
+          setSelectedRejection(null);
+        }}
+        productName={selectedRejection?.productName || ''}
+        rejectionReason={selectedRejection?.rejectionReason || ''}
+        category={selectedRejection?.category}
+      />
     </>
   );
 };
