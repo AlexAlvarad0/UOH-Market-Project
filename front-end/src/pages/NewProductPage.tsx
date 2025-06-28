@@ -22,7 +22,7 @@ import Squares from '../../y/Squares/Squares';
 
 const NewProductPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
@@ -37,13 +37,24 @@ const NewProductPage: React.FC = () => {
       navigate('/login', { state: { from: '/product/new' } });
       return;
     }
-    
+
+    // Permitir acceso inmediato si el usuario tiene email institucional
+    if (user?.email &&
+      (user.email.endsWith('@uoh.cl') || user.email.endsWith('@pregrado.uoh.cl'))
+    ) {
+      // Si el usuario tiene el dominio correcto, forzar is_verified_seller a true en el frontend
+      if (!user.is_verified_seller) {
+        updateUser({ ...user, is_verified_seller: true });
+      }
+      return;
+    }
+
     if (!user?.is_verified_seller) {
       setErrorMessage('Solo los usuarios con email institucional UOH (@pregrado.uoh.cl o @uoh.cl) pueden vender productos.');
       setErrorDialogOpen(true);
       return;
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, updateUser]);
   
   // Estado del formulario
   const [title, setTitle] = useState('');
@@ -601,7 +612,7 @@ const NewProductPage: React.FC = () => {
                         <ChevronRightIcon />
                       </IconButton>
                       
-                      {/* Indicador de imagen actual */}
+                      {/* Indicador de imagen currente */}
                       <Box
                         sx={{
                           position: 'absolute',

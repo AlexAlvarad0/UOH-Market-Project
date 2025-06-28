@@ -853,7 +853,7 @@ const ChatPage = () => {
                         {msg.content}
                       </Typography>
                       {msg.is_edited && (
-                        <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ opacity: 0.5, fontSize: '0.6rem', ml: 0.5 }}>
                           (editado)
                         </Typography>
                       )}
@@ -889,11 +889,11 @@ const ChatPage = () => {
                   {msg.liked_by && msg.liked_by.length > 0 && (
                     <Box sx={{ 
                       position: 'absolute', 
-                      bottom: -12, 
-                      right: isOwnMessage ? -12 : -12,
+                      bottom: -10, 
+                      right: isOwnMessage ? -10 : -10,
                       display: 'flex',
                       alignItems: 'center',
-                      mr: 1 // Margen para separar del contenido
+                      mr: 1
                     }}>
                       {/* Para mensajes propios: solo mostrar info de likes */}
                       {isOwnMessage ? (
@@ -903,15 +903,15 @@ const ChatPage = () => {
                             alignItems: 'center', 
                             backgroundColor: 'background.paper',
                             borderRadius: '50%',
-                            width: 32,
-                            height: 32,
+                            width: 24,
+                            height: 24,
                             justifyContent: 'center',
                             border: '1px solid #e0e0e0',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                           }}>
-                            <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
+                            <ThumbUpIcon sx={{ fontSize: 12 }} color="primary" />
                             {msg.liked_by.length > 1 && (
-                              <Typography variant="caption" sx={{ ml: 0.3, fontSize: '0.6rem', fontWeight: 'bold' }}>
+                              <Typography variant="caption" sx={{ ml: 0.3, fontSize: '0.55rem', fontWeight: 'bold' }}>
                                 {msg.liked_by.length}
                               </Typography>
                             )}
@@ -925,8 +925,8 @@ const ChatPage = () => {
                               size="small"
                               sx={{ 
                                 backgroundColor: 'background.paper',
-                                width: 32,
-                                height: 32,
+                                width: 24,
+                                height: 24,
                                 border: '1px solid #e0e0e0',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                                 '&:hover': { 
@@ -937,14 +937,14 @@ const ChatPage = () => {
                               onClick={() => handleLikeMessage(msg.id)}
                             >
                               {msg.liked_by?.includes(user?.id || 0) ? (
-                                <ThumbUpIcon sx={{ fontSize: 14 }} color="primary" />
+                                <ThumbUpIcon sx={{ fontSize: 12 }} color="primary" />
                               ) : (
-                                <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                                <ThumbUpOutlinedIcon sx={{ fontSize: 12 }} />
                               )}
                             </IconButton>
                           </Tooltip>
                           {msg.liked_by.length > 1 && (
-                            <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.6rem', fontWeight: 'bold' }}>
+                            <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.55rem', fontWeight: 'bold' }}>
                               {msg.liked_by.length}
                             </Typography>
                           )}
@@ -957,18 +957,18 @@ const ChatPage = () => {
                   {!isOwnMessage && (!msg.liked_by || msg.liked_by.length === 0) && (
                     <Box sx={{ 
                       position: 'absolute', 
-                      bottom: -12, 
-                      right: -12,
+                      bottom: -10, 
+                      right: -10,
                       display: 'flex',
                       alignItems: 'center',
-                      mr: 1 // Margen para separar del contenido
+                      mr: 1
                     }}>
                       <IconButton
                         size="small"
                         sx={{ 
                           backgroundColor: 'background.paper',
-                          width: 32,
-                          height: 32,
+                          width: 24,
+                          height: 24,
                           border: '1px solid #e0e0e0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           '&:hover': { 
@@ -978,7 +978,7 @@ const ChatPage = () => {
                         }}
                         onClick={() => handleLikeMessage(msg.id)}
                       >
-                        <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
+                        <ThumbUpOutlinedIcon sx={{ fontSize: 12 }} />
                       </IconButton>
                     </Box>
                   )}
