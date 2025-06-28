@@ -19,19 +19,11 @@ class HuggingFaceImageModerator:
         self.threshold = getattr(settings, 'CONTENT_MODERATION_THRESHOLD', 0.6)
         self.enabled = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
         self.base_url = "https://api-inference.huggingface.co/models"
-        
-        # Modelos mejorados para detección más específica
-        self.models = {
-            'nsfw_primary': 'Falconsai/nsfw_image_detection',  # Muy bueno para NSFW
-            'nsfw_secondary': 'AdamCodd/vit-base-nsfw-detector',  # Detector alternativo NSFW
-            'drug_detection': 'google/vit-base-patch16-224',  # Para clasificación general
-            'inappropriate_content': 'microsoft/resnet-50',  # Para contenido general
-            'safety_classifier': 'facebook/detr-resnet-50'  # Para objetos específicos
-        }
-        
+        # Usar solo un modelo NSFW confiable y gratuito
+        self.model = 'osanseviero/nsfw-detector'  # Modelo público y activo
         if not self.api_token:
             logger.info("Hugging Face API token no configurado. Usando modelos públicos sin autenticación.")
-    
+
     def analyze_image(self, image_path: str) -> Dict[str, Any]:
         """
         Analiza una imagen usando Hugging Face para detectar contenido inapropiado
@@ -71,20 +63,14 @@ class HuggingFaceImageModerator:
                     'api_used': False
                 }
             
-            # Analizar primero con modelo NSFW primario
-            nsfw_result = self._analyze_with_model('nsfw_primary', processed_image)
-            if not nsfw_result:
-                # Si falla, intentar con el modelo secundario
-                logger.warning('Modelo NSFW primario falló, intentando con el secundario')
-                nsfw_result = self._analyze_with_model('nsfw_secondary', processed_image)
-            
-            # Evaluar resultados
-            return self._evaluate_huggingface_results(nsfw_result)
+            # Analizar solo con el modelo NSFW seleccionado
+            result = self._analyze_with_model(processed_image)
+            return self._evaluate_huggingface_results(result)
             
         except Exception as e:
             logger.error(f"Error al analizar imagen con Hugging Face: {str(e)}")
             return {
-                'is_appropriate': True,  # En caso de error, no bloquear
+                'is_appropriate': False,
                 'confidence': 0.0,
                 'reason': f'Error en análisis: {str(e)}',
                 'api_used': False
@@ -120,48 +106,42 @@ class HuggingFaceImageModerator:
             logger.error(f"Error preparando imagen: {str(e)}")
             return None
     
-    def _analyze_with_model(self, model_type: str, image_bytes: bytes) -> Union[Dict, None]:
+    def _analyze_with_model(self, image_bytes: bytes) -> Union[Dict, None]:
         """
-        Analiza imagen con un modelo específico de Hugging Face
+        Analiza imagen con el modelo NSFW de Hugging Face
         
         Args:
-            model_type: Tipo de modelo ('nsfw', 'inappropriate', etc.)
             image_bytes: Bytes de la imagen
             
         Returns:
             Respuesta del modelo o None si hay error
         """
         try:
-            model_name = self.models.get(model_type)
-            if not model_name:
-                logger.error(f"Modelo no encontrado: {model_type}")
-                return None
-            
-            url = f"{self.base_url}/{model_name}"
+            url = f"{self.base_url}/{self.model}"
             headers = {}
             
             if self.api_token:
                 headers["Authorization"] = f"Bearer {self.api_token}"
             
-            logger.info(f"Analizando con modelo Hugging Face: {model_name}")
+            logger.info(f"Analizando con modelo Hugging Face: {self.model}")
             response = requests.post(url, data=image_bytes, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"Respuesta de Hugging Face {model_type}: {result}")
+                logger.info(f"Respuesta de Hugging Face: {result}")
                 return result
             else:
-                logger.error(f"Error en Hugging Face {model_type}: {response.status_code} - {response.text}")
+                logger.error(f"Error en Hugging Face: {response.status_code} - {response.text}")
                 return None
                 
         except requests.exceptions.Timeout:
-            logger.error(f"Timeout al llamar a Hugging Face modelo: {model_type}")
+            logger.error(f"Timeout al llamar a Hugging Face modelo: {self.model}")
             return None
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error de conexión con Hugging Face {model_type}: {str(e)}")
+            logger.error(f"Error de conexión con Hugging Face: {str(e)}")
             return None
         except Exception as e:
-            logger.error(f"Error inesperado al llamar a Hugging Face {model_type}: {str(e)}")
+            logger.error(f"Error inesperado al llamar a Hugging Face: {str(e)}")
             return None
     
     def _evaluate_huggingface_results(self, result: Union[Dict, None]) -> Dict[str, Any]:
