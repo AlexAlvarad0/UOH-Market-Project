@@ -38,9 +38,9 @@ class Command(BaseCommand):
                     # Si no hay imágenes, marcar como no disponible
                     product.status = 'unavailable'
                     product.save(update_fields=['status'])
-                    continue                # Aplicar moderación avanzada por categoría
-                from products.advanced_moderator import moderate_product_by_category
-                is_approved, rejection_reason = moderate_product_by_category(product)
+                    continue                # Aplicar moderación inteligente con análisis de imágenes IA
+                from products.intelligent_moderator import moderate_product_with_ai
+                is_approved, rejection_reason = moderate_product_with_ai(product)
                   if is_approved:
                     logger.info(f"Producto #{product.id} aprobado")
                     product.status = 'available'

@@ -10,26 +10,27 @@ import io
 
 logger = logging.getLogger(__name__)
 
-class HuggingFaceImageModerator:
-    """
+class HuggingFaceImageModerator:    """
     Servicio para moderar imágenes usando la API gratuita de Hugging Face
     """
     
     def __init__(self):
         self.api_token = getattr(settings, 'HUGGINGFACE_API_TOKEN', '')
-        self.threshold = getattr(settings, 'CONTENT_MODERATION_THRESHOLD', 0.7)
+        self.threshold = getattr(settings, 'CONTENT_MODERATION_THRESHOLD', 0.6)
         self.enabled = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
         self.base_url = "https://api-inference.huggingface.co/models"
         
-        # Modelos gratuitos de Hugging Face para moderación
+        # Modelos mejorados para detección más específica
         self.models = {
-            'nsfw': 'Falconsai/nsfw_image_detection',  # Muy bueno para NSFW
-            'inappropriate': 'microsoft/DialoGPT-medium',  # Para contenido general
-            'safety': 'unitary/toxic-bert'  # Para seguridad general
+            'nsfw_primary': 'Falconsai/nsfw_image_detection',  # Muy bueno para NSFW
+            'nsfw_secondary': 'AdamCodd/vit-base-nsfw-detector',  # Detector alternativo NSFW
+            'drug_detection': 'google/vit-base-patch16-224',  # Para clasificación general
+            'inappropriate_content': 'microsoft/resnet-50',  # Para contenido general
+            'safety_classifier': 'facebook/detr-resnet-50'  # Para objetos específicos
         }
         
         if not self.api_token:
-            logger.info("Hugging Face API token no configurado. Usando modelo público sin autenticación.")
+            logger.info("Hugging Face API token no configurado. Usando modelos públicos sin autenticación.")
     
     def analyze_image(self, image_path: str) -> Dict[str, Any]:
         """

@@ -86,11 +86,9 @@ class ProductReviewMiddleware:
                                     logger.error(f"Error eliminando imagen {path}: {str(e)}")
                                     
                             logger.warning(f"Producto #{product_id} rechazado por nombre de archivo: {reason}")
-                            continue                        # Si los nombres de archivos son apropiados, proceder con moderación de contenido por categoría
-                        from .advanced_moderator import moderate_product_by_category
-                        
-                        # Usar el nuevo sistema de moderación avanzado
-                        is_approved, rejection_reason = moderate_product_by_category(product)
+                            continue                        # Si los nombres de archivos son apropiados, proceder con análisis inteligente de IA
+                        from .intelligent_moderator import moderate_product_with_ai
+                        is_approved, rejection_reason = moderate_product_with_ai(product)
                         
                         if is_approved:# Producto aprobado
                             product.status = 'available'

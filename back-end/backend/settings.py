@@ -293,14 +293,14 @@ if 'railway.app' in BASE_URL and BASE_URL.startswith('http://'):
 # Frontend URL for building confirmation links
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
-# Configuración para moderación de imágenes - IA AVANZADA + DETECTOR DE DROGAS
-CONTENT_MODERATION_THRESHOLD = 0.3  # Umbral muy estricto para drogas (era 0.5)
-CONTENT_MODERATION_ENABLED = True   # Habilitar/deshabilitar moderación por IA
-CONTENT_MODERATION_FALLBACK = False  # NO usar método local - Solo IA avanzada
-MODERATION_SERVICE = 'enhanced_drug_detection'  # IA avanzada + detector específico de drogas
+# Configuración para moderación de imágenes - IA INTELIGENTE
+CONTENT_MODERATION_THRESHOLD = 0.6  # Umbral balanceado para IA
+CONTENT_MODERATION_ENABLED = True   # Habilitar moderación por IA
+CONTENT_MODERATION_FALLBACK = True  # Usar método local como fallback
+HUGGINGFACE_API_TOKEN = os.getenv('HUGGINGFACE_API_TOKEN', '')  # Token para Hugging Face
+MODERATION_SERVICE = 'intelligent_ai_detection'  # IA inteligente con múltiples métodos
 
 # Configuraciones legacy (comentadas)
-# HUGGINGFACE_API_TOKEN = os.getenv('HUGGINGFACE_API_TOKEN', '')  # Solo si quieres usar Hugging Face
 # DEEPAI_API_KEY = os.getenv('DEEPAI_API_KEY', '')  # Solo si quieres usar DeepAI
 
 # Configuración de Google OAuth
