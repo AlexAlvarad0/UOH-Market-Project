@@ -20,7 +20,7 @@ class HuggingFaceImageModerator:
         self.enabled = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
         self.base_url = "https://api-inference.huggingface.co/models"
         # Usar solo un modelo NSFW confiable y gratuito
-        self.model = 'osanseviero/nsfw-detector'  # Modelo público y activo
+        self.model = 'Falconsai/nsfw_image_detection'  # Modelo público y activo
         if not self.api_token:
             logger.info("Hugging Face API token no configurado. Usando modelos públicos sin autenticación.")
 
