@@ -71,8 +71,12 @@ class HuggingFaceImageModerator:
                     'api_used': False
                 }
             
-            # Analizar con modelo NSFW
-            nsfw_result = self._analyze_with_model('nsfw', processed_image)
+            # Analizar primero con modelo NSFW primario
+            nsfw_result = self._analyze_with_model('nsfw_primary', processed_image)
+            if not nsfw_result:
+                # Si falla, intentar con el modelo secundario
+                logger.warning('Modelo NSFW primario falló, intentando con el secundario')
+                nsfw_result = self._analyze_with_model('nsfw_secondary', processed_image)
             
             # Evaluar resultados
             return self._evaluate_huggingface_results(nsfw_result)
@@ -275,7 +279,7 @@ openvino_moderator = OpenVINOImageModerator()
 
 def analyze_image_with_free_ai(image_path: str) -> Dict[str, Any]:
     """
-    Función principal para analizar imagen con servicios gratuitos
+    Función principal para analizar imagen con servicios gratuitos (solo Hugging Face, sin fallback)
     
     Args:
         image_path: Ruta a la imagen
@@ -283,12 +287,17 @@ def analyze_image_with_free_ai(image_path: str) -> Dict[str, Any]:
     Returns:
         Resultado del análisis
     """
-    # Primero intentar con Hugging Face (gratuito y sin límites)
+    # Intentar con Hugging Face (gratuito y sin límites)
     result = huggingface_moderator.analyze_image(image_path)
     
     if result.get('api_used', False):
         return result
     
-    # Si Hugging Face falla, usar análisis local mejorado
-    logger.info("Hugging Face no disponible, usando análisis local como fallback")
-    return openvino_moderator.analyze_image(image_path)
+    # Si Hugging Face falla, RECHAZAR la imagen (no usar fallback local)
+    logger.warning("Hugging Face no disponible o modelo no encontrado, rechazando imagen por seguridad")
+    return {
+        'is_appropriate': False,
+        'confidence': 0.0,
+        'reason': result.get('reason', 'No se pudo analizar la imagen por IA. Intenta de nuevo más tarde.'),
+        'api_used': False
+    }

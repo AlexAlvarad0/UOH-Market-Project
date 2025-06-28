@@ -551,7 +551,7 @@ const LoginPage = () => {
         }}
       >
         <Squares
-          speed={0.25}
+          speed={0.1}
           squareSize={40}
           direction="diagonal"
           borderColor="rgba(0, 79, 158, 0.2)"
