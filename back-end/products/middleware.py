@@ -48,10 +48,28 @@ class ProductReviewMiddleware:
                                 image_paths.append(img.image.path)
                         
                         if not image_paths:
-                            # Si no hay imágenes, marcar como no disponible
-                            product.status = 'unavailable'
-                            product.save(update_fields=['status'])
-                            logger.warning(f"Producto #{product.id} sin imágenes marcado como no disponible")
+                            # Si no hay imágenes, eliminar el producto y notificar
+                            product_id = product.id
+                            product_title = product.title
+                            product_seller = product.seller
+                            reason = 'El producto no tiene imágenes válidas para analizar.'
+                            product_category_name = product.category.name if product.category else 'Varios'
+                            # Guardar imágenes para eliminarlas (aunque no existan físicamente)
+                            product_images = list(product.images.all())
+                            image_paths = [img.image.path for img in product_images]
+                            # Eliminar producto (lo que también eliminará las imágenes por CASCADE)
+                            product.delete()
+                            # Crear notificación al vendedor sobre el rechazo
+                            from notifications.signals import create_product_rejected_notification
+                            create_product_rejected_notification(product_seller, product_title, reason, product_category_name)
+                            # Intentar eliminar archivos físicos
+                            for path in image_paths:
+                                try:
+                                    if os.path.exists(path):
+                                        os.remove(path)
+                                except Exception as e:
+                                    logger.error(f"Error eliminando imagen {path}: {str(e)}")
+                            logger.warning(f"Producto #{product_id} eliminado por no tener imágenes válidas")
                             continue
                         
                         # Obtener nombres de archivos de imágenes
