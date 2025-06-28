@@ -10,11 +10,11 @@ import io
 
 logger = logging.getLogger(__name__)
 
-class HuggingFaceImageModerator:    """
+class HuggingFaceImageModerator:
+    """
     Servicio para moderar imágenes usando la API gratuita de Hugging Face
     """
-    
-def __init__(self):
+    def __init__(self):
         self.api_token = getattr(settings, 'HUGGINGFACE_API_TOKEN', '')
         self.threshold = getattr(settings, 'CONTENT_MODERATION_THRESHOLD', 0.6)
         self.enabled = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
@@ -32,7 +32,7 @@ def __init__(self):
         if not self.api_token:
             logger.info("Hugging Face API token no configurado. Usando modelos públicos sin autenticación.")
     
-def analyze_image(self, image_path: str) -> Dict[str, Any]:
+    def analyze_image(self, image_path: str) -> Dict[str, Any]:
         """
         Analiza una imagen usando Hugging Face para detectar contenido inapropiado
         
@@ -86,7 +86,7 @@ def analyze_image(self, image_path: str) -> Dict[str, Any]:
                 'api_used': False
             }
     
-def _prepare_image(self, image_path: str) -> Union[bytes, None]:
+    def _prepare_image(self, image_path: str) -> Union[bytes, None]:
         """
         Prepara la imagen para enviar a Hugging Face
         
@@ -116,7 +116,7 @@ def _prepare_image(self, image_path: str) -> Union[bytes, None]:
             logger.error(f"Error preparando imagen: {str(e)}")
             return None
     
-def _analyze_with_model(self, model_type: str, image_bytes: bytes) -> Union[Dict, None]:
+    def _analyze_with_model(self, model_type: str, image_bytes: bytes) -> Union[Dict, None]:
         """
         Analiza imagen con un modelo específico de Hugging Face
         
@@ -160,7 +160,7 @@ def _analyze_with_model(self, model_type: str, image_bytes: bytes) -> Union[Dict
             logger.error(f"Error inesperado al llamar a Hugging Face {model_type}: {str(e)}")
             return None
     
-def _evaluate_huggingface_results(self, result: Union[Dict, None]) -> Dict[str, Any]:
+    def _evaluate_huggingface_results(self, result: Union[Dict, None]) -> Dict[str, Any]:
         """
         Evalúa los resultados de Hugging Face
         
