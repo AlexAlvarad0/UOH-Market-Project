@@ -135,7 +135,7 @@ const FavoritesPage = () => {  interface FavoriteItem {
         }}
       >
         <Squares
-          speed={0.1}
+          speed={0.05}
           squareSize={40}
           direction="diagonal"
           borderColor="rgba(0, 79, 158, 0.2)"

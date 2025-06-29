@@ -43,16 +43,6 @@ class HuggingFaceImageModerator:
             }
         
         try:
-            # Verificar que el archivo existe
-            if not os.path.exists(image_path):
-                logger.error(f"Imagen no encontrada: {image_path}")
-                return {
-                    'is_appropriate': False,
-                    'confidence': 1.0,
-                    'reason': 'Archivo de imagen no encontrado',
-                    'api_used': False
-                }
-            
             # Preparar imagen para el análisis
             processed_image = self._prepare_image(image_path)
             if not processed_image:

@@ -17,7 +17,7 @@ interface SquaresProps {
 
 const Squares: React.FC<SquaresProps> = ({
   direction = "right",
-  speed = 0.25,
+  speed = 0.05,
   borderColor = "#999",
   squareSize = 40,
   hoverFillColor = "#222",
@@ -88,7 +88,7 @@ const Squares: React.FC<SquaresProps> = ({
     };
 
     const updateAnimation = () => {
-      const effectiveSpeed = Math.max(speed, 0.1);
+      const effectiveSpeed = Math.max(speed, 0.05);
       switch (direction) {
         case "right":
           gridOffset.current.x =
