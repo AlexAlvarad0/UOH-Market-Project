@@ -18,26 +18,15 @@ class ProductBasicSerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ProductImage
         fields = ['id', 'image', 'is_primary']
-    
+
     def get_image(self, obj):
+        # Siempre devolver la URL real de Cloudinary
         if obj.image:
-            url = obj.image.url
-            # Si la URL ya es absoluta (S3), devuélvela tal cual
-            if url.startswith('http://') or url.startswith('https://'):
-                return url
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(url)
-            else:
-                from django.conf import settings
-                base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
-                if 'railway.app' in base_url and base_url.startswith('http://'):
-                    base_url = base_url.replace('http://', 'https://')
-                return f"{base_url}{url}"
+            return obj.image.url
         return None
 
 class ProductSerializer(serializers.ModelSerializer):
