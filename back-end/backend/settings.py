@@ -53,19 +53,15 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    'django_filters',  # Add this line    # Local apps
+    'django_filters',
+    'anymail',  # Para SendGrid
+    'storages',  # Solo para GCS
+    # Local apps
     'accounts',
     'authentication',  # Agregar la app de autenticación
     'products',
     'chat',
     'notifications',
-]
-
-INSTALLED_APPS += [
-    'anymail',  # Para SendGrid
-    'storages',  # Para almacenamiento en S3
-    'cloudinary_storage',  # Para Cloudinary
-    'cloudinary',         # Para Cloudinary
 ]
 
 MIDDLEWARE = [
@@ -253,42 +249,14 @@ REST_FRAMEWORK = {
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Configuración de almacenamiento en Cloudinary para archivos de medios
-if os.getenv('CLOUDINARY_CLOUD_NAME') and os.getenv('CLOUDINARY_API_KEY') and os.getenv('CLOUDINARY_API_SECRET'):
-    import cloudinary
-    cloudinary.config(
-        cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-        api_key=os.getenv('CLOUDINARY_API_KEY'),
-        api_secret=os.getenv('CLOUDINARY_API_SECRET'),
-        secure=True
-    )
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    CLOUDINARY_STORAGE = {
-        'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-        'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-    }
-# Si no hay Cloudinary, usar S3 si está configurado
-elif os.getenv('AWS_STORAGE_BUCKET_NAME'):
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = 'public-read'
-    AWS_QUERYSTRING_AUTH = False
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-# Configuración de Google Cloud Storage para archivos media
-elif os.getenv('GS_BUCKET_NAME') and os.getenv('GS_CREDENTIALS_JSON'):
+# Configuración de almacenamiento para archivos de medios
+if os.getenv('GS_BUCKET_NAME') and os.getenv('GS_CREDENTIALS_JSON'):
     import json
     GS_BUCKET_NAME = os.getenv('GS_BUCKET_NAME')
     GS_CREDENTIALS_DICT = json.loads(os.getenv('GS_CREDENTIALS_JSON'))
     GS_CREDENTIALS = service_account.Credentials.from_service_account_info(GS_CREDENTIALS_DICT)
     DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
     MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
-# Si no hay GCS, usar almacenamiento local (útil para desarrollo)
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
