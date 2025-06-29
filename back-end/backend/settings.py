@@ -249,32 +249,11 @@ REST_FRAMEWORK = {
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Configuración de almacenamiento para archivos de medios SOLO GCS
-import json
-GS_BUCKET_NAME = os.getenv('GS_BUCKET_NAME')
-GS_CREDENTIALS_JSON = os.getenv('GS_CREDENTIALS_JSON')
-if GS_BUCKET_NAME and GS_CREDENTIALS_JSON:
-    try:
-        GS_CREDENTIALS_DICT = json.loads(GS_CREDENTIALS_JSON)
-        GS_CREDENTIALS = service_account.Credentials.from_service_account_info(GS_CREDENTIALS_DICT)
-        DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
-        MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
-        # Configuración explícita para django-storages
-        GS_DEFAULT_ACL = 'publicRead'
-        GS_FILE_OVERWRITE = False
-        GS_LOCATION = ''
-        GS_PROJECT_ID = GS_CREDENTIALS_DICT.get('project_id')
-        print(f"[GCS] Configurado bucket: {GS_BUCKET_NAME}, project: {GS_PROJECT_ID}")
-    except Exception as e:
-        print(f"[GCS] ERROR al cargar credenciales: {e}")
-        MEDIA_URL = '/media/'
-        MEDIA_ROOT = BASE_DIR / 'media'
-        os.makedirs(MEDIA_ROOT, exist_ok=True)
-else:
-    print("[GCS] Variables de entorno GS_BUCKET_NAME o GS_CREDENTIALS_JSON no definidas. Usando almacenamiento local.")
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-    os.makedirs(MEDIA_ROOT, exist_ok=True)
+# Configuración SOLO almacenamiento local para archivos de medios
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+import os
+os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # En desarrollo, configurar STATICFILES_DIRS si existe el directorio
 if DEBUG:
