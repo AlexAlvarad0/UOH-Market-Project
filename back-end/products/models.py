@@ -8,7 +8,6 @@ import datetime
 import os
 import logging
 from .utils import moderate_content
-from cloudinary_storage.storage import MediaCloudinaryStorage
 
 logger = logging.getLogger(__name__)
 
