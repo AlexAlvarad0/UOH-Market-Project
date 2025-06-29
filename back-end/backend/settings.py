@@ -62,7 +62,9 @@ INSTALLED_APPS = [
 
 INSTALLED_APPS += [
     'anymail',  # Para SendGrid
-    'storages'  # Para almacenamiento en S3
+    'storages',  # Para almacenamiento en S3
+    'cloudinary_storage',  # Para Cloudinary
+    'cloudinary',         # Para Cloudinary
 ]
 
 MIDDLEWARE = [
@@ -250,8 +252,17 @@ REST_FRAMEWORK = {
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Configuración de almacenamiento en S3 para archivos de medios
-if os.getenv('AWS_STORAGE_BUCKET_NAME'):
+# Configuración de almacenamiento en Cloudinary para archivos de medios
+if os.getenv('CLOUDINARY_CLOUD_NAME') and os.getenv('CLOUDINARY_API_KEY') and os.getenv('CLOUDINARY_API_SECRET'):
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+        'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+    }
+    MEDIA_URL = f'https://res.cloudinary.com/{os.getenv("CLOUDINARY_CLOUD_NAME")}/media/'
+# Si no hay Cloudinary, usar S3 si está configurado
+elif os.getenv('AWS_STORAGE_BUCKET_NAME'):
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
