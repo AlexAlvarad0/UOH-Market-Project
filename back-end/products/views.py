@@ -241,6 +241,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
                 for key in image_keys:
                     image_file = request.FILES[key]
+                    logger.info(f'[DEBUG] Tipo de image_file recibido en vista: {type(image_file)}, name={getattr(image_file, "name", None)}, size={getattr(image_file, "size", None)}')
+                    if not hasattr(image_file, 'read'):
+                        logger.warning(f'[WARNING] El archivo recibido en {key} no es un archivo subido real. Puede que la imagen no se suba correctamente.')
                     try:
                         index = int(key.split('[')[1].split(']')[0])
                         is_primary = (index == primary_index)
