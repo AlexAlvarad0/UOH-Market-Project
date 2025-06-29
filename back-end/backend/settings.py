@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os  # Agregado para variables de entorno
 from dotenv import load_dotenv  # Añadido para cargar variables de entorno
+from google.oauth2 import service_account
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -279,7 +280,15 @@ elif os.getenv('AWS_STORAGE_BUCKET_NAME'):
     AWS_DEFAULT_ACL = 'public-read'
     AWS_QUERYSTRING_AUTH = False
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-# Si no hay bucket configurado, usar almacenamiento local (útil para desarrollo)
+# Configuración de Google Cloud Storage para archivos media
+elif os.getenv('GS_BUCKET_NAME') and os.getenv('GS_CREDENTIALS_JSON'):
+    import json
+    GS_BUCKET_NAME = os.getenv('GS_BUCKET_NAME')
+    GS_CREDENTIALS_DICT = json.loads(os.getenv('GS_CREDENTIALS_JSON'))
+    GS_CREDENTIALS = service_account.Credentials.from_service_account_info(GS_CREDENTIALS_DICT)
+    DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+    MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
+# Si no hay GCS, usar almacenamiento local (útil para desarrollo)
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
