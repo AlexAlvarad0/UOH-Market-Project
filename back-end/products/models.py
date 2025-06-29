@@ -74,7 +74,7 @@ def validate_image(image):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/', validators=[validate_image], storage=MediaCloudinaryStorage())
+    image = models.ImageField(upload_to='product_images/', validators=[validate_image])  # Usar storage por defecto
     is_primary = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
