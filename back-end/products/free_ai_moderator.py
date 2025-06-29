@@ -253,31 +253,180 @@ class OpenVINOImageModerator:
                 'api_used': False
             }
 
+class ModerateContentImageModerator:
+    """
+    Moderador usando la API gratuita de ModerateContent (detecta NSFW, drogas, alcohol, armas, etc)
+    """
+    def __init__(self):
+        self.api_key = getattr(settings, 'MODERATECONTENT_API_KEY', '')
+        self.enabled = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
+        self.threshold = getattr(settings, 'CONTENT_MODERATION_THRESHOLD', 0.6)
+        self.api_url = 'https://api.moderatecontent.com/moderate/'
+        if not self.api_key:
+            logger.warning("No se ha configurado la clave de API de ModerateContent.")
+
+    def analyze_image(self, image_path: str) -> Dict[str, Any]:
+        if not self.enabled or not self.api_key:
+            return {
+                'is_appropriate': True,
+                'confidence': 0.0,
+                'reason': 'Moderación por IA deshabilitada o sin API Key',
+                'api_used': False
+            }
+        try:
+            with open(image_path, 'rb') as f:
+                files = {'media': f}
+                params = {'key': self.api_key}
+                response = requests.post(self.api_url, files=files, params=params, timeout=30)
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Respuesta ModerateContent: {result}")
+                # El score va de 0 (apto) a 100 (muy inapropiado)
+                score = result.get('rating_index', 0)
+                labels = result.get('predictions', {})
+                # Considerar inapropiado si el score es alto o si detecta drogas, alcohol, armas, etc
+                inappropriate = score >= 2 or any(
+                    labels.get(label, 0) > 0.5 for label in ['drugs', 'alcohol', 'weapons', 'nudity', 'suggestive']
+                )
+                reason = f"Score: {score}, Labels: {labels}"
+                return {
+                    'is_appropriate': not inappropriate,
+                    'confidence': score / 4.0,  # Normalizado a 0-1
+                    'reason': reason,
+                    'api_used': True,
+                    'full_results': result
+                }
+            else:
+                logger.error(f"Error en ModerateContent: {response.status_code} - {response.text}")
+                return {
+                    'is_appropriate': False,
+                    'confidence': 1.0,
+                    'reason': f'Error en ModerateContent: {response.text}',
+                    'api_used': False
+                }
+        except Exception as e:
+            logger.error(f"Error al analizar imagen con ModerateContent: {str(e)}")
+            return {
+                'is_appropriate': False,
+                'confidence': 1.0,
+                'reason': f'Error en análisis: {str(e)}',
+                'api_used': False
+            }
+
+class SightengineImageModerator:
+    """
+    Moderador usando la API de Sightengine (detecta NSFW, drogas, alcohol, armas, etc)
+    """
+    def __init__(self):
+        self.api_user = os.environ.get('SIGHTENGINE_API_USER', getattr(settings, 'SIGHTENGINE_API_USER', ''))
+        self.api_secret = os.environ.get('SIGHTENGINE_API_SECRET', getattr(settings, 'SIGHTENGINE_API_SECRET', ''))
+        self.enabled = getattr(settings, 'CONTENT_MODERATION_ENABLED', True)
+        self.api_url = 'https://api.sightengine.com/1.0/check.json'
+        self.models = 'nudity-2.1,weapon,alcohol,recreational_drug,medical,gore-2.0,tobacco,gambling'
+        if not self.api_user or not self.api_secret:
+            logger.warning("No se ha configurado la API de Sightengine.")
+
+    def analyze_image(self, image_path: str) -> Dict[str, Any]:
+        if not self.enabled or not self.api_user or not self.api_secret:
+            return {
+                'is_appropriate': True,
+                'confidence': 0.0,
+                'reason': 'Moderación por IA deshabilitada o sin API Key',
+                'api_used': False
+            }
+        try:
+            with open(image_path, 'rb') as f:
+                files = {'media': f}
+                params = {
+                    'models': self.models,
+                    'api_user': self.api_user,
+                    'api_secret': self.api_secret
+                }
+                response = requests.post(self.api_url, files=files, data=params, timeout=30)
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Respuesta Sightengine: {result}")
+                # Lógica de decisión: si cualquier categoría prohibida supera cierto umbral, rechazar
+                inappropriate = False
+                reasons = []
+                # Nudity
+                nudity = result.get('nudity', {})
+                if nudity.get('raw', 0) > 0.5 or nudity.get('partial', 0) > 0.5 or nudity.get('safe', 1) < 0.5:
+                    inappropriate = True
+                    reasons.append(f"Nudity: {nudity}")
+                # Drugs
+                drugs = result.get('drugs', {})
+                if drugs.get('prob', 0) > 0.5:
+                    inappropriate = True
+                    reasons.append(f"Drugs: {drugs}")
+                # Alcohol
+                alcohol = result.get('alcohol', {})
+                if alcohol.get('prob', 0) > 0.5:
+                    inappropriate = True
+                    reasons.append(f"Alcohol: {alcohol}")
+                # Weapons
+                weapon = result.get('weapon', {})
+                if weapon.get('prob', 0) > 0.5:
+                    inappropriate = True
+                    reasons.append(f"Weapon: {weapon}")
+                # Gore
+                gore = result.get('gore', {})
+                if gore.get('prob', 0) > 0.5:
+                    inappropriate = True
+                    reasons.append(f"Gore: {gore}")
+                # Tobacco
+                tobacco = result.get('tobacco', {})
+                if tobacco.get('prob', 0) > 0.5:
+                    inappropriate = True
+                    reasons.append(f"Tobacco: {tobacco}")
+                # Gambling
+                gambling = result.get('gambling', {})
+                if gambling.get('prob', 0) > 0.5:
+                    inappropriate = True
+                    reasons.append(f"Gambling: {gambling}")
+                reason = "; ".join(reasons) if reasons else "Aprobado por Sightengine"
+                return {
+                    'is_appropriate': not inappropriate,
+                    'confidence': 1.0 if inappropriate else 0.0,
+                    'reason': reason,
+                    'api_used': True,
+                    'full_results': result
+                }
+            else:
+                logger.error(f"Error en Sightengine: {response.status_code} - {response.text}")
+                return {
+                    'is_appropriate': False,
+                    'confidence': 1.0,
+                    'reason': f'Error en Sightengine: {response.text}',
+                    'api_used': False
+                }
+        except Exception as e:
+            logger.error(f"Error al analizar imagen con Sightengine: {str(e)}")
+            return {
+                'is_appropriate': False,
+                'confidence': 1.0,
+                'reason': f'Error en análisis: {str(e)}',
+                'api_used': False
+            }
+
 # Instancias globales
 huggingface_moderator = HuggingFaceImageModerator()
 openvino_moderator = OpenVINOImageModerator()
+moderatecontent_moderator = ModerateContentImageModerator()
+sightengine_moderator = SightengineImageModerator()
 
 def analyze_image_with_free_ai(image_path: str) -> Dict[str, Any]:
     """
-    Función principal para analizar imagen con servicios gratuitos (solo Hugging Face, sin fallback)
-    
-    Args:
-        image_path: Ruta a la imagen
-        
-    Returns:
-        Resultado del análisis
+    Analiza imagen usando Sightengine primero (drogas, alcohol, armas, NSFW, etc)
     """
-    # Intentar con Hugging Face (gratuito y sin límites)
-    result = huggingface_moderator.analyze_image(image_path)
-    
+    result = sightengine_moderator.analyze_image(image_path)
     if result.get('api_used', False):
         return result
-    
-    # Si Hugging Face falla, RECHAZAR la imagen (no usar fallback local)
-    logger.warning("Hugging Face no disponible o modelo no encontrado, rechazando imagen por seguridad")
+    # Si falla, rechazar la imagen
+    logger.warning("Sightengine no disponible, rechazando imagen por seguridad")
     return {
         'is_appropriate': False,
-        'confidence': 0.0,
+        'confidence': 1.0,
         'reason': result.get('reason', 'No se pudo analizar la imagen por IA. Intenta de nuevo más tarde.'),
         'api_used': False
     }
