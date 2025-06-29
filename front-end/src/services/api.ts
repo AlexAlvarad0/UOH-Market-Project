@@ -361,12 +361,7 @@ class ApiService {
   async createProduct(formData: FormData) {
     try {
       console.log('Enviando nuevo producto al servidor...');
-      // Configurar headers para enviar FormData
-      const headers = {
-        ...(this.token ? { 'Authorization': `Token ${this.token}` } : {})
-        // No incluir Content-Type para FormData
-      };      // Log detallado del contenido del FormData
-      console.log('Contenido del FormData a enviar:');
+      // Log detallado del contenido del FormData
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
           console.log(`${key}: archivo - ${value.name} (${value.type}, ${value.size} bytes)`);
@@ -374,8 +369,23 @@ class ApiService {
           console.log(`${key}: ${value}`);
         }
       }
-
-      const response = await axios.post(
+      // Validar que al menos una imagen esté presente
+      const imageKeys = Array.from(formData.keys()).filter(k => k.startsWith('images['));
+      if (imageKeys.length === 0) {
+        console.error('No se encontró ninguna imagen en el FormData.');
+      } else {
+        imageKeys.forEach(k => {
+          const f = formData.get(k);
+          if (f instanceof File) {
+            console.log(`Imagen enviada: ${f.name} (${f.type}, ${f.size} bytes)`);
+          }
+        });
+      }
+      // Configurar headers para enviar FormData
+      const headers = {
+        ...(this.token ? { 'Authorization': `Token ${this.token}` } : {})
+        // No incluir Content-Type para FormData
+      };      const response = await axios.post(
         `${API_URL}/products/`,
         formData,
         {

@@ -197,6 +197,12 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info('--- INICIO CREACIÓN DE PRODUCTO ---')
+            logger.info(f'Usuario: {request.user} | Email: {getattr(request.user, "email", None)}')
+            logger.info(f'Archivos recibidos: {list(request.FILES.keys())}')
+            logger.info(f'Datos recibidos: {dict(request.data)}')
             # Verificación automática para usuarios UOH (failsafe)
             is_uoh_email = request.user.email.endswith('@pregrado.uoh.cl') or request.user.email.endswith('@uoh.cl')
             
@@ -207,6 +213,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             
             # Verificar si el usuario puede vender productos
             if not request.user.is_verified_seller:
+                logger.warning('Usuario no autorizado para vender productos.')
                 return Response(
                     {"error": "Solo usuarios con correos institucionales (@uoh.cl o @pregrado.uoh.cl) pueden vender productos."},
                     status=status.HTTP_403_FORBIDDEN
@@ -214,6 +221,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
             serializer = self.get_serializer(data=request.data)
             if not serializer.is_valid():
+                logger.error(f'Errores de validación: {serializer.errors}')
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             # Guardar el producto con estado inicial "En revisión" y establecer precio original
@@ -222,6 +230,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             # Procesar múltiples imágenes
             from .models import ProductImage
             image_keys = [key for key in request.FILES.keys() if key.startswith('images[')]
+            logger.info(f'Procesando imágenes: {image_keys}')
 
             if image_keys:
                 primary_image_index = request.data.get('primary_image_index', '0')
@@ -235,6 +244,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     try:
                         index = int(key.split('[')[1].split(']')[0])
                         is_primary = (index == primary_index)
+                        logger.info(f'Subiendo imagen {key}: {image_file.name} (primary={is_primary})')
 
                         image = ProductImage.objects.create(
                             product=product,
@@ -242,13 +252,15 @@ class ProductViewSet(viewsets.ModelViewSet):
                             is_primary=is_primary
                         )
                         image.save()
-                    except Exception:
-                        pass
+                        logger.info(f'Imagen subida correctamente: {image.image.url}')
+                    except Exception as e:
+                        logger.error(f'Error al subir imagen {key}: {e}')
 
             # Verificar si el producto pasó la moderación (atributo agregado por el signal)
             if hasattr(product, '_moderation_passed') and not product._moderation_passed:
                 # El producto no pasó la moderación y ya ha sido eliminado
                 rejection_reason = getattr(product, '_rejection_reason', 'El contenido es inapropiado para nuestro Marketplace')
+                logger.warning(f'Producto rechazado por moderación: {rejection_reason}')
                 return Response(
                     {"error": "No podemos publicar tu producto. " + rejection_reason},
                     status=status.HTTP_400_BAD_REQUEST
@@ -258,8 +270,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             from .serializers import ProductDetailSerializer
             updated_serializer = ProductDetailSerializer(product)
             headers = self.get_success_headers(serializer.data)
+            logger.info('--- PRODUCTO CREADO EXITOSAMENTE ---')
             return Response(updated_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error inesperado en create: {e}', exc_info=True)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request, *args, **kwargs):
