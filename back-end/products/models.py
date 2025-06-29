@@ -8,6 +8,7 @@ import datetime
 import os
 import logging
 from .utils import moderate_content
+from cloudinary_storage.storage import MediaCloudinaryStorage
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +74,13 @@ def validate_image(image):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/', validators=[validate_image])
+    image = models.ImageField(upload_to='product_images/', validators=[validate_image], storage=MediaCloudinaryStorage())
     is_primary = models.BooleanField(default=False)
-    
+
+    def save(self, *args, **kwargs):
+        logger.info(f"[DEBUG] Guardando ProductImage: type(image)={type(self.image)}, name={getattr(self.image, 'name', None)}")
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Image for {self.product.title}"
 
