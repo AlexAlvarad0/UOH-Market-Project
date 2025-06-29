@@ -177,9 +177,9 @@ class HuggingFaceImageModerator:
                     # Verificar si es una etiqueta inapropiada
                     for inappropriate_label in inappropriate_labels:
                         if inappropriate_label in label:
-                            max_confidence = max(max_confidence, score)
-                            detected_labels.append(f"{label} ({score:.2f})")
-                            break
+                           max_confidence = max(max_confidence, score)
+                        detected_labels.append(f"{label} ({score:.2f})")
+                        break
                 
                 is_appropriate = max_confidence < self.threshold
                 reason = f"Contenido {'apropiado' if is_appropriate else 'inapropiado'} detectado"
@@ -189,7 +189,7 @@ class HuggingFaceImageModerator:
                 
                 return {
                     'is_appropriate': is_appropriate,
-                    'confidence': max_confidence,
+                     'confidence': max_confidence,
                     'reason': reason,
                     'api_used': True,
                     'full_results': result
@@ -346,19 +346,24 @@ class SightengineImageModerator:
             if response.status_code == 200:
                 result = response.json()
                 logger.info(f"Respuesta Sightengine: {result}")
-                # Lógica de decisión: si cualquier categoría prohibida supera cierto umbral, rechazar
                 inappropriate = False
                 reasons = []
                 # Nudity
                 nudity = result.get('nudity', {})
-                if nudity.get('raw', 0) > 0.5 or nudity.get('partial', 0) > 0.5 or nudity.get('safe', 1) < 0.5:
+                if nudity.get('raw', 0) > 0.5 or nudity.get('partial', 0) > 0.5 or nudity.get('sexual_activity', 0) > 0.5 or nudity.get('sexual_display', 0) > 0.5 or nudity.get('erotica', 0) > 0.5:
                     inappropriate = True
                     reasons.append(f"Nudity: {nudity}")
-                # Drugs
-                drugs = result.get('drugs', {})
-                if drugs.get('prob', 0) > 0.5:
+                # Drugs (recreational_drug)
+                rec_drug = result.get('recreational_drug', {})
+                if rec_drug.get('prob', 0) > 0.5:
                     inappropriate = True
-                    reasons.append(f"Drugs: {drugs}")
+                    reasons.append(f"Drugs: {rec_drug}")
+                # Cannabis y otras clases de drogas
+                drug_classes = rec_drug.get('classes', {})
+                for drug_label, prob in drug_classes.items():
+                    if prob > 0.5:
+                        inappropriate = True
+                        reasons.append(f"Drug class {drug_label}: {prob}")
                 # Alcohol
                 alcohol = result.get('alcohol', {})
                 if alcohol.get('prob', 0) > 0.5:
@@ -366,19 +371,34 @@ class SightengineImageModerator:
                     reasons.append(f"Alcohol: {alcohol}")
                 # Weapons
                 weapon = result.get('weapon', {})
+                weapon_classes = weapon.get('classes', {})
                 if weapon.get('prob', 0) > 0.5:
                     inappropriate = True
                     reasons.append(f"Weapon: {weapon}")
+                for weapon_label, prob in weapon_classes.items():
+                    if prob > 0.5:
+                        inappropriate = True
+                        reasons.append(f"Weapon class {weapon_label}: {prob}")
                 # Gore
                 gore = result.get('gore', {})
                 if gore.get('prob', 0) > 0.5:
                     inappropriate = True
                     reasons.append(f"Gore: {gore}")
+                gore_classes = gore.get('classes', {})
+                for gore_label, prob in gore_classes.items():
+                    if prob > 0.5:
+                        inappropriate = True
+                        reasons.append(f"Gore class {gore_label}: {prob}")
                 # Tobacco
                 tobacco = result.get('tobacco', {})
                 if tobacco.get('prob', 0) > 0.5:
                     inappropriate = True
                     reasons.append(f"Tobacco: {tobacco}")
+                tobacco_classes = tobacco.get('classes', {})
+                for tobacco_label, prob in tobacco_classes.items():
+                    if prob > 0.5:
+                        inappropriate = True
+                        reasons.append(f"Tobacco class {tobacco_label}: {prob}")
                 # Gambling
                 gambling = result.get('gambling', {})
                 if gambling.get('prob', 0) > 0.5:
