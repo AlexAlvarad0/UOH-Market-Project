@@ -62,6 +62,7 @@ INSTALLED_APPS = [
 
 INSTALLED_APPS += [
     'anymail',  # Para SendGrid
+    'storages'  # Para almacenamiento en S3
 ]
 
 MIDDLEWARE = [
@@ -249,14 +250,24 @@ REST_FRAMEWORK = {
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Media files configuration
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Asegurar que los directorios existan
-import os
-os.makedirs(MEDIA_ROOT, exist_ok=True)
-os.makedirs(STATIC_ROOT, exist_ok=True)
+# Configuración de almacenamiento en S3 para archivos de medios
+if os.getenv('AWS_STORAGE_BUCKET_NAME'):
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_QUERYSTRING_AUTH = False
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+# Si no hay bucket configurado, usar almacenamiento local (útil para desarrollo)
+else:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+    import os
+    os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # En desarrollo, configurar STATICFILES_DIRS si existe el directorio
 if DEBUG:
