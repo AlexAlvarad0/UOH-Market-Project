@@ -207,14 +207,45 @@ const NotificationsMenu: React.FC = () => {
     }, 300);
   };
 
+  // Función para traducir motivos de rechazo IA a mensajes amigables
+  const getFriendlyRejectionReason = (reason: string): string => {
+    if (!reason) return 'Tu publicación fue rechazada por contenido no permitido.';
+    // Mapear motivos IA a mensajes personalizados
+    const lower = reason.toLowerCase();
+    if (lower.includes('alcohol')) {
+      return 'Al parecer tu publicación contiene lo que podría ser alcohol, lo cual no está permitido en UOH Market.';
+    }
+    if (lower.includes('droga') || lower.includes('drug')) {
+      return 'Al parecer tu publicación contiene lo que podría ser drogas o sustancias prohibidas, lo cual no está permitido.';
+    }
+    if (lower.includes('arma') || lower.includes('weapon')) {
+      return 'Al parecer tu publicación contiene lo que podría ser armas o elementos peligrosos, lo cual no está permitido.';
+    }
+    if (lower.includes('tabaco') || lower.includes('tobacco')) {
+      return 'Al parecer tu publicación contiene lo que podría ser tabaco o cigarrillos, lo cual no está permitido.';
+    }
+    if (lower.includes('porn') || lower.includes('sexual')) {
+      return 'Al parecer tu publicación contiene contenido sexual o explícito, lo cual no está permitido.';
+    }
+    if (lower.includes('violencia') || lower.includes('violence')) {
+      return 'Al parecer tu publicación contiene imágenes violentas o inapropiadas, lo cual no está permitido.';
+    }
+    if (lower.includes('dinero') || lower.includes('money')) {
+      return 'No está permitido publicar dinero, billetes o monedas.';
+    }
+    if (lower.includes('inapropiada') || lower.includes('inapropiado') || lower.includes('inappropriate')) {
+      return 'Tu publicación fue rechazada por contener contenido inapropiado.';
+    }
+    // Mensaje genérico si no se reconoce el motivo
+    return 'Tu publicación fue rechazada por contenido no permitido.';
+  };
+
   const handleNotificationClick = async (notification: Notification) => {
     try {
       if (!notification.is_read) {
         await markAsRead(notification.id);
       }
-      
       handleClose();
-      
       if (notification.type === 'message' && notification.related_conversation) {
         await notificationsService.markConversationAsRead(notification.related_conversation);
         setNotifications(prevNotifications => 
@@ -247,11 +278,11 @@ const NotificationsMenu: React.FC = () => {
         navigate(`/chat/${conversationId}`);      } else if (notification.type === 'rating' && user?.id) {
         // Navegar al perfil del usuario actual (quien recibió la calificación), en la pestaña de calificaciones
         navigate(`/profile`);      } else if (notification.type === 'product_rejected') {
-        // Para productos rechazados, abrir modal con motivo completo
+        // Para productos rechazados, abrir modal con motivo completo (personalizado)
         const productName = notification.related_product?.title || 'tu producto';
-        const rejectionReason = notification.extra_data?.rejection_reason || 'No se proporcionó un motivo específico.';
+        const rawReason = notification.extra_data?.rejection_reason || 'No se proporcionó un motivo específico.';
+        const rejectionReason = getFriendlyRejectionReason(rawReason);
         const category = notification.extra_data?.category_name;
-        
         setSelectedRejection({
           productName,
           rejectionReason,
@@ -415,7 +446,8 @@ const NotificationsMenu: React.FC = () => {
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
-                      }                      sx={{
+                      }
+                      sx={{
                         cursor: 'pointer',
                         backgroundColor: notification.is_read 
                           ? 'transparent' 
@@ -482,7 +514,9 @@ const NotificationsMenu: React.FC = () => {
                                 mb: 0.5,
                               }}
                             >
-                              {notification.message}
+                              {notification.type === 'product_rejected'
+                                ? getFriendlyRejectionReason(notification.extra_data?.rejection_reason || notification.message)
+                                : notification.message}
                             </Typography>
                             <Typography
                               component="span"
