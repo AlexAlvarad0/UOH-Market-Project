@@ -462,21 +462,17 @@ class ProductViewSet(viewsets.ModelViewSet):
                             # Obtener la imagen recién creada para moderar
                             image_instance = ProductImage.objects.filter(product=instance).order_by('-id')[i]
                             image_path = image_instance.image.path
-                            
-                            # Usar el sistema de IA mejorado para moderar
-                            from .utils import analyze_image_content
-                            moderation_result = analyze_image_content(image_path)
-                            
-                            
-                            if not moderation_result.get('is_appropriate', True):
+
+                            # Usar el sistema de IA mejorado para moderar (igual que en creación)
+                            from .intelligent_moderator import moderate_product_with_ai
+                            is_approved, rejection_reason = moderate_product_with_ai(instance)
+                            if not is_approved:
                                 inappropriate_images.append({
                                     'image_name': image_file.name,
-                                    'reason': moderation_result.get('reason', 'Contenido detectado como inapropiado'),
-                                    'confidence': moderation_result.get('confidence', 0)
+                                    'reason': rejection_reason,
+                                    'confidence': 1.0
                                 })
-                        
                         except Exception as mod_err:
-                            # En caso de error, por seguridad, marcar como sospechosa
                             inappropriate_images.append({
                                 'image_name': image_file.name,
                                 'reason': f'Error en análisis de seguridad: {str(mod_err)}',
