@@ -444,7 +444,7 @@ const Header = () => {
           justifyContent: 'flex-end',
           height: '100%',
         }}>
-          <NotificationsMenu />
+          {isAuthenticated && <NotificationsMenu />}
           <IconButton
             size="small"
             aria-label="mostrar perfil"
