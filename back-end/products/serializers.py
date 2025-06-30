@@ -18,15 +18,26 @@ class ProductBasicSerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
-
+    
     class Meta:
         model = ProductImage
         fields = ['id', 'image', 'is_primary']
-
+    
     def get_image(self, obj):
-        # Siempre devolver la URL real de Cloudinary
         if obj.image:
-            return obj.image.url
+            url = obj.image.url
+            # Si la URL ya es absoluta (S3), devuélvela tal cual
+            if url.startswith('http://') or url.startswith('https://'):
+                return url
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(url)
+            else:
+                from django.conf import settings
+                base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                if 'railway.app' in base_url and base_url.startswith('http://'):
+                    base_url = base_url.replace('http://', 'https://')
+                return f"{base_url}{url}"
         return None
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -35,6 +46,7 @@ class ProductSerializer(serializers.ModelSerializer):
     seller_username = serializers.ReadOnlyField(source='seller.username')
     is_favorite = serializers.SerializerMethodField()
     seller = serializers.SerializerMethodField()
+    main_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
@@ -42,7 +54,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'price', 'original_price', 'category', 'category_name',
             'seller', 'seller_username', 'condition', 'created_at', 'updated_at',
             'is_available', 'views_count', 'images', 'is_favorite', 'status',
-            'review_scheduled_at', 'manually_unavailable'        ]
+            'review_scheduled_at', 'manually_unavailable', 'main_image_url'        ]
         read_only_fields = [
             'views_count', 'created_at', 'updated_at', 
             'review_scheduled_at', 'manually_unavailable'
@@ -104,6 +116,22 @@ class ProductSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         product = Product.objects.create(seller=user, **validated_data)
         return product
+
+    def get_main_image_url(self, obj):
+        request = self.context.get('request')
+        primary = obj.images.filter(is_primary=True).first() or obj.images.first()
+        if primary and primary.image:
+            url = primary.image.url
+            if url.startswith('http://') or url.startswith('https://'):
+                return url
+            if request:
+                return request.build_absolute_uri(url)
+            from django.conf import settings
+            base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+            if 'railway.app' in base_url and base_url.startswith('http://'):
+                base_url = base_url.replace('http://', 'https://')
+            return f"{base_url}{url}"
+        return None
 
 class ProductDetailSerializer(ProductSerializer):
     # Heredamos el campo seller como SerializerMethodField del ProductSerializer
