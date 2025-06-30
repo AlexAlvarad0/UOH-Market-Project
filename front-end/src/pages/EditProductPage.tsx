@@ -284,28 +284,32 @@ const EditProductPage: React.FC = () => {
     
     setSubmitting(true);
     setError(null);
-    setErrorDialogOpen(false);    try {
+    setErrorDialogOpen(false);
+    try {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
       formData.append('price', price);
       formData.append('category', categoryId.toString());
       formData.append('condition', condition);
-      
       // Agregar IDs de imágenes a eliminar
       removedImageIds.forEach(id => {
         formData.append('remove_images[]', id.toString());
       });
-        // Procesar y agregar nuevas imágenes
+      // Procesar y agregar nuevas imágenes
+      let hasNewImages = false;
       if (images.length > 0) {
+        hasNewImages = true;
         const processedImages = await processImages(images);
-        
         processedImages.forEach((image, index) => {
           const fieldName = `new_images[${index}]`;
           formData.append(fieldName, image);
         });
       }
-
+      // Si hay imágenes nuevas, forzar estado a 'pending'
+      if (hasNewImages) {
+        formData.append('status', 'pending');
+      }
       const response = await api.updateProduct(parseInt(productId), formData);      
       if (response.success) {
         navigate(`/products/${productId}`);
