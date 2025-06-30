@@ -7,6 +7,17 @@ import {
 } from '@mui/icons-material';
 import { API_URL } from '../config';
 
+function getFullMediaUrl(audioUrl: string) {
+  if (audioUrl.startsWith('http')) return audioUrl;
+  // Si la url ya empieza con /media, solo anteponer el dominio sin /api
+  if (audioUrl.startsWith('/media')) {
+    // Quita /api si está en API_URL
+    return API_URL.replace(/\/api$/, '') + audioUrl;
+  }
+  // Para otros casos, anteponer API_URL normalmente
+  return API_URL + (audioUrl.startsWith('/') ? audioUrl : '/' + audioUrl);
+}
+
 interface AudioMessageProps {
   audioUrl: string;
   duration?: number;
@@ -30,10 +41,9 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     }
 
     const audio = new Audio();
-    audioRef.current = audio;    // Construir URL completa si es relativa
-    const fullAudioUrl = audioUrl.startsWith('http') 
-      ? audioUrl 
-      : `${API_URL}${audioUrl.startsWith('/') ? audioUrl : '/' + audioUrl}`;
+    audioRef.current = audio;
+    // Usar la función para construir la URL correcta
+    const fullAudioUrl = getFullMediaUrl(audioUrl);
 
     const handleLoadedMetadata = () => {
       if (isFinite(audio.duration)) {
